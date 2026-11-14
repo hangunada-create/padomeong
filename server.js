@@ -235,14 +235,15 @@ const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 2048 });
 const people = new Map();      // id → {ws, room, x, d, sit, color, name, bot}
 const rooms = new Map();       // 해변 번호 → Set(id)
 const writings = new Map();    // 해변 번호 → [[id, x, d, text, ts, color]]  (모래 글씨, 저장하지 않음)
-const castles = new Map();     // 해변 번호 → {lvl, gen}  (함께 쌓는 모래성, 파도가 닿으면 무너짐)
+const castles = new Map();     // 해변 번호 → 모래성 세 개 [{lvl, gen, by}]  (함께 쌓는 모래성, 파도가 닿으면 무너짐)
+const CASTLE_N = 3, CASTLE_MAX = 9, CASTLE_PER = 3;   // 한 사람이 한 모래성에 세 줌까지 → 세 사람이면 완성
 // 보름달 밤에 띄운 등: 그날 밤(한국 시각 정오 기준)에 띄운 것만 모든 해변이 함께 본다. 저장하지 않음
 const lanterns = { key: '', list: [], by: new Set() };
 const nightKey = () => { const d = new Date(Date.now() + 9 * 3600e3 - 12 * 3600e3); return d.toISOString().slice(0, 10); };
 function lanternList() { const k = nightKey(); if (lanterns.key !== k) { lanterns.key = k; lanterns.list = []; lanterns.by.clear(); } return lanterns.list; }
 let nextL = 1;
 const shotsBy = { key: '', n: new Map() };
-const castleOf = room => { if (!castles.has(room)) castles.set(room, { lvl: 0, gen: 1 }); return castles.get(room); };
+const castleOf = room => { if (!castles.has(room)) castles.set(room, Array.from({ length: CASTLE_N }, () => ({ lvl: 0, gen: 1, by: new Map() }))); return castles.get(room); };
 const ROOM_CAP = Number(process.env.ROOM_CAP) || 80;           // 해변 하나에 들어가는 사람 수
 const perIp = new Map();
 const dirty = new Set();
@@ -316,7 +317,7 @@ wss.on('connection', (ws, req) => {
       const d = day(); d.최대동시접속 = Math.max(d.최대동시접속, people.size);
       if (!isBot) bump('입장');
       const cs = castleOf(room);
-      send(ws, { t: 'hi', id, now: Date.now(), room, rooms: rooms.size, p: list, w: writings.get(room) || [], today: todayView(), wx: weather, castle: [cs.lvl, cs.gen], ln: lanternList() });
+      send(ws, { t: 'hi', id, now: Date.now(), room, rooms: rooms.size, p: list, w: writings.get(room) || [], today: todayView(), wx: weather, castle: cs.map(c => [c.lvl, c.gen]), ln: lanternList() });
       sendRoom(room, { t: 'in', p: [id, me.x, me.d, me.sit, me.color, me.name, me.k, me.g] }, id);
       roomsChanged();
       return;
@@ -340,16 +341,17 @@ wss.on('connection', (ws, req) => {
       sendRoom(me.room, { t: 'g', from: id, to });
 
     } else if (m.t === 'cb') {                    // 모래성에 모래 한 줌 보태기
-      if (t - lastBuild < 2500) return;
-      lastBuild = t;
-      const c = castleOf(me.room); if (c.lvl >= 30) return;
-      c.lvl++; sendRoom(me.room, { t: 'cs', lvl: c.lvl, gen: c.gen, by: id });
+      if (t - lastBuild < 1500) return;
+      const i = m.i | 0, c = castleOf(me.room)[i]; if (!c || c.lvl >= CASTLE_MAX) return;
+      const n = c.by.get(id) || 0; if (n >= CASTLE_PER) return;
+      lastBuild = t; c.by.set(id, n + 1);
+      c.lvl++; sendRoom(me.room, { t: 'cs', i, lvl: c.lvl, gen: c.gen, by: id });
 
     } else if (m.t === 'cc') {                    // 파도가 모래성에 닿았다는 알림 (누가 보내든 한 번만)
-      const c = castleOf(me.room);
-      if (Number(m.gen) !== c.gen || c.lvl === 0) return;
-      const was = c.lvl; c.lvl = 0; c.gen++;
-      sendRoom(me.room, { t: 'cs', lvl: 0, gen: c.gen, fell: was });
+      const i = m.i | 0, c = castleOf(me.room)[i];
+      if (!c || Number(m.gen) !== c.gen || c.lvl === 0) return;
+      const was = c.lvl; c.lvl = 0; c.gen++; c.by.clear();
+      sendRoom(me.room, { t: 'cs', i, lvl: 0, gen: c.gen, fell: was });
 
     } else if (m.t === 'mine' && Array.isArray(m.ids)) {   // 내가 띄운 병이 몇 명에게 닿았는지
       const r = {};

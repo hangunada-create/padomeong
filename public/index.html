@@ -1365,42 +1365,53 @@ document.getElementById('dexClose').addEventListener('click', () => dexSheet.cla
 
 /* ───────── 함께 쌓는 모래성 ─────────
    누구나 눌러 모래를 보탠다. 높아질수록 탑과 깃발이 생기고, 물이 차올라 파도가 닿으면 무너진다. */
-const CASTLE = { x: 1380, d: 0.2 };       // 만조 무렵에만 파도가 닿는 높이
-let castle = { lvl: 0, gen: 1, fellAt: 0, fellLvl: 0, ccSent: 0, mine: {} }, lastBuildLocal = 0, castleHinted = false;
+const CASTLES = [{ x: 640, d: 0.22 }, { x: 1380, d: 0.2 }, { x: 2380, d: 0.24 }];   // 만조 무렵에만 파도가 닿는 높이
+const CASTLE_MAX = 9, CASTLE_PER = 3;     // 한 사람이 한 모래성에 세 줌까지 → 세 사람이 보태면 완성
+const castles = CASTLES.map(() => ({ lvl: 0, gen: 1, fellAt: 0, fellLvl: 0, ccSent: 0, mine: {} }));
+let lastBuildLocal = 0, castleHinted = false;
 function onCastle(m) {
-  const prevGen = castle.gen;
+  const c = castles[m.i | 0]; if (!c) return;
+  const prevGen = c.gen, C = CASTLES[m.i | 0];
   if (m.fell) {
-    castle.fellAt = performance.now(); castle.fellLvl = m.fell;
-    if ((castle.mine[prevGen] || 0) >= 3 && m.fell >= 15) setTimeout(() => addItem('flag'), 1500);
-    if (Math.abs(me.x - CASTLE.x) < 900) toast('파도가 모래성을 데려갔어요');
+    c.fellAt = performance.now(); c.fellLvl = m.fell;
+    if ((c.mine[prevGen] || 0) >= 1 && m.fell >= CASTLE_MAX) setTimeout(() => addItem('flag'), 1500);
+    if (Math.abs(me.x - C.x) < 900) toast('파도가 모래성을 데려갔어요');
   }
-  castle.lvl = m.lvl; castle.gen = m.gen;
+  if (!m.init && m.lvl === CASTLE_MAX && c.lvl < CASTLE_MAX && Math.abs(me.x - C.x) < 900) toast('모래성이 완성됐어요 · 깃발이 올랐어요');
+  c.lvl = m.lvl; c.gen = m.gen;
 }
-function buildCastle() {
-  const pn = performance.now();
-  if (pn - lastBuildLocal < 2500) return;
-  lastBuildLocal = pn; castle.mine[castle.gen] = (castle.mine[castle.gen] || 0) + 1;
+function buildCastle(i = 1) {
+  const pn = performance.now(), c = castles[i];
+  if (pn - lastBuildLocal < 1500) return;
+  if (c.lvl >= CASTLE_MAX) { toast('이 모래성은 다 지어졌어요'); return; }
+  if ((c.mine[c.gen] || 0) >= CASTLE_PER) { toast('내 몫은 다 보탰어요 · 다른 사람 손을 기다려요'); return; }
+  lastBuildLocal = pn; c.mine[c.gen] = (c.mine[c.gen] || 0) + 1;
   if (!castleHinted) { castleHinted = true; toast('모래를 한 줌 보탰어요'); }
-  if (ws && online) ws.send(JSON.stringify({ t: 'cb' }));
-  else castle.lvl = Math.min(30, castle.lvl + 1);
+  if (ws && online) ws.send(JSON.stringify({ t: 'cb', i }));
+  else onCastle({ i, lvl: Math.min(CASTLE_MAX, c.lvl + 1), gen: c.gen });
 }
 function castleTick(t, wv) {
-  if (castle.lvl > 0 && edgeD(wv.reach) + wobble(CASTLE.x, t) >= CASTLE.d - 0.005 && castle.ccSent !== castle.gen) {
-    castle.ccSent = castle.gen;
-    if (ws && online) ws.send(JSON.stringify({ t: 'cc', gen: castle.gen }));
-    else onCastle({ lvl: 0, gen: castle.gen + 1, fell: castle.lvl });
-  }
+  castles.forEach((c, i) => {
+    const C = CASTLES[i];
+    if (c.lvl > 0 && edgeD(wv.reach) + wobble(C.x, t) >= C.d - 0.005 && c.ccSent !== c.gen) {
+      c.ccSent = c.gen;
+      if (ws && online) ws.send(JSON.stringify({ t: 'cc', i, gen: c.gen }));
+      else onCastle({ i, lvl: 0, gen: c.gen + 1, fell: c.lvl });
+    }
+  });
 }
-function drawCastle(pn) {
-  const s = sOf(CASTLE.d), x = xOf(CASTLE.x, CASTLE.d), y = yOf(CASTLE.d);
+function drawCastle(pn, i) {
+  const c = castles[i], C = CASTLES[i];
+  const s = sOf(C.d), x = xOf(C.x, C.d), y = yOf(C.d);
   if (x < -150 * s || x > W + 150 * s) return;
   const sandC = '#d9c18f', dark = '#b89c68';
-  const fall = castle.fellAt ? clamp(1 - (pn - castle.fellAt) / 3000, 0, 1) : 0;
+  const fall = c.fellAt ? clamp(1 - (pn - c.fellAt) / 3000, 0, 1) : 0;
   if (fall > 0) {                                      // 무너진 자리
-    ctx.fillStyle = dark; ctx.beginPath(); ctx.ellipse(x, y, (20 + castle.fellLvl * 2) * s, (5 + castle.fellLvl * 0.4) * s * fall + 2 * s, 0, Math.PI, 0); ctx.fill();
+    const F = c.fellLvl * 30 / CASTLE_MAX;
+    ctx.fillStyle = dark; ctx.beginPath(); ctx.ellipse(x, y, (20 + F * 2) * s, (5 + F * 0.4) * s * fall + 2 * s, 0, Math.PI, 0); ctx.fill();
     return;
   }
-  const L = castle.lvl;
+  const L = Math.round(c.lvl * 30 / CASTLE_MAX);       // 그림은 30단계 그대로
   ctx.fillStyle = 'rgba(60,45,25,.15)'; ctx.beginPath(); ctx.ellipse(x, y + 2 * s, (26 + L * 1.6) * s, 6 * s, 0, 0, 6.3); ctx.fill();
   ctx.fillStyle = dark; ctx.beginPath(); ctx.ellipse(x, y, (14 + Math.min(L, 8) * 2.4) * s, (4 + Math.min(L, 8) * 0.9) * s, 0, Math.PI, 0); ctx.fill();
   const tower = (tx, w, h, col) => {
@@ -1418,15 +1429,18 @@ function drawCastle(pn) {
   }
 }
 function hitCastle(cx, cy) {
-  const s = sOf(CASTLE.d);
-  return Math.abs(cx - xOf(CASTLE.x, CASTLE.d)) < (30 + castle.lvl) * s + 10 && cy < yOf(CASTLE.d) + 10 * s && cy > yOf(CASTLE.d) - (50 + castle.lvl * 2) * s;
+  for (let i = 0; i < CASTLES.length; i++) {
+    const C = CASTLES[i], L = castles[i].lvl * 30 / CASTLE_MAX, s = sOf(C.d);
+    if (Math.abs(cx - xOf(C.x, C.d)) < (30 + L) * s + 10 && cy < yOf(C.d) + 10 * s && cy > yOf(C.d) - (50 + L * 2) * s) return i;
+  }
+  return -1;
 }
 
 /* ───────── 모닥불: 밤에, 앉은 사람이 많을수록 커진다 ───────── */
 const FIRE = { x: 1760, d: 0.42 };
 const sparks = [];
 function drawFire(pn, nf) {
-  if (nf < 0.5) return;
+  if (nf < 0.5 || RAINY()) return;          // 비 오는 날엔 불을 피우지 않는다
   const s = sOf(FIRE.d), x = xOf(FIRE.x, FIRE.d), y = yOf(FIRE.d);
   if (x < -200 * s || x > W + 200 * s) return;
   let n = me.sit ? 1 : 0; for (const p of peers.values()) if (p.sit) n++;
@@ -1561,22 +1575,22 @@ function drawCrabs(pn, nf) {
   }
 }
 
-let gull = null;
+let gull = null, gullNext = 0;
 function gullTick(pn, day) {
-  const sitFor = me.sit ? pn - sitAt : 0, need = FAST ? 3000 : 60000;
-  if (!gull && joined && me.sit && sitFor > need && day && !RAINY() && WXF.wind < 10) {
+  const sitFor = me.sit ? pn - sitAt : 0, need = FAST ? 3000 : 25000;
+  if (!gull && pn > gullNext && joined && me.sit && sitFor > need && day && !RAINY() && WXF.wind < 10) {
     const side = Math.random() < 0.5 ? -1 : 1;
-    gull = { side, dist: 250, d: me.d - 0.03, st: 'in', t0: pn, hop: pn + (FAST ? 2500 : 35000 + Math.random() * 15000), look: 0, told: false };
+    gull = { side, dist: 250, d: me.d - 0.03, st: 'in', t0: pn, hop: pn + (FAST ? 2500 : 15000 + Math.random() * 10000), look: 0, told: false };
   }
   if (!gull) return;
   gull.x = clamp(me.x + gull.side * gull.dist, 40, WORLD_W - 40);
   if (gull.st !== 'off' && (!me.sit || !day || RAINY())) { gull.st = 'off'; gull.t0 = pn; }
   if (gull.st === 'in' && pn - gull.t0 > 2600) { gull.st = 'stand'; }
   if (gull.st === 'stand' && pn > gull.hop && gull.dist > 75) {
-    gull.dist = Math.max(70, gull.dist - 45); gull.hopT = pn; gull.hop = pn + (FAST ? 2500 : 30000 + Math.random() * 20000);
+    gull.dist = Math.max(70, gull.dist - 45); gull.hopT = pn; gull.hop = pn + (FAST ? 2500 : 15000 + Math.random() * 10000);
     if (gull.dist <= 75 && !gull.told) { gull.told = true; if (!dex.gull) addItem('gull', '갈매기가 바로 곁까지 왔어요 · 도감에 담았어요'); }
   }
-  if (gull.st === 'off' && pn - gull.t0 > 2200) gull = null;
+  if (gull.st === 'off' && pn - gull.t0 > 2200) { gull = null; gullNext = pn + (FAST ? 2000 : 20000); }
 }
 function gullScreen(pn) {
   const s = sOf(gull.d), x = xOf(gull.x, gull.d), y = yOf(gull.d);
@@ -1615,10 +1629,10 @@ function hitGull(cx, cy, pn) {
   gull.st = 'off'; gull.t0 = pn; return true;
 }
 
-let porp = null, porpNext = performance.now() + (FAST ? 6000 : 240000 + Math.random() * 900000);
+let porp = null, porpNext = performance.now() + (FAST ? 6000 : 60000 + Math.random() * 120000);
 function porpTick(pn, pal, dE) {
   if (!porp && joined && pn > porpNext) {
-    porpNext = pn + (FAST ? 9000 : 600000 + Math.random() * 1200000);
+    porpNext = pn + (FAST ? 9000 : 180000 + Math.random() * 300000);
     if (pal.stars < 0.6 && WXF.wind < 8 && !WXF.fog && WXF.rain < 0.6) {
       const hy = horizonY(), ye = yOf(dE), y = lerp(hy + 8 * U, ye - 18 * U, 0.3 + Math.random() * 0.4);
       porp = { x: W * (0.15 + Math.random() * 0.55), y, dir: Math.random() < 0.5 ? -1 : 1, t0: pn, k: clamp((y - hy) / Math.max(1, ye - hy), 0, 1) };
@@ -2261,19 +2275,19 @@ function frame(pn) {
   drawDecor(pal);
   spawnItems(t, wv); drawItems(pn, t, wv);
   crabTick(pn, t); drawCrabs(pn, nf);
-  gullTick(pn, pal.stars < 0.4); drawGull(pn);
+  gullTick(pn, pal.stars < 0.6); drawGull(pn);
   if (t - highAt > 5000) { highAt = t; HIGH_NOW = nearHigh(t); }
   if (HIGH_NOW && joined && !highTold && !(me.sit && !RAINY()) && me.vd < dE + wobble(me.vx, t) + 0.012) { highTold = true; addItem('hightide', dex.hightide ? '만조의 물이 발목까지 올라왔어요' : '만조의 물이 발목까지 올라왔어요 · 도감에 담았어요'); }
   drawProjections(t, nf);
   drawBottles(pn, t, dE, nf);
 
   const all = [...peers.values()]; if (joined) all.push(me);
-  all.push({ stall: true, vd: STALL.d }, { castle: true, vd: CASTLE.d }, { fire: true, vd: FIRE.d });
+  all.push({ stall: true, vd: STALL.d }, { fire: true, vd: FIRE.d }); CASTLES.forEach((C, i) => all.push({ castle: true, ci: i, vd: C.d }));
   all.sort((a, b) => a.vd - b.vd);
   const night = nf > 0.5;
   for (const a of all) {
     if (a.stall) { drawStall(t, nf); continue; }
-    if (a.castle) { drawCastle(pn); continue; }
+    if (a.castle) { drawCastle(pn, a.ci); continue; }
     if (a.fire) { drawFire(pn, nf); continue; }
     drawPerson(a, t, a.vd < dE + wobble(a.vx, t) + 0.012, night);
     drawGift(a, pn, night);
@@ -2437,7 +2451,7 @@ function connect() {
       writings.length = 0; for (const w of m.w || []) addWriting(w);
       if (m.today) setToday(m.today);
       if (m.wx) setWX(m.wx);
-      if (m.castle) onCastle({ lvl: m.castle[0], gen: m.castle[1] });
+      (Array.isArray(m.castle && m.castle[0]) ? m.castle : []).forEach((c, i) => onCastle({ i, lvl: c[0], gen: c[1], init: 1 }));
       for (const l of m.ln || []) addLantern(l, false);
       askBottleNews();
     } else if (m.t === 'in') addPeer(m.p);
@@ -2502,7 +2516,7 @@ cv.addEventListener('pointerdown', e => {
   const pn = performance.now();
   if (e.clientY < horizonY() + 4 && (hitStar(e.clientX, e.clientY, pn) || hitLantern(e.clientX, e.clientY, pn))) return;
   if (hitPorpoise(e.clientX, e.clientY, pn) || hitGull(e.clientX, e.clientY, pn)) return;
-  if (hitCastle(e.clientX, e.clientY)) { buildCastle(); return; }
+  const ci = hitCastle(e.clientX, e.clientY); if (ci >= 0) { buildCastle(ci); return; }
   const it = hitItem(e.clientX, e.clientY);
   if (it) {
     if (me.sit) { toast(RAINY() ? '걸어가서 주워요' : '일어나서 주우러 가요'); return; }
@@ -2572,7 +2586,7 @@ function enter() {
   setTimeout(() => hint.classList.add('gone'), 9000);
 }
 document.getElementById('go').addEventListener('click', enter);
-if (FAST) window.__pm = { me, castle: () => castle, items: () => items, setWX, buildCastle, addItem, spawnReset: () => { itemEpoch = -1; }, beaconWord, crabs: () => crabs, gull: () => gull, porpNow: () => { porpNext = 0; }, porp: () => porp, FIREWORKS, weekSentence, cst: () => cst, constelPts, lanterns, writings, dex: () => dex, high: () => HIGH_NOW, setSit, peers, xy: (x, d) => [xOf(x, d), yOf(d)], shots, aim: () => aimDrag };   // 시험용
+if (FAST) window.__pm = { me, castle: () => castles, items: () => items, setWX, buildCastle, addItem, spawnReset: () => { itemEpoch = -1; }, beaconWord, crabs: () => crabs, gull: () => gull, porpNow: () => { porpNext = 0; }, porp: () => porp, FIREWORKS, weekSentence, cst: () => cst, constelPts, lanterns, writings, dex: () => dex, high: () => HIGH_NOW, setSit, peers, xy: (x, d) => [xOf(x, d), yOf(d)], shots, aim: () => aimDrag };   // 시험용
 nick.addEventListener('keydown', e => { if (e.key === 'Enter') enter(); });
 })();
 </script>
