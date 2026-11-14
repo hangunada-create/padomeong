@@ -339,16 +339,16 @@ wss.on('connection', (ws, req) => {
       id = nextId++;
       const room = pickRoom();
       const me = { ws, room, x: clamp(num(m.x, WORLD_W / 2), 40, WORLD_W - 40), d: clamp(num(m.d, 0.8), D_MIN, D_MAX),
-                   sit: m.sit ? 1 : 0, k: m.k ? 1 : 0, g: m.g === 'f' ? 'f' : 'm', color: clamp(Math.floor(num(m.color, 0)), 0, 7), name: cleanName(m.name), bot: isBot };
+                   sit: m.sit ? 1 : 0, k: m.k ? 1 : 0, g: m.g === 'f' ? 'f' : 'm', st: ['mat', 'chair', 'hammock'].includes(m.st) ? m.st : 'mat', n: m.n ? 1 : 0, color: clamp(Math.floor(num(m.color, 0)), 0, 7), name: cleanName(m.name), bot: isBot };
       if (!rooms.has(room)) rooms.set(room, new Set());
       const list = [];
-      for (const pid of rooms.get(room)) { const p = people.get(pid); if (p) list.push([pid, p.x, p.d, p.sit, p.color, p.name, p.k, p.g]); }
+      for (const pid of rooms.get(room)) { const p = people.get(pid); if (p) list.push([pid, p.x, p.d, p.sit, p.color, p.name, p.k, p.g, p.st, p.n]); }
       rooms.get(room).add(id); people.set(id, me);
       const d = day(); d.최대동시접속 = Math.max(d.최대동시접속, people.size);
       if (!isBot) bump('입장');
       const cs = castleOf(room);
       send(ws, { t: 'hi', id, now: Date.now(), room, rooms: rooms.size, p: list, w: writings.get(room) || [], today: todayView(), wx: weather, castle: cs.map(c => [c.lvl, c.gen]), ball: ballOf(room), ob: omokView(omokOf(room)), ln: lanternList(), qa: qaList().slice(-40), sn: sunsetCount() });
-      sendRoom(room, { t: 'in', p: [id, me.x, me.d, me.sit, me.color, me.name, me.k, me.g] }, id);
+      sendRoom(room, { t: 'in', p: [id, me.x, me.d, me.sit, me.color, me.name, me.k, me.g, me.st, me.n] }, id);
       roomsChanged();
       return;
     }
@@ -408,6 +408,14 @@ wss.on('connection', (ws, req) => {
       me.shot = k; shotsBy.n.set(tag, used + 1); bump('불꽃');
       const ax = clamp(num(m.ax, 0), -300, 300), ay = clamp(num(m.ay, -100), -300, 0);
       sendRoom(me.room, { t: 'pf', id, ax, ay }, id);
+
+    } else if (m.t === 'look') {                  // 앉을 것·목걸이 바꾸기
+      me.st = ['mat', 'chair', 'hammock'].includes(m.st) ? m.st : me.st; me.n = m.n ? 1 : 0;
+      sendRoom(me.room, { t: 'look', id, st: me.st, n: me.n }, id);
+
+    } else if (m.t === 'gc') {                    // 끼룩 (갈매기 흉내)
+      if (t - (me.gcAt || 0) < 2000) return; me.gcAt = t; bump('끼룩');
+      sendRoom(me.room, { t: 'gc', id }, id);
 
     } else if (m.t === 'kick') {                  // 해변 공 차기
       if (t - (me.kickAt || 0) < 500) return; me.kickAt = t;
