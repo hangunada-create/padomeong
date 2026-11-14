@@ -114,9 +114,6 @@
   .sheet .note { font-size: 12px; color: #8a6a4f; min-height: 16px; margin-top: 6px; }
   .sheet .guide { font-size: 11.5px; line-height: 1.6; color: #7d8a94; margin: 6px 0 4px; padding-bottom: 8px; border-bottom: 1px dashed #e2dccd; word-break: keep-all; }
   .sheet img.pic { width: 100%; border-radius: 8px; margin-top: 10px; display: block; box-shadow: 0 4px 14px rgba(0,0,0,.15); }
-  #wallList { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
-  #wallList figure { margin: 0; font-size: 11.5px; color: #6a7884; text-align: center; } #wallList img { width: 100%; border-radius: 6px; display: block; margin-bottom: 3px; }
-  #wallList .empty { grid-column: 1 / -1; font-size: 13px; color: #8a6a4f; padding: 14px 0; text-align: center; }
   #gate { position: fixed; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center;
           background: linear-gradient(rgba(16,40,70,.35), rgba(16,40,70,.6)); transition: opacity .9s ease; }
   #gate.gone { opacity: 0; pointer-events: none; }
@@ -165,7 +162,7 @@
   <button id="dexBtn" class="chip">도감</button>
   <button id="cardBtn" class="chip">엽서</button>
 </div>
-<div id="dexSheet" class="sheet"><div class="k">물이 빠지면 무언가 드러나요</div><div class="guide" id="dexGuide">? 칸을 누르면 실마리가 나와요. 날씨와 물때, 달과 별을 따라 천천히 모여요.<br>도감은 지금 이 기기, 이 브라우저에 담겨요. 다른 기기나 시크릿 창에서는 따로 모이고, 방문 기록을 지우면 사라져요.<br>다 모으면 완성 카드를 받아 노점 벽에 걸 수 있어요.</div><div id="dexGrid"></div><div class="note" id="dexNote"></div><div id="dexExtra"></div>
+<div id="dexSheet" class="sheet"><div class="k">물이 빠지면 무언가 드러나요</div><div class="guide" id="dexGuide">? 칸을 누르면 실마리가 나와요. 날씨와 물때, 달과 별을 따라 천천히 모여요.<br>도감은 지금 이 기기, 이 브라우저에 담겨요. 다른 기기나 시크릿 창에서는 따로 모이고, 방문 기록을 지우면 사라져요.<br>다 모으면 완성 카드를 받아 간직하고, 노점에 알릴 수 있어요.</div><div id="dexGrid"></div><div class="note" id="dexNote"></div><div id="dexExtra"></div>
 <div class="row"><span></span><button class="main" id="dexClose">닫기</button></div></div>
 <div id="cardSheet" class="sheet"><div class="k">지금 이 바다를 엽서 한 장으로</div><img id="cardImg" alt="파도멍 엽서">
 <div class="note">휴대폰은 사진을 길게 눌러 저장할 수도 있어요</div>
@@ -181,13 +178,12 @@
 <div id="omokSheet" class="sheet"><div class="k">모래 오목 · 다섯 알을 먼저 잇는 쪽이 이겨요. 같은 해변 사람들과 함께 둬요.</div><div id="omokGrid"></div><div class="note" id="omokNote"></div><div class="row"><button class="sub" id="omokNew">새 판</button><button class="main" id="omokClose">닫기</button></div></div>
 <div id="mapSheet" class="sheet"><div class="k">낡은 지도</div><canvas id="mapCanvas" class="pic" width="560" height="360"></canvas><div class="note" id="mapNote"></div><div class="row"><button class="main" id="mapClose">닫기</button></div></div>
 <div id="photoSheet" class="sheet"><div class="k">짙은 갈색 병 속에 빛바랜 그림 한 장이 말려 있었어요</div><canvas id="photoCanvas" class="pic" width="560" height="380"></canvas><div class="note" id="photoNote"></div><div class="row"><button class="main" id="photoClose">닫기</button></div></div>
-<div id="doneSheet" class="sheet"><div class="k">도감 완성 카드</div><img id="doneImg" class="pic" alt="도감 완성 카드"><div class="note" id="doneNote">그림을 길게 누르거나 '그림으로 저장'을 누르면 간직할 수 있어요</div><div class="row"><button class="sub" id="doneSave">그림으로 저장</button><button class="sub" id="doneHang">노점 벽에 걸기</button><button class="main" id="doneClose">닫기</button></div></div>
-<div id="wallSheet" class="sheet"><div class="k">이음수산 노점 벽 · 도감을 다 모은 사람들</div><div id="wallList"></div><div class="row"><span></span><button class="main" id="wallClose">닫기</button></div></div>
+<div id="doneSheet" class="sheet"><div class="k">도감 완성 카드</div><img id="doneImg" class="pic" alt="도감 완성 카드"><div class="note" id="doneNote">그림을 길게 누르거나 '그림으로 저장'을 누르면 간직할 수 있어요</div><div class="row"><button class="sub" id="doneSave">그림으로 저장</button><button class="sub" id="doneHang">노점에 알리기</button><button class="main" id="doneClose">닫기</button></div></div>
 <div id="stall" class="hud" aria-live="polite">
   <svg id="stallLogo" class="k" viewBox="130 205 626 470" aria-label="이음수산 로고"><g fill="none"><circle cx="307" cy="335" r="86.5" stroke="#67a9dc" stroke-width="55"/><circle cx="584" cy="340" r="86.5" stroke="#67a9dc" stroke-width="55"/><polyline points="157,647 289,508 418,644" stroke="#22365a" stroke-width="56" stroke-linejoin="miter"/><polyline points="467,646 598,508 729,644" stroke="#22365a" stroke-width="56" stroke-linejoin="miter"/></g></svg>
   <div class="f" id="stallFish"></div>
   <div class="l" id="stallLine"></div>
-  <div class="b"><button id="stallNext">다른 이야기</button><button id="stallFeed">멸치 한 줌</button><button id="stallWall">노점 벽</button><a href="https://ieumfish.co.kr" target="_blank" rel="noopener">가게 구경하기 · ieumfish.co.kr</a></div>
+  <div class="b"><button id="stallNext">다른 이야기</button><button id="stallFeed">멸치 한 줌</button><a href="https://ieumfish.co.kr" target="_blank" rel="noopener">가게 구경하기 · ieumfish.co.kr</a></div>
 </div>
 <button id="act" class="hud">파라솔 펴고 앉기</button>
 
@@ -1446,7 +1442,7 @@ function pickTick() {
   }
 }
 const dexSheet = document.getElementById('dexSheet'), dexGrid = document.getElementById('dexGrid'), dexNote = document.getElementById('dexNote');
-/* ───────── 도감 완성 카드: 그림으로 저장, 노점 벽에 걸기 ───────── */
+/* ───────── 도감 완성 카드: 그림으로 저장, 노점에 알리기 ───────── */
 const doneSheet = document.getElementById('doneSheet'), doneImg = document.getElementById('doneImg'), doneNote = document.getElementById('doneNote');
 let doneURL = '';
 function makeDone() {
@@ -1481,30 +1477,14 @@ document.getElementById('doneSave').addEventListener('click', () => {
   doneNote.textContent = '저장되지 않으면 그림을 길게 눌러 저장해 주세요';
 });
 document.getElementById('doneHang').addEventListener('click', async () => {
-  const btn = document.getElementById('doneHang'); btn.disabled = true; doneNote.textContent = '노점으로 가져가는 중…';
+  const btn = document.getElementById('doneHang'); btn.disabled = true; doneNote.textContent = '노점에 알리는 중…';
   try {
     const r = await fetch('/card', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: me.name, img: doneURL }) });
     const j = await r.json().catch(() => ({}));
-    if (r.ok) { save('pm_cardhung', String(dayIdx(now()))); doneNote.textContent = '노점 벽에 걸었어요 · 노점에서 "노점 벽"을 눌러 보세요'; chime([660, 880], 0.15); }
-    else { doneNote.textContent = j.안내 || '지금은 걸 수 없어요'; if (r.status !== 429) btn.disabled = false; }
-  } catch (e) { doneNote.textContent = '바닷가와 연결이 끊겨 걸지 못했어요'; btn.disabled = false; }
+    if (r.ok) { save('pm_cardhung', String(dayIdx(now()))); doneNote.textContent = '노점 주인에게 알렸어요 · 다 모아 줘서 고마워요'; chime([660, 880], 0.15); }
+    else { doneNote.textContent = j.안내 || '지금은 알릴 수 없어요'; if (r.status !== 429) btn.disabled = false; }
+  } catch (e) { doneNote.textContent = '바닷가와 연결이 끊겨 알리지 못했어요'; btn.disabled = false; }
 });
-const wallSheet = document.getElementById('wallSheet'), wallList = document.getElementById('wallList');
-async function openWall() {
-  wallList.innerHTML = '<div class="empty">벽을 살펴보는 중…</div>'; wallSheet.classList.add('on'); wake();
-  try {
-    const list = await (await fetch('/cards')).json();
-    wallList.innerHTML = '';
-    if (!list.length) { wallList.innerHTML = '<div class="empty">아직 걸린 카드가 없어요. 도감을 다 모으면 첫 카드를 걸 수 있어요</div>'; return; }
-    for (const c of list) {
-      const f = document.createElement('figure'), im = new Image(); im.src = `/cards/${c.id}.jpg`; im.alt = c.name; im.loading = 'lazy';
-      const d = new Date(c.ts + 9 * 3600e3), cap = document.createElement('figcaption'); cap.textContent = `${c.name} · ${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일`;
-      f.append(im, cap); wallList.appendChild(f);
-    }
-  } catch (e) { wallList.innerHTML = '<div class="empty">바닷가와 연결이 끊겨 벽을 볼 수 없어요</div>'; }
-}
-document.getElementById('stallWall').addEventListener('click', openWall);
-document.getElementById('wallClose').addEventListener('click', () => wallSheet.classList.remove('on'));
 const HINTS = {
   oyster: '물이 빠지면 모래 위를 둘러보세요', clam: '물이 빠지면 모래 위를 둘러보세요', pebble: '물이 빠지면 모래 위를 둘러보세요', kelp: '물이 빠지면 모래 위를 둘러보세요', crab: '물이 빠지면 모래 위를 둘러보세요',
   conch: '물 빠진 모래에서, 조금 드물게', star: '물 빠진 모래에서, 조금 드물게', glassG: '물 빠진 모래에서, 조금 드물게', feather: '바람 센 날 물 빠진 모래에서',
