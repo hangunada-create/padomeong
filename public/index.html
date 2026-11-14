@@ -65,9 +65,9 @@
           display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; white-space: nowrap; width: max-content; max-width: 94vw; }
   #acts .chip { padding: 8px 11px; font-size: 12.5px; }
   #acts .chip.on { background: rgba(255,255,255,.88); color: #24435c; }
-  #sendBtn, #kiteBtn, #lanternBtn, #fwBtn, #feedBtn, #glassBtn, #toadBtn, #gcBtn { display: none; }
-  #sendBtn.on, #kiteBtn.on, #lanternBtn.on, #fwBtn.on, #feedBtn.on, #glassBtn.on, #toadBtn.on, #gcBtn.on { display: inline-block; }
-  #acts { transition: opacity 1.5s; } #acts.calm { opacity: .3; }
+  #sendBtn, #kiteBtn, #lanternBtn, #fwBtn, #feedBtn, #toadBtn, #gcBtn { display: none; }
+  #sendBtn.on, #kiteBtn.on, #lanternBtn.on, #fwBtn.on, #feedBtn.on, #toadBtn.on, #gcBtn.on { display: inline-block; }
+  #acts { transition: opacity 1.5s; }
   #omokGrid { display: grid; grid-template-columns: repeat(9, 1fr); width: min(306px, 78vw); aspect-ratio: 1; margin: 10px auto 4px; background: #e2cc9c; border-radius: 8px; padding: 6px; box-sizing: border-box; }
   #omokGrid button { border: 0; padding: 0; background: linear-gradient(#a8885c, #a8885c) center / 1px 100% no-repeat, linear-gradient(#a8885c, #a8885c) center / 100% 1px no-repeat; cursor: pointer; position: relative; }
   #omokGrid button.k::after, #omokGrid button.w::after { content: ''; position: absolute; inset: 12%; border-radius: 50%; background: #2b2b2e; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
@@ -154,7 +154,6 @@
   <button id="lanternBtn" class="chip">등 띄우기</button>
   <button id="fwBtn" class="chip">불꽃 한 발</button>
   <button id="feedBtn" class="chip">멸치 던지기</button>
-  <button id="glassBtn" class="chip">모래시계</button>
   <button id="toadBtn" class="chip">두꺼비집</button>
   <button id="gcBtn" class="chip">끼룩</button>
   <button id="dexBtn" class="chip">도감</button>
@@ -1318,7 +1317,6 @@ const ITEMS = [
   ['halo', '달무리', 3, '습한 밤, 달 둘레에 커다란 빛 고리가 졌다.'],
   ['starsea', '폭풍 뒤 불가사리', 3, '바람 센 날 다음 아침, 밀려온 불가사리 여덟을 모두 바다로 돌려보냈다.'],
   ['gullflock', '갈매기 떼', 3, '노점에서 받은 멸치를 던지자 갈매기 떼가 낚아챘다.'],
-  ['hourglass', '모래시계 3분', 3, '모래가 다 내려갈 때까지 바다만 보았다.'],
   ['seaglass', '일곱 빛 바다 유리', 3, '물 빠진 모래에서 흰·초록·갈색·파랑·하늘·보라·빨강 바다 유리를 다 모았다.'],
   ['omok', '모래 오목', 3, '모래 위 오목판에서 한 판을 끝까지 두었다.'],
   ['horn', '뱃고동', 3, '흑산도 가는 배가 목포항을 떠나며 울린 뱃고동을 들었다.'],
@@ -1373,7 +1371,6 @@ function drawItemShape(g, id, x, y, s) {
     case 'halo': g.strokeStyle = 'rgba(150,160,200,.9)'; g.lineWidth = 1.6; g.beginPath(); g.arc(0, 0, 10, 0, 6.3); g.stroke(); g.fillStyle = '#e9e2b8'; g.beginPath(); g.arc(0, 0, 4.5, 0, 6.3); g.fill(); break;
     case 'starsea': drawItemShape(g, 'star', -3, 2, 0.75); drawItemShape(g, 'star', 5, -3, 0.6); break;
     case 'gullflock': for (const [a, b] of [[-5, -4], [4, -1], [-1, 5]]) { g.strokeStyle = '#7d8794'; g.lineWidth = 1.4; g.beginPath(); g.moveTo(a - 5, b - 2); g.quadraticCurveTo(a - 2, b - 3, a, b); g.quadraticCurveTo(a + 2, b - 3, a + 5, b - 2); g.stroke(); } break;
-    case 'hourglass': g.fillStyle = '#8a6a4f'; g.fillRect(-6, -11, 12, 2); g.fillRect(-6, 9, 12, 2); g.fillStyle = '#e2c88f'; g.beginPath(); g.moveTo(-4, 8.5); g.lineTo(4, 8.5); g.lineTo(0, 2); g.fill(); g.strokeStyle = '#8a6a4f'; g.lineWidth = 1; g.beginPath(); g.moveTo(-5, -9); g.lineTo(5, -9); g.lineTo(0, 0); g.lineTo(5, 9); g.lineTo(-5, 9); g.lineTo(0, 0); g.closePath(); g.stroke(); break;
     case 'seaglass': ['#eef3f2', '#7cc49a', '#b07a45', '#4f86c6', '#9fd6ea', '#a58ad1', '#d9645a'].forEach((c, k) => { const a = k / 7 * 6.28; g.fillStyle = c; g.beginPath(); g.ellipse(Math.cos(a) * 6, Math.sin(a) * 6, 3, 2.2, a, 0, 6.3); g.fill(); }); break;
     case 'omok': g.strokeStyle = '#a8885c'; g.lineWidth = 0.8; for (let k = -2; k <= 2; k++) { g.beginPath(); g.moveTo(-10, k * 4.5); g.lineTo(10, k * 4.5); g.stroke(); g.beginPath(); g.moveTo(k * 4.5, -10); g.lineTo(k * 4.5, 10); g.stroke(); } g.fillStyle = '#2b2b2e'; g.beginPath(); g.arc(-4.5, -4.5, 2.4, 0, 6.3); g.arc(0, 0, 2.4, 0, 6.3); g.fill(); g.fillStyle = '#f8f6f0'; g.beginPath(); g.arc(4.5, 0, 2.4, 0, 6.3); g.fill(); break;
     case 'horn': g.fillStyle = '#4f86c6'; g.fillRect(-10, 3, 20, 4); g.fillStyle = '#f6f6f2'; g.fillRect(-5, -1, 10, 4); g.strokeStyle = 'rgba(120,130,150,.8)'; g.lineWidth = 1.2; for (const r of [4, 7]) { g.beginPath(); g.arc(4, -3, r, -1.2, -0.3); g.stroke(); } break;
@@ -2664,34 +2661,6 @@ function drawFeeding(pn) {
   void my;
 }
 
-/* ───────── 모래시계 3분: 앉아 있을 때만 ───────── */
-const glassBtn = document.getElementById('glassBtn');
-let hg = null;
-function hgTick(pn) {
-  glassBtn.classList.toggle('on', joined && me.sit && !hg);
-  if (!hg) return;
-  if (!me.sit) { hg = null; document.getElementById('acts').classList.remove('calm'); toast('모래시계가 쓰러졌어요'); return; }
-  if (pn - hg.t0 > (FAST ? 5000 : 180000)) {
-    hg = null; document.getElementById('acts').classList.remove('calm'); chime([660, 990, 1320], 0.18);
-    toast('3분 동안 바다만 봤어요'); if (!dex.hourglass) setTimeout(() => addItem('hourglass', '모래시계 3분 · 도감에 담았어요'), 1500);
-  }
-}
-glassBtn.addEventListener('click', () => { hg = { t0: performance.now() }; document.getElementById('acts').classList.add('calm'); wake(); });
-function drawHourglass(pn) {
-  if (!hg) return;
-  const s = sOf(me.vd), x = xOf(me.vx, me.vd) - 34 * s, y = yOf(me.vd) - 2 * s;
-  const k = clamp((pn - hg.t0) / (FAST ? 5000 : 180000), 0, 1);
-  ctx.save(); ctx.translate(x, y);
-  ctx.fillStyle = '#8a6a4f'; ctx.fillRect(-8 * s, -2 * s, 16 * s, 2.5 * s); ctx.fillRect(-8 * s, -28 * s, 16 * s, 2.5 * s);
-  ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = 1.2 * s;
-  ctx.beginPath(); ctx.moveTo(-6 * s, -25.5 * s); ctx.lineTo(6 * s, -25.5 * s); ctx.lineTo(1 * s, -14 * s); ctx.lineTo(6 * s, -2 * s); ctx.lineTo(-6 * s, -2 * s); ctx.lineTo(-1 * s, -14 * s); ctx.closePath(); ctx.stroke();
-  ctx.fillStyle = '#e2c88f';
-  const top = (1 - k) * 9 * s; ctx.beginPath(); ctx.moveTo(-5 * s * (top / (9 * s) + 0.15), -15 * s - top); ctx.lineTo(5 * s * (top / (9 * s) + 0.15), -15 * s - top); ctx.lineTo(0, -14 * s); ctx.fill();
-  const bot = k * 8 * s; ctx.beginPath(); ctx.moveTo(-5.5 * s, -2.2 * s); ctx.lineTo(5.5 * s, -2.2 * s); ctx.lineTo(0, -2.2 * s - bot); ctx.fill();
-  if (k < 1) { ctx.fillRect(-0.5 * s, -14 * s, 1 * s, 12 * s - bot); }
-  ctx.restore();
-}
-
 /* ───────── 바다 유리: 물 빠진 모래에서 일곱 빛깔 ───────── */
 const GLASS = [['white', '흰', '#eef3f2'], ['green', '초록', '#7cc49a'], ['brown', '갈색', '#b07a45'], ['blue', '파랑', '#4f86c6'], ['sky', '하늘', '#9fd6ea'], ['purple', '보라', '#a58ad1'], ['red', '빨강', '#d9645a']];
 let glassHave = loadSet('pm_glass'), seaGlass = [], glassNext = performance.now() + (FAST ? 3000 : 90000);
@@ -2927,7 +2896,7 @@ function openOldBottle() {
   photoHave.add(OLD[i][1]); saveSet('pm_photos', photoHave);
   drawOldPicture(OLD[i][1], OLD[i][2]);
   photoSheet.querySelector('.k').textContent = `짙은 갈색 병 속에 빛바랜 ${OLD[i][2] ? '사진' : '그림'} 한 장이 말려 있었어요`;
-  photoNote.textContent = OLD[i][2] ? `${OLD[i][0]} · 옛 그림 ${photoHave.size}/7 · ${OLD[i][3]}` : `${OLD[i][0]} · 옛 그림 ${photoHave.size}/7 (옛 목포를 떠올려 그린 그림이에요)`;
+  photoNote.textContent = OLD[i][2] ? `${OLD[i][0]} · 옛 그림 ${photoHave.size}/7 · ${OLD[i][3]}` : `${OLD[i][0]} · 옛 그림 ${photoHave.size}/7 (사진이 남아 있지 않아 그림으로 그렸어요)`;
   photoSheet.classList.add('on'); wake();
   if (!dex.oldphoto) setTimeout(() => addItem('oldphoto', '병 속에 빛바랜 그림이 들어 있었어요 · 도감에 담았어요'), 800);
 }
@@ -3343,7 +3312,7 @@ function frame(pn) {
   crabTick(pn, t); drawCrabs(pn, nf);
   stormTick(t); drawStormStars(pn); glassTick(pn, t); drawSeaGlass(pn, t, wv); drawMapPiece(pn, t);
   oldBottleTick(pn, dE); drawOldBottle(pn, nf); drawOmokBoard(pn); ballTick(pn); drawBall(pn);
-  walkToTick(); hgTick(pn); feedTick(); hornTick(t); toadTick(pn, dE); gcTick(pal);
+  walkToTick(); feedTick(); hornTick(t); toadTick(pn, dE); gcTick(pal);
   drawToads(pn, t, wv, pal);
   gullTick(pn, pal.stars < 0.6); drawGull(pn);
   if (t - highAt > 5000) { highAt = t; HIGH_NOW = nearHigh(t); }
@@ -3385,7 +3354,7 @@ function frame(pn) {
     ctx.fillStyle = lg; ctx.fillRect(0, H * 0.62, W, H * 0.38); ctx.restore();
   }
   drawLanterns(pn, nf);
-  drawHourglass(pn); drawFeeding(pn); drawCalls(pn);
+  drawFeeding(pn); drawCalls(pn);
   drawShots(pn); drawWishFx(pn); drawWalkerSay(pn);
   drawTermEffects(pn, t, pal); beaconHintTick(pn, nf);
   drawPrecip(pn, t);
