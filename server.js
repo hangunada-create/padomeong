@@ -236,6 +236,11 @@ const people = new Map();      // id → {ws, room, x, d, sit, color, name, bot}
 const rooms = new Map();       // 해변 번호 → Set(id)
 const writings = new Map();    // 해변 번호 → [[id, x, d, text, ts, color]]  (모래 글씨, 저장하지 않음)
 const castles = new Map();     // 해변 번호 → {lvl, gen}  (함께 쌓는 모래성, 파도가 닿으면 무너짐)
+// 보름달 밤에 띄운 등: 그날 밤(한국 시각 정오 기준)에 띄운 것만 모든 해변이 함께 본다. 저장하지 않음
+const lanterns = { key: '', list: [], by: new Set() };
+const nightKey = () => { const d = new Date(Date.now() + 9 * 3600e3 - 12 * 3600e3); return d.toISOString().slice(0, 10); };
+function lanternList() { const k = nightKey(); if (lanterns.key !== k) { lanterns.key = k; lanterns.list = []; lanterns.by.clear(); } return lanterns.list; }
+let nextL = 1;
 const castleOf = room => { if (!castles.has(room)) castles.set(room, { lvl: 0, gen: 1 }); return castles.get(room); };
 const ROOM_CAP = Number(process.env.ROOM_CAP) || 80;           // 해변 하나에 들어가는 사람 수
 const perIp = new Map();
@@ -266,10 +271,10 @@ function pickRoom() {
 }
 // 오늘 다녀간 사람 (화면 위에 보여 줄 숫자)
 function todayView() { const d = day(); return { v: d.입장 || 0 }; }
-function checkSand(text) {
+function checkSand(text, max = 16) {
   if (typeof text !== 'string') return null;
   const s = text.replace(/[\u0000-\u001f\u007f<>]/g, '').replace(/\s+/g, ' ').trim();
-  if (s.length < 1 || s.length > 12) return null;
+  if (s.length < 1 || s.length > max) return null;
   const flat = s.replace(/\s/g, '').toLowerCase();
   if (/(https?:|www\.|\.(com|kr|net|org|io|me|gg|ly)\b|@[a-z0-9_]{3,})/i.test(s)) return null;
   if (/\d[\d\s\-.]{3,}\d/.test(s)) return null;
@@ -302,16 +307,16 @@ wss.on('connection', (ws, req) => {
       id = nextId++;
       const room = pickRoom();
       const me = { ws, room, x: clamp(num(m.x, WORLD_W / 2), 40, WORLD_W - 40), d: clamp(num(m.d, 0.8), D_MIN, D_MAX),
-                   sit: m.sit ? 1 : 0, color: clamp(Math.floor(num(m.color, 0)), 0, 7), name: cleanName(m.name), bot: isBot };
+                   sit: m.sit ? 1 : 0, k: m.k ? 1 : 0, color: clamp(Math.floor(num(m.color, 0)), 0, 7), name: cleanName(m.name), bot: isBot };
       if (!rooms.has(room)) rooms.set(room, new Set());
       const list = [];
-      for (const pid of rooms.get(room)) { const p = people.get(pid); if (p) list.push([pid, p.x, p.d, p.sit, p.color, p.name]); }
+      for (const pid of rooms.get(room)) { const p = people.get(pid); if (p) list.push([pid, p.x, p.d, p.sit, p.color, p.name, p.k]); }
       rooms.get(room).add(id); people.set(id, me);
       const d = day(); d.최대동시접속 = Math.max(d.최대동시접속, people.size);
       if (!isBot) bump('입장');
       const cs = castleOf(room);
-      send(ws, { t: 'hi', id, now: Date.now(), room, rooms: rooms.size, p: list, w: writings.get(room) || [], today: todayView(), wx: weather, castle: [cs.lvl, cs.gen] });
-      sendRoom(room, { t: 'in', p: [id, me.x, me.d, me.sit, me.color, me.name] }, id);
+      send(ws, { t: 'hi', id, now: Date.now(), room, rooms: rooms.size, p: list, w: writings.get(room) || [], today: todayView(), wx: weather, castle: [cs.lvl, cs.gen], ln: lanternList() });
+      sendRoom(room, { t: 'in', p: [id, me.x, me.d, me.sit, me.color, me.name, me.k] }, id);
       roomsChanged();
       return;
     }
@@ -324,7 +329,7 @@ wss.on('connection', (ws, req) => {
       const sit = m.sit ? 1 : 0;
       if (sit && !me.sit) sitSince = t;
       if (!sit && me.sit && sitSince) { sitTotal += t - sitSince; sitSince = 0; }
-      me.sit = sit;
+      me.sit = sit; me.k = m.k ? 1 : 0;
       dirty.add(id);
 
     } else if (m.t === 'g') {                     // 손 흔들기 / 랜턴 불 나누기 (같은 해변 안에서)
@@ -349,6 +354,30 @@ wss.on('connection', (ws, req) => {
       const r = {};
       for (const bid of m.ids.slice(0, 30)) { const b = bottles.list.find(b => b.id === Number(bid)); if (b) r[b.id] = b.reads || 0; }
       send(ws, { t: 'mineR', r });
+
+    } else if (m.t === 'w' && m.to !== undefined) {   // 누군가의 모래 글씨 뒤에 한 낱말 이어 쓰기
+      if (t - lastSand < 8000) return send(ws, { t: 'wr', ok: false, msg: '조금 있다가 다시 써요' });
+      const word = checkSand(m.text, 8);
+      if (!word) return send(ws, { t: 'wr', ok: false, msg: '이 글씨는 모래에 남길 수 없어요' });
+      const list = writings.get(me.room) || [], w = list.find(w => w[0] === Number(m.to));
+      if (!w) return send(ws, { t: 'wr', ok: false, msg: '파도가 먼저 지웠어요' });
+      if (w[3].length + 1 + word.length > 40) return send(ws, { t: 'wr', ok: false, msg: '이 문장은 이제 꽉 찼어요' });
+      lastSand = t; bump('이어쓰기');
+      w[3] = w[3] + ' ' + word;
+      send(ws, { t: 'wr', ok: true });
+      sendRoom(me.room, { t: 'wu', id: w[0], text: w[3] });
+
+    } else if (m.t === 'ln') {                    // 보름달 밤 등 띄우기 (하룻밤에 한 사람 하나)
+      const list = lanternList();
+      if (lanterns.by.has(tag)) return send(ws, { t: 'lr', ok: false, msg: '오늘 밤 등은 이미 띄웠어요' });
+      const text = checkSand(m.text, 20);
+      if (!text) return send(ws, { t: 'lr', ok: false, msg: '이 글은 등에 적을 수 없어요' });
+      lanterns.by.add(tag); bump('등');
+      const l = [nextL++, text, t, me.color];
+      list.push(l); while (list.length > 80) list.shift();
+      send(ws, { t: 'lr', ok: true, l });
+      const s = JSON.stringify({ t: 'ln', l });
+      for (const p of people.values()) if (p.ws !== ws && p.ws.readyState === 1) p.ws.send(s);
 
     } else if (m.t === 'w') {                     // 모래에 글씨 쓰기 (파도가 지울 때까지만 남음)
       if (t - lastSand < 20000) return send(ws, { t: 'wr', ok: false, msg: '조금 있다가 다시 써요' });
@@ -411,7 +440,7 @@ setInterval(() => {
   for (const id of dirty) {
     const p = people.get(id); if (!p) continue;
     if (!byRoom.has(p.room)) byRoom.set(p.room, []);
-    byRoom.get(p.room).push([id, p.x, p.d, p.sit]);
+    byRoom.get(p.room).push([id, p.x, p.d, p.sit, p.k]);
   }
   dirty.clear();
   for (const [room, list] of byRoom) {

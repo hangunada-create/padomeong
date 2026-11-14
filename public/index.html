@@ -62,11 +62,11 @@
   #toast.on { opacity: 1; transform: translate(-50%, 0); }
   body.quiet #toast.on { opacity: 1; }
   #acts { left: 50%; bottom: calc(max(26px, env(safe-area-inset-bottom)) + 62px); transform: translateX(-50%);
-          display: flex; gap: 6px; justify-content: center; flex-wrap: nowrap; white-space: nowrap; }
+          display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; white-space: nowrap; width: max-content; max-width: 94vw; }
   #acts .chip { padding: 8px 11px; font-size: 12.5px; }
   #acts .chip.on { background: rgba(255,255,255,.88); color: #24435c; }
-  #sendBtn { display: none; }
-  #sendBtn.on { display: inline-block; }
+  #sendBtn, #kiteBtn, #lanternBtn { display: none; }
+  #sendBtn.on, #kiteBtn.on, #lanternBtn.on { display: inline-block; }
   #todayLine { font-size: 12px; opacity: .75; margin-top: 2px; }
   #wxLine { font-size: 12.5px; opacity: .88; margin-top: 2px; }
   #wxLine:empty { display: none; }
@@ -136,6 +136,8 @@
   <button id="breathBtn" class="chip">숨 고르기</button>
   <button id="sandBtn" class="chip">모래 쓰기</button>
   <button id="sendBtn" class="chip">병 띄우기</button>
+  <button id="kiteBtn" class="chip">연 띄우기</button>
+  <button id="lanternBtn" class="chip">등 띄우기</button>
   <button id="dexBtn" class="chip">도감</button>
   <button id="cardBtn" class="chip">엽서</button>
 </div>
@@ -144,12 +146,13 @@
 <div id="cardSheet" class="sheet"><div class="k">지금 이 바다를 엽서 한 장으로</div><img id="cardImg" alt="파도멍 엽서">
 <div class="note">휴대폰은 사진을 길게 눌러 저장할 수도 있어요</div>
 <div class="row"><button class="sub" id="cardClose">닫기</button><button class="main" id="cardSave">저장·공유하기</button></div></div>
-<div id="sandSheet" class="sheet"><div class="k">모래에 몇 글자 써 두면, 파도가 닿을 때 지워져요. 물가 가까이 쓸수록 빨리 지워집니다.</div>
-<textarea id="sandText" maxlength="12" placeholder="12자까지" style="height:56px"></textarea>
+<div id="sandSheet" class="sheet"><div class="k" id="sandK">모래에 몇 글자 써 두면, 파도가 닿을 때 지워져요. 물가 가까이 쓸수록 빨리 지워집니다.</div>
+<textarea id="sandText" maxlength="16" placeholder="16자까지" style="height:56px"></textarea>
 <div class="note" id="sandNote"></div>
 <div class="row"><button class="sub" id="sandCancel">그만두기</button><button class="main" id="sandSend">모래에 쓰기</button></div></div>
 <div id="bottleSheet" class="sheet"><div class="k">파도가 밀어 온 유리병</div><div class="msg" id="bottleMsg"></div><div class="row"><button class="sub" id="bottleReport">이 글 신고하기</button><button class="main" id="bottleBack">다시 바다로 보내기</button></div></div>
 <div id="letterSheet" class="sheet"><div class="k">한 줄을 유리병에 담아 띄워요. 누가 쓴 건지는 아무도 몰라요.</div><textarea id="letterText" maxlength="80" placeholder="이 바다에 남기고 싶은 한 줄"></textarea><div class="note" id="letterNote"></div><div class="row"><button class="sub" id="letterCancel">그만두기</button><button class="main" id="letterSend">바다에 띄우기</button></div></div>
+<div id="lanternSheet" class="sheet"><div class="k">보름달 뜬 밤, 작은 등에 한 줄을 적어 띄워요. 등은 바다를 건너 수평선까지 날아가요.</div><textarea id="lanternText" maxlength="20" placeholder="20자까지" style="height:56px"></textarea><div class="note" id="lanternNote"></div><div class="row"><button class="sub" id="lanternCancel">그만두기</button><button class="main" id="lanternSend">등 띄우기</button></div></div>
 <div id="stall" class="hud" aria-live="polite">
   <svg id="stallLogo" class="k" viewBox="130 205 626 470" aria-label="이음수산 로고"><g fill="none"><circle cx="307" cy="335" r="86.5" stroke="#67a9dc" stroke-width="55"/><circle cx="584" cy="340" r="86.5" stroke="#67a9dc" stroke-width="55"/><polyline points="157,647 289,508 418,644" stroke="#22365a" stroke-width="56" stroke-linejoin="miter"/><polyline points="467,646 598,508 729,644" stroke="#22365a" stroke-width="56" stroke-linejoin="miter"/></g></svg>
   <div class="f" id="stallFish"></div>
@@ -828,6 +831,9 @@ function drawPerson(a, t, inWater, night) {
     ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(hx, hy2); ctx.stroke();
     ctx.fillStyle = '#f1cfae'; ctx.beginPath(); ctx.arc(hx, hy2 - 2 * s, 3.6 * s, 0, 6.3); ctx.fill();
   }
+  if (sat) drawBreathPuff(x + 5 * s, y - 46 * s, s, t, a.seed, 1); else drawBreathPuff(x + 9 * s, y - 60 * s, s, t, a.seed, 1);
+  if (a.kite && !sat) drawKite(a, x, y, s, t, pc);
+  if (inWater && HIGH_NOW && !sat) drawAnkleWater(x, yOf(a.vd), s, t, a.seed);
   if (inWater) {       // 발끝에 닿은 물
     ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = 2 * s;
     ctx.beginPath(); ctx.ellipse(x, yOf(a.vd) + 1 * s, (sat ? 34 : 17) * s, (sat ? 9 : 5) * s, 0, 0, 6.3); ctx.stroke();
@@ -1014,22 +1020,39 @@ function drawBreath(t) {
 // 모래에 쓰기: 파도가 닿으면 지워진다
 const writings = [];                      // {id, x, d, text, ts, color, wash}
 const sandSheet = document.getElementById('sandSheet'), sandText = document.getElementById('sandText'), sandNote = document.getElementById('sandNote');
-function addWriting(w) {
+function addWriting(w, live) {
   if (!w || writings.some(o => o.id === w[0])) return;
-  writings.push({ id: w[0], x: w[1], d: w[2], text: String(w[3]).slice(0, 12), ts: w[4], color: w[5] | 0, wash: 0 });
+  const o = { id: w[0], x: w[1], d: w[2], text: String(w[3]).slice(0, 40), ts: w[4], color: w[5] | 0, wash: 0 };
+  writings.push(o); checkSentence(o, live);
   while (writings.length > 60) writings.shift();
 }
-document.getElementById('sandBtn').addEventListener('click', () => { sandNote.textContent = ''; sandSheet.classList.add('on'); setTimeout(() => sandText.focus(), 50); wake(); });
-document.getElementById('sandCancel').addEventListener('click', () => { sandSheet.classList.remove('on'); sandText.blur(); });
+const sandK = document.getElementById('sandK'), SAND_K = sandK.textContent;
+document.getElementById('sandBtn').addEventListener('click', () => {
+  appendTo = null; sandK.textContent = SAND_K; sandText.maxLength = 16; sandText.placeholder = '16자까지';
+  sandNote.textContent = ''; sandSheet.classList.add('on'); setTimeout(() => sandText.focus(), 50); wake();
+});
+function openAppend(w) {
+  appendTo = w; sandK.textContent = `‘${w.text}’ 뒤에 한 낱말을 이어 써요. 파도가 오면 함께 지워져요.`;
+  sandText.maxLength = 8; sandText.placeholder = '8자까지'; sandText.value = '';
+  sandNote.textContent = ''; sandSheet.classList.add('on'); setTimeout(() => sandText.focus(), 50); wake();
+}
+function onWritingUpdate(m) { const w = writings.find(o => o.id === m.id); if (w) { w.text = String(m.text).slice(0, 40); checkSentence(w, true); } }
+document.getElementById('sandCancel').addEventListener('click', () => { sandSheet.classList.remove('on'); sandText.blur(); appendTo = null; });
 document.getElementById('sandSend').addEventListener('click', () => {
   const v = sandText.value.replace(/\s+/g, ' ').trim();
   if (!v) { sandNote.textContent = '한 글자 이상 써 주세요'; return; }
   checkBeaconWord(v);
+  if (appendTo) {
+    if (appendTo.wash || !writings.includes(appendTo)) { sandNote.textContent = '파도가 먼저 지웠어요'; return; }
+    if (ws && online && appendTo.id > 0) ws.send(JSON.stringify({ t: 'w', text: v, to: appendTo.id }));
+    else { onWritingUpdate({ id: appendTo.id, text: (appendTo.text + ' ' + v).slice(0, 40) }); closeSand(); }
+    return;
+  }
   const d = clamp(me.d - 0.06, -0.3, 1);
   if (ws && online) ws.send(JSON.stringify({ t: 'w', text: v, x: Math.round(me.x), d: +d.toFixed(3) }));
-  else { addWriting([-Date.now(), me.x, d, v, now(), me.color]); closeSand(); }
+  else { addWriting([-Date.now(), me.x, d, v, now(), me.color], true); closeSand(); }
 });
-function closeSand() { sandSheet.classList.remove('on'); sandText.value = ''; sandText.blur(); }
+function closeSand() { sandSheet.classList.remove('on'); sandText.value = ''; sandText.blur(); appendTo = null; }
 function onSandResult(m) { if (m.ok) closeSand(); else sandNote.textContent = m.msg || '쓰지 못했어요'; }
 function drawWritings(pn, t, pal) {
   const wv = waveAt(t);
@@ -1149,8 +1172,7 @@ function drawMeteors(pn, t, pal) {
 /* ───────── 고하도 등대: 밤마다 모스부호로 한 낱말을 깜빡인다 ─────────
    알아챈 사람이 그 낱말을 모래에 쓰면, 등대가 답한다. 설명은 하지 않는다. */
 const MORSE = { A: '.-', B: '-...', C: '-.-.', D: '-..', E: '.', F: '..-.', G: '--.', H: '....', I: '..', J: '.---', K: '-.-', L: '.-..', M: '--', N: '-.', O: '---', P: '.--.', Q: '--.-', R: '.-.', S: '...', T: '-', U: '..-', V: '...-', W: '.--', X: '-..-', Y: '-.--', Z: '--..' };
-const BEACON_WORDS = [['PADO', '파도'], ['BADA', '바다'], ['BYEOL', '별'], ['DALBIT', '달빛'], ['MOKPO', '목포'], ['YUDAL', '유달'], ['SORA', '소라'], ['YUNSEUL', '윤슬']];
-function beaconWord(ms) { const day = Math.floor((ms + 9 * 3600e3) / 864e5); return BEACON_WORDS[((day % BEACON_WORDS.length) + BEACON_WORDS.length) % BEACON_WORDS.length]; }
+function beaconWord(ms) { return weekSentence(ms)[weekOf(ms).wd]; }    // 일주일에 걸쳐 한 문장
 let beaconCache = { word: '', seq: [], total: 0 };
 function beaconOn(t) {
   const [word] = beaconWord(t);
@@ -1184,7 +1206,7 @@ function drawLighthouse(G, nf, t, pn) {
 function checkBeaconWord(text) {
   const [rom, ko] = beaconWord(now()), v = text.replace(/\s/g, '').toUpperCase();
   if (v === rom || v === ko) {
-    beaconReply = performance.now();
+    beaconReply = performance.now(); rememberWord();
     setTimeout(() => addItem('beacon', '고하도 등대가 답했어요 · 등대의 말을 도감에 담았어요'), 1200);
   }
 }
@@ -1209,6 +1231,14 @@ const ITEMS = [
   ['meteor', '별똥별 조각', 3, '유성우가 오는 날 밤, 물이 빠진 자리에서.'],
   ['flag', '모래성 깃발', 3, '여럿이 높이 쌓은 모래성이 파도에 무너진 뒤 남은 것.'],
   ['beacon', '등대의 말', 3, '고하도 등대가 깜빡인 낱말을 모래에 써서 받은 답.'],
+  ['crabwalk', '옆걸음 게', 3, '오래 가만히 있었더니 모래 구멍에서 나와 옆으로 걸었다.'],
+  ['gull', '곁에 앉은 갈매기', 3, '오래 앉아 있었더니 조금씩, 조금씩 다가왔다.'],
+  ['porpoise', '상괭이', 3, '목포 앞바다에 사는 웃는 얼굴의 돌고래. 등지느러미가 없어 매끈한 등만 잠깐 보인다.'],
+  ['hightide', '만조의 물', 3, '물이 가장 높이 찬 시각, 물가에 서서 발목을 적셨다.'],
+  ['constel', '계절의 별자리', 3, '맑은 밤, 별을 이어 그 계절의 별자리를 그렸다.'],
+  ['skylantern', '보름달 등', 3, '보름달 뜬 밤, 한 줄을 적어 수평선으로 띄웠다.'],
+  ['firework', '목포의 불꽃', 3, '목포 하늘에 불꽃이 오른 밤, 이 바다에서 함께 보았다.'],
+  ['sentence', '일주일의 문장', 3, '등대가 일주일 동안 깜빡인 낱말을 이어 노점 앞 모래에 썼다.'],
 ];
 const ITEM = Object.fromEntries(ITEMS.map(([id, name, tier, desc]) => [id, { id, name, tier, desc }]));
 let dex = {}; try { dex = JSON.parse(load('pm_dex', '{}')) || {}; } catch (e) { dex = {}; }
@@ -1239,6 +1269,14 @@ function drawItemShape(g, id, x, y, s) {
     case 'snow': g.fillStyle = '#d9b98c'; g.beginPath(); g.arc(0, 3, 8, Math.PI, 0); g.closePath(); g.fill(); g.fillStyle = '#fff'; for (let k = 0; k < 5; k++) { g.beginPath(); g.arc(-5 + k * 2.6, -1 - (k % 2) * 2, 1.3, 0, 6.3); g.fill(); } break;
     case 'meteor': blob('#4a4652', 7, 5); g.fillStyle = '#fff5c8'; for (const [a, b] of [[-2, -1], [2, 1], [0, -3]]) { g.beginPath(); g.arc(a, b, 0.9, 0, 6.3); g.fill(); } break;
     case 'flag': g.strokeStyle = '#8a6a4f'; g.lineWidth = 1.4; g.beginPath(); g.moveTo(-3, 8); g.lineTo(-3, -9); g.stroke(); g.fillStyle = '#e8574a'; g.beginPath(); g.moveTo(-3, -9); g.lineTo(8, -6); g.lineTo(-3, -3); g.fill(); break;
+    case 'crabwalk': g.strokeStyle = '#c8643c'; g.lineWidth = 1.3; for (const sx of [-1, 1]) for (let k = 0; k < 3; k++) { g.beginPath(); g.moveTo(sx * 3, 2); g.lineTo(sx * (8 + k), 4 + k * 1.8); g.stroke(); } blob('#c8643c', 6.5, 4.5); g.fillStyle = '#c8643c'; for (const sx of [-1, 1]) { g.beginPath(); g.arc(sx * 7.5, -3.5, 2.6, 0, 6.3); g.fill(); } g.fillStyle = '#1e1a18'; for (const sx of [-1, 1]) { g.beginPath(); g.arc(sx * 2, -6, 1.2, 0, 6.3); g.fill(); } break;
+    case 'gull': g.fillStyle = '#fbfbf8'; g.beginPath(); g.ellipse(-1, 2, 9, 5.5, -0.1, 0, 6.3); g.fill(); g.fillStyle = '#9aa3ad'; g.beginPath(); g.ellipse(-3, 1, 7, 3.4, -0.15, 0, 6.3); g.fill(); g.fillStyle = '#fbfbf8'; g.beginPath(); g.arc(7, -5, 4, 0, 6.3); g.fill(); g.fillStyle = '#f2c230'; g.beginPath(); g.moveTo(10, -5); g.lineTo(14, -4); g.lineTo(10, -3); g.fill(); g.fillStyle = '#222'; g.beginPath(); g.arc(8, -6, 0.8, 0, 6.3); g.fill(); break;
+    case 'porpoise': g.fillStyle = '#7d8794'; g.beginPath(); g.ellipse(0, 4, 11, 7, 0, Math.PI, 0); g.fill(); g.strokeStyle = 'rgba(120,170,200,.9)'; g.lineWidth = 1.4; g.beginPath(); g.ellipse(0, 4, 13, 2.5, 0, 0, 6.3); g.stroke(); break;
+    case 'hightide': g.fillStyle = 'rgba(110,180,210,.9)'; g.beginPath(); g.moveTo(-10, 2); g.quadraticCurveTo(-5, -6, 0, 2); g.quadraticCurveTo(5, -6, 10, 2); g.lineTo(10, 7); g.lineTo(-10, 7); g.closePath(); g.fill(); g.strokeStyle = '#fff'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(-10, 2); g.quadraticCurveTo(-5, -6, 0, 2); g.quadraticCurveTo(5, -6, 10, 2); g.stroke(); break;
+    case 'constel': { const P = [[-9, 3], [-4, -4], [1, 1], [6, -6], [10, -1]]; g.strokeStyle = 'rgba(90,110,170,.8)'; g.lineWidth = 1; g.beginPath(); P.forEach(([a, b], i) => i ? g.lineTo(a, b) : g.moveTo(a, b)); g.stroke(); g.fillStyle = '#4a5a8a'; for (const [a, b] of P) { g.beginPath(); g.arc(a, b, 1.8, 0, 6.3); g.fill(); } break; }
+    case 'skylantern': g.fillStyle = 'rgba(255,190,110,.35)'; g.beginPath(); g.arc(0, 0, 10, 0, 6.3); g.fill(); g.fillStyle = '#f2b45e'; g.beginPath(); g.moveTo(-5, -7); g.lineTo(5, -7); g.lineTo(4, 7); g.lineTo(-4, 7); g.closePath(); g.fill(); g.fillStyle = '#fff3d6'; g.fillRect(-1.5, 2, 3, 3); break;
+    case 'firework': g.strokeStyle = '#e8574a'; g.lineWidth = 1.3; for (let k = 0; k < 10; k++) { const a = k * Math.PI / 5; g.strokeStyle = k % 2 ? '#e8574a' : '#f2a03d'; g.beginPath(); g.moveTo(Math.cos(a) * 3, Math.sin(a) * 3); g.lineTo(Math.cos(a) * 10, Math.sin(a) * 10); g.stroke(); } break;
+    case 'sentence': g.fillStyle = '#f6f1e2'; g.fillRect(-10, -7, 20, 14); g.fillStyle = '#8a6a4f'; for (let k = 0; k < 3; k++) g.fillRect(-7, -4 + k * 4, k === 2 ? 8 : 14, 1.4); break;
     case 'beacon': g.fillStyle = '#f6f1e2'; g.fillRect(-9, -6, 18, 12); g.fillStyle = '#2a3a48'; for (const [a, w2] of [[-6, 1.5], [-3, 4], [2, 1.5], [5, 1.5]]) g.fillRect(a, -1, w2, 1.8); break;
   }
   g.restore();
@@ -1295,7 +1333,7 @@ function pickTick() {
 }
 const dexSheet = document.getElementById('dexSheet'), dexGrid = document.getElementById('dexGrid'), dexNote = document.getElementById('dexNote');
 function openDex() {
-  dexGrid.innerHTML = ''; dexNote.textContent = '';
+  dexGrid.innerHTML = ''; dexNote.textContent = weekHint();
   for (const [id, name] of ITEMS) {
     const cell = document.createElement('button'), got = !!dex[id];
     cell.className = 'cell' + (got ? '' : ' no');
@@ -1455,6 +1493,432 @@ document.getElementById('cardSave').addEventListener('click', async () => {
   const a = document.createElement('a'); a.href = cardImg.src; a.download = name; document.body.appendChild(a); a.click(); a.remove();
 });
 
+/* ───────── 가만히 있어야 보이는 것: 게 · 갈매기 · 상괭이 ─────────
+   움직이지 않고 오래 있으면 모래 구멍에서 게가 나오고, 오래 앉아 있으면 갈매기가 조금씩 다가온다.
+   아주 드물게 먼바다에 상괭이가 등을 보인다. 아무것도 설명하지 않는다. */
+let stillSince = performance.now(), sitAt = 0;
+const resetStill = () => { stillSince = performance.now(); };
+const crabs = []; let crabHinted = false;
+function crabTick(pn, t) {
+  const still = pn - stillSince, need = FAST ? 4000 : 180000;
+  if (joined && still > need && !crabs.length && !RAINY() && WXF.wind < 9) {
+    const n = 3 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < n; i++) {
+      const side = Math.random() < 0.5 ? -1 : 1;
+      const hx = clamp(me.x + side * (70 + Math.random() * 300), 60, WORLD_W - 60);
+      const hd = clamp(me.d + (Math.random() - 0.4) * 0.3, Math.max(wetD + 0.06, 0.04), 0.95);
+      crabs.push({ hx, hd, x: hx, d: hd, st: 'out', t0: pn + i * 700 + Math.random() * 900, dir: Math.random() < 0.5 ? -1 : 1, next: 0, seed: Math.random() * 9 });
+    }
+    crabHinted = false;
+  }
+  if (crabs.length && still < need) for (const c of crabs) if (c.st !== 'hide') { c.st = 'hide'; c.t0 = pn; }
+  if (crabs.length && !crabHinted && still > need + (FAST ? 2500 : 8000)) { crabHinted = true; if (!dex.crabwalk) addItem('crabwalk', '모래 구멍에서 게가 나왔어요 · 도감에 담았어요'); }
+  for (let i = crabs.length - 1; i >= 0; i--) {
+    const c = crabs[i];
+    if (c.st === 'out' && pn > c.t0 + 700) { c.st = 'walk'; c.next = pn + 800 + Math.random() * 2000; }
+    if (c.st === 'walk') {
+      if (pn > c.next) { c.dir = Math.random() < 0.3 ? 0 : (Math.random() < 0.5 ? -1 : 1); c.next = pn + 700 + Math.random() * 2600; }
+      if (c.dir) { c.x = clamp(c.x + c.dir * 0.9, c.hx - 110, c.hx + 110); }
+    }
+    if (c.st === 'hide') {
+      c.x += (c.hx - c.x) * 0.25;
+      if (pn - c.t0 > 500) crabs.splice(i, 1);
+    }
+  }
+}
+function drawCrabs(pn, nf) {
+  for (const c of crabs) {
+    const s = sOf(c.hd), y = yOf(c.hd);
+    const hx = xOf(c.hx, c.hd);
+    if (hx < -60 || hx > W + 60) continue;
+    ctx.fillStyle = 'rgba(60,45,30,.55)'; ctx.beginPath(); ctx.ellipse(hx, y, 4.5 * s, 2 * s, 0, 0, 6.3); ctx.fill();   // 구멍
+    if (pn < c.t0) continue;
+    let k = c.st === 'out' ? clamp((pn - c.t0) / 700, 0, 1) : c.st === 'hide' ? clamp(1 - (pn - c.t0) / 450, 0, 1) : 1;
+    const x = xOf(c.x, c.hd), walking = c.st === 'walk' && c.dir, leg = walking ? Math.sin(pn / 60 + c.seed) : 0;
+    ctx.save(); ctx.translate(x, y - 3 * s * k); ctx.scale(s * k, s * k);
+    const body = nf > 0.5 ? '#c9b49a' : '#c8643c';
+    ctx.strokeStyle = body; ctx.lineWidth = 1.2;
+    for (const sx of [-1, 1]) for (let j = 0; j < 3; j++) {
+      ctx.beginPath(); ctx.moveTo(sx * 3, 1); ctx.lineTo(sx * (7 + j), 3 + j * 1.6 + (j % 2 ? leg : -leg) * 0.8); ctx.stroke();
+    }
+    ctx.fillStyle = body; ctx.beginPath(); ctx.ellipse(0, 0, 6, 4, 0, 0, 6.3); ctx.fill();
+    for (const sx of [-1, 1]) { ctx.beginPath(); ctx.arc(sx * 7, -3, 2.2, 0, 6.3); ctx.fill(); }   // 집게
+    ctx.strokeStyle = '#3b2a20'; ctx.lineWidth = 0.9;
+    for (const sx of [-1, 1]) { ctx.beginPath(); ctx.moveTo(sx * 2, -3); ctx.lineTo(sx * 2, -6); ctx.stroke(); }
+    ctx.fillStyle = '#1e1a18'; for (const sx of [-1, 1]) { ctx.beginPath(); ctx.arc(sx * 2, -6.4, 1, 0, 6.3); ctx.fill(); }
+    ctx.restore();
+  }
+}
+
+let gull = null;
+function gullTick(pn, day) {
+  const sitFor = me.sit ? pn - sitAt : 0, need = FAST ? 3000 : 60000;
+  if (!gull && joined && me.sit && sitFor > need && day && !RAINY() && WXF.wind < 10) {
+    const side = Math.random() < 0.5 ? -1 : 1;
+    gull = { side, dist: 250, d: me.d - 0.03, st: 'in', t0: pn, hop: pn + (FAST ? 2500 : 35000 + Math.random() * 15000), look: 0, told: false };
+  }
+  if (!gull) return;
+  gull.x = clamp(me.x + gull.side * gull.dist, 40, WORLD_W - 40);
+  if (gull.st !== 'off' && (!me.sit || !day || RAINY())) { gull.st = 'off'; gull.t0 = pn; }
+  if (gull.st === 'in' && pn - gull.t0 > 2600) { gull.st = 'stand'; }
+  if (gull.st === 'stand' && pn > gull.hop && gull.dist > 75) {
+    gull.dist = Math.max(70, gull.dist - 45); gull.hopT = pn; gull.hop = pn + (FAST ? 2500 : 30000 + Math.random() * 20000);
+    if (gull.dist <= 75 && !gull.told) { gull.told = true; if (!dex.gull) addItem('gull', '갈매기가 바로 곁까지 왔어요 · 도감에 담았어요'); }
+  }
+  if (gull.st === 'off' && pn - gull.t0 > 2200) gull = null;
+}
+function gullScreen(pn) {
+  const s = sOf(gull.d), x = xOf(gull.x, gull.d), y = yOf(gull.d);
+  if (gull.st === 'in') { const k = clamp((pn - gull.t0) / 2600, 0, 1), e = 1 - Math.pow(1 - k, 2); return [lerp(x + gull.side * W * 0.45, x, e), lerp(H * 0.12, y, e), s, true]; }
+  if (gull.st === 'off') { const k = clamp((pn - gull.t0) / 2200, 0, 1); return [x + gull.side * k * W * 0.5, lerp(y, -60, k * k), s, true]; }
+  const hop = gull.hopT ? clamp((pn - gull.hopT) / 500, 0, 1) : 1;
+  return [x, y - Math.sin(Math.PI * hop) * 10 * s, s, false];
+}
+function drawGull(pn) {
+  if (!gull) return;
+  const [x, y, s, flying] = gullScreen(pn), f = gull.side > 0 ? -1 : 1;   // 사람 쪽을 바라봄
+  ctx.save(); ctx.translate(x, y); ctx.scale(s * f, s);
+  if (flying) {
+    const flap = Math.sin(pn / 90) * 9;
+    ctx.strokeStyle = '#f6f6f2'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(-16, -14 - flap); ctx.quadraticCurveTo(-7, -18, 0, -12); ctx.quadraticCurveTo(7, -18, 16, -14 - flap); ctx.stroke();
+    ctx.fillStyle = '#fbfbf8'; ctx.beginPath(); ctx.ellipse(0, -12, 7, 3.2, 0, 0, 6.3); ctx.fill();
+  } else {
+    ctx.fillStyle = 'rgba(40,30,20,.15)'; ctx.beginPath(); ctx.ellipse(0, 1, 9, 2.5, 0, 0, 6.3); ctx.fill();
+    ctx.strokeStyle = '#e3954b'; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.moveTo(-1, -5); ctx.lineTo(-2, 0); ctx.moveTo(2, -5); ctx.lineTo(2, 0); ctx.stroke();
+    ctx.fillStyle = '#fbfbf8'; ctx.beginPath(); ctx.ellipse(0, -10, 10, 6, -0.1, 0, 6.3); ctx.fill();
+    ctx.fillStyle = '#9aa3ad'; ctx.beginPath(); ctx.ellipse(-2, -11, 8, 3.8, -0.15, 0, 6.3); ctx.fill();
+    ctx.fillStyle = '#2b2b2e'; ctx.beginPath(); ctx.moveTo(-9, -12); ctx.lineTo(-15, -10); ctx.lineTo(-8, -9); ctx.fill();
+    const bob = Math.sin(pn / 700 + gull.side) > 0.85 ? 2 : 0;
+    ctx.fillStyle = '#fbfbf8'; ctx.beginPath(); ctx.arc(8, -17 + bob, 4.2, 0, 6.3); ctx.fill();
+    ctx.fillStyle = '#f2c230'; ctx.beginPath(); ctx.moveTo(11.5, -17 + bob); ctx.lineTo(16, -16 + bob); ctx.lineTo(11.5, -15.2 + bob); ctx.fill();
+    ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(9.2, -18 + bob, 0.8, 0, 6.3); ctx.fill();
+  }
+  ctx.restore();
+}
+function hitGull(cx, cy, pn) {
+  if (!gull || gull.st !== 'stand') return false;
+  const [x, y, s] = gullScreen(pn);
+  if (Math.hypot(cx - x, cy - (y - 10 * s)) > 22 * s + 8) return false;
+  gull.st = 'off'; gull.t0 = pn; return true;
+}
+
+let porp = null, porpNext = performance.now() + (FAST ? 6000 : 240000 + Math.random() * 900000);
+function porpTick(pn, pal, dE) {
+  if (!porp && joined && pn > porpNext) {
+    porpNext = pn + (FAST ? 9000 : 600000 + Math.random() * 1200000);
+    if (pal.stars < 0.6 && WXF.wind < 8 && !WXF.fog && WXF.rain < 0.6) {
+      const hy = horizonY(), ye = yOf(dE), y = lerp(hy + 8 * U, ye - 18 * U, 0.3 + Math.random() * 0.4);
+      porp = { x: W * (0.15 + Math.random() * 0.55), y, dir: Math.random() < 0.5 ? -1 : 1, t0: pn, k: clamp((y - hy) / Math.max(1, ye - hy), 0, 1) };
+    }
+  }
+  if (porp && pn - porp.t0 > 3 * 2600) porp = null;
+}
+function porpPos(pn) {
+  const e = (pn - porp.t0) / 2600, i = Math.floor(e), f = e - i;
+  return { x: porp.x + porp.dir * (i * 70 + f * 40) * U * (0.5 + porp.k), y: porp.y, f, up: f < 0.62 };
+}
+function drawPorpoise(pn, nf) {
+  if (!porp) return;
+  const p = porpPos(pn), sz = (10 + 18 * porp.k) * U;
+  if (p.up) {
+    const k = p.f / 0.62, h = Math.sin(Math.PI * k);
+    ctx.save(); ctx.beginPath(); ctx.rect(p.x - sz * 2, p.y - sz * 2, sz * 4, sz * 2); ctx.clip();
+    ctx.fillStyle = nf > 0.5 ? 'rgba(70,78,92,.9)' : 'rgba(96,106,118,.95)';
+    ctx.beginPath(); ctx.ellipse(p.x + porp.dir * (k - 0.5) * sz, p.y + sz * 0.35 * (1 - h), sz * 1.1, sz * 0.55 * h + 0.5, 0, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.beginPath(); ctx.ellipse(p.x + porp.dir * (k - 0.6) * sz, p.y - sz * 0.32 * h, sz * 0.5, sz * 0.08, 0, 0, 6.3); ctx.fill();
+    ctx.restore();
+  }
+  const r = p.f * sz * 2.2;                     // 물 위에 남는 동그란 자국
+  ctx.strokeStyle = `rgba(255,255,255,${0.45 * (1 - p.f)})`; ctx.lineWidth = 1.2 * U;
+  ctx.beginPath(); ctx.ellipse(p.x, p.y, r + sz * 0.6, (r + sz * 0.6) * 0.22, 0, 0, 6.3); ctx.stroke();
+}
+function hitPorpoise(cx, cy, pn) {
+  if (!porp) return false;
+  const p = porpPos(pn), sz = (10 + 18 * porp.k) * U;
+  if (Math.hypot(cx - p.x, (cy - p.y) * 1.6) > sz * 2.2 + 16) return false;
+  addItem('porpoise', dex.porpoise ? '상괭이를 또 봤어요' : '상괭이를 봤어요 · 목포 앞바다에 사는 웃는 얼굴의 돌고래');
+  porp.t0 = Math.min(porp.t0, pn - 2 * 2600); return true;
+}
+
+/* ───────── 만조에 발 담그기 ─────────
+   실제 만조 시각 앞뒤 15분 동안 물가에 서 있으면, 물이 발목까지 올라온다. */
+function nearHigh(ms) {
+  const min = ms / 60000, E = TIDE_EXT;
+  if (min >= E[0][0] && min < E[E.length - 1][0]) {
+    for (const e of E) if (e[2] && Math.abs(e[0] - min) <= 15) return true;
+    return false;
+  }
+  const sec = ms / 1000, h = tideModel(sec);
+  return h >= tideModel(sec - 900) && h >= tideModel(sec + 900);
+}
+let HIGH_NOW = false, highTold = false, highAt = 0;
+function drawAnkleWater(x, y, s, t, seed) {
+  ctx.fillStyle = 'rgba(120,190,215,.55)';
+  ctx.beginPath(); ctx.ellipse(x, y - 1 * s, 22 * s, 6 * s, 0, 0, 6.3); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 1.6 * s;
+  const r = (t / 900 + seed) % 1;
+  ctx.beginPath(); ctx.ellipse(x, y - 1 * s, (14 + r * 18) * s, (4 + r * 5) * s, 0, 0, 6.3); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(x, y - 5 * s, 9 * s, 2.4 * s, 0, Math.PI, 0); ctx.stroke();
+}
+
+/* ───────── 등대의 일주일 ─────────
+   고하도 등대는 하루에 한 낱말씩, 일주일에 걸쳐 한 문장을 깜빡인다.
+   그날 낱말을 모래에 쓰면 등대가 답하고, 일곱 낱말을 이은 문장을 노점 앞 모래에 쓰면 노점 주인이 답한다. */
+const WEEK_SENTENCES = [
+  [['MULEUN', '물은'], ['DALEUL', '달을'], ['TTARA', '따라'], ['GATDAGA', '갔다가'], ['DASI', '다시'], ['DORA', '돌아'], ['ONDA', '온다']],
+  [['MORAE', '모래'], ['WIUI', '위의'], ['GEULSSINEUN', '글씨는'], ['PADOGA', '파도가'], ['ILKGO', '읽고'], ['GAN', '간'], ['PYEONJI', '편지']],
+  [['BYEOREUN', '별은'], ['ORAE', '오래'], ['JEONUI', '전의'], ['BICHEUL', '빛을'], ['ONEUL', '오늘'], ['YEOGI', '여기'], ['BONAENDA', '보낸다']],
+  [['GATEUN', '같은'], ['BADAREUL', '바다를'], ['DAREUN', '다른'], ['GOSEOSEO', '곳에서'], ['HAMKKE', '함께'], ['BOGO', '보고'], ['ITDA', '있다']],
+];
+function weekOf(ms) { const day = Math.floor((ms + 9 * 3600e3) / 864e5); return { wk: Math.floor((day + 3) / 7), wd: ((day + 3) % 7 + 7) % 7 }; }
+function weekSentence(ms) { return WEEK_SENTENCES[((weekOf(ms).wk % WEEK_SENTENCES.length) + WEEK_SENTENCES.length) % WEEK_SENTENCES.length]; }
+let weekHeard = { wk: -1, w: {} }; try { weekHeard = JSON.parse(load('pm_week', '')) || weekHeard; } catch (e) {}
+function rememberWord() {
+  const { wk, wd } = weekOf(now());
+  if (weekHeard.wk !== wk) weekHeard = { wk, w: {} };
+  weekHeard.w[wd] = 1; save('pm_week', JSON.stringify(weekHeard));
+}
+function weekHint() {
+  const { wk } = weekOf(now());
+  if (weekHeard.wk !== wk || !Object.keys(weekHeard.w).length) return '';
+  const s = weekSentence(now());
+  return '이번 주 등대가 한 말 · ' + s.map((w, i) => (weekHeard.w[i] ? w[1] : '○')).join(' ');
+}
+let stallSpecial = 0, sentenceDone = -1, stallForce = 0;
+function checkSentence(w, live) {
+  if (!live || Math.abs(w.x - STALL.x) > 420) return;
+  const flat = String(w.text).replace(/\s/g, ''), s = weekSentence(now());
+  if (flat !== s.map(x => x[1]).join('')) return;
+  const { wk } = weekOf(now());
+  if (sentenceDone === wk) return; sentenceDone = wk;
+  const here = joined && Math.abs(me.x - STALL.x) < 700;
+  stallSpecial = performance.now() + 60000;
+  if (here) { stallDismissed = false; stallForce = performance.now() + 25000; if (stallOpen) stallShow(); }
+  if (here) setTimeout(() => addItem('sentence', '노점 주인이 답했어요 · 도감에 담았어요'), 900);
+}
+
+/* ───────── 별자리 잇기 ─────────
+   맑은 밤, 하늘 오른쪽에 그 계절의 별자리가 조금 더 밝게 떠 있다. 이웃한 별을 차례로 누르면 선이 이어진다. */
+const CONSTELS = {
+  winter: { name: '오리온자리', pts: [[0.2, 0], [0.8, 0.06], [0.62, 0.45], [0.5, 0.5], [0.38, 0.55], [0.24, 0.98], [0.78, 0.94]], edges: [[0, 1], [0, 4], [1, 2], [2, 3], [3, 4], [4, 5], [2, 6]] },
+  spring: { name: '북두칠성', pts: [[0, 0.15], [0.2, 0.05], [0.36, 0.1], [0.52, 0.25], [0.56, 0.58], [0.88, 0.64], [0.92, 0.3]], edges: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 3]] },
+  summer: { name: '여름의 대삼각형', pts: [[0.25, 0], [0.92, 0.14], [0.55, 1]], edges: [[0, 1], [1, 2], [2, 0]] },
+  autumn: { name: '카시오페이아자리', pts: [[0, 0.3], [0.24, 0.62], [0.45, 0.22], [0.7, 0.55], [1, 0.08]], edges: [[0, 1], [1, 2], [2, 3], [3, 4]] },
+};
+function constelNow() { const mo = kst(now()).mo; return CONSTELS[mo === 11 || mo <= 1 ? 'winter' : mo <= 4 ? 'spring' : mo <= 7 ? 'summer' : 'autumn']; }
+let cst = { name: '', last: -1, done: new Set(), lit: new Set(), doneAt: 0 }, starVis = 0;
+function constelPts() {
+  const c = constelNow(), hy = horizonY(), bw = Math.min(W * 0.3, hy * 1.15), bh = hy * 0.5, x0 = W * 0.5, y0 = hy * 0.2;
+  return c.pts.map(([a, b]) => [x0 + a * bw, y0 + b * bh]);
+}
+function drawConstel(pn, pal) {
+  starVis = pal.stars * Math.max(0, 1 - 0.9 * WXF.cloud - 0.5 * WXF.rain);
+  if (starVis < 0.4) return;
+  const c = constelNow(); if (cst.name !== c.name) cst = { name: c.name, last: -1, done: new Set(), lit: new Set(), doneAt: 0 };
+  if (cst.doneAt && pn - cst.doneAt > 180000) cst = { name: c.name, last: -1, done: new Set(), lit: new Set(), doneAt: 0 };
+  const P = constelPts(), all = cst.done.size === c.edges.length;
+  ctx.lineWidth = 1.4 * U; ctx.lineCap = 'round';
+  for (const key of cst.done) {
+    const [a, b] = key.split('-').map(Number);
+    ctx.strokeStyle = `rgba(200,220,255,${(all ? 0.75 + 0.2 * Math.sin(pn / 500) : 0.5) * starVis})`;
+    ctx.beginPath(); ctx.moveTo(P[a][0], P[a][1]); ctx.lineTo(P[b][0], P[b][1]); ctx.stroke();
+  }
+  P.forEach(([x, y], i) => {
+    const lit = cst.lit.has(i), tw = 0.75 + 0.25 * Math.sin(pn / 600 + i * 1.7);
+    if (lit) { const g = ctx.createRadialGradient(x, y, 0, x, y, 12 * U); g.addColorStop(0, `rgba(210,225,255,${0.6 * starVis})`); g.addColorStop(1, 'rgba(210,225,255,0)'); ctx.fillStyle = g; ctx.fillRect(x - 12 * U, y - 12 * U, 24 * U, 24 * U); }
+    ctx.fillStyle = `rgba(255,255,250,${starVis * tw})`; ctx.beginPath(); ctx.arc(x, y, (lit ? 2.6 : 1.9) * U, 0, 6.3); ctx.fill();
+  });
+  if (all) {
+    const k = clamp((pn - cst.doneAt) / 1500, 0, 1) * clamp(1 - (pn - cst.doneAt - 9000) / 3000, 0, 1);
+    if (k > 0) {
+      const cx = P.reduce((a, p) => a + p[0], 0) / P.length, by = Math.max(...P.map(p => p[1]));
+      ctx.font = `500 ${13 * U}px "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.fillStyle = `rgba(220,232,255,${0.85 * k * starVis})`; ctx.fillText(c.name, cx, by + 12 * U);
+    }
+  }
+}
+function hitStar(cx, cy, pn) {
+  if (starVis < 0.4) return false;
+  const c = constelNow(), P = constelPts();
+  let best = -1, bd = 22;
+  P.forEach(([x, y], i) => { const d = Math.hypot(cx - x, cy - y); if (d < bd) { bd = d; best = i; } });
+  if (best < 0) return false;
+  if (cst.doneAt) return true;
+  const a = cst.last, b = best;
+  if (a >= 0 && a !== b && c.edges.some(([p, q]) => (p === a && q === b) || (p === b && q === a))) {
+    cst.done.add(Math.min(a, b) + '-' + Math.max(a, b));
+  }
+  cst.lit.add(b); cst.last = b;
+  if (cst.done.size === c.edges.length) {
+    cst.doneAt = pn;
+    let seen = []; try { seen = JSON.parse(load('pm_constel', '[]')) || []; } catch (e) {}
+    const first = !seen.includes(c.name); if (first) { seen.push(c.name); save('pm_constel', JSON.stringify(seen)); }
+    addItem('constel', `${c.name}${first ? '를 처음 이었어요' : '를 이었어요'}`);
+  }
+  return true;
+}
+
+/* ───────── 연날리기: 바람이 센 날에만 ───────── */
+const kiteBtn = document.getElementById('kiteBtn');
+me.kite = false;
+function kiteTick() {
+  const windy = WXF.wind >= 6;
+  kiteBtn.classList.toggle('on', joined && windy && !me.sit);
+  kiteBtn.textContent = me.kite ? '연 거두기' : '연 띄우기';
+  if (me.kite && (me.sit || WXF.wind < 5)) { me.kite = false; if (WXF.wind < 5) toast('바람이 잦아들어 연을 거뒀어요'); }
+}
+kiteBtn.addEventListener('click', () => { me.kite = !me.kite; resetStill(); wake(); if (me.kite) toast('연이 바람을 탔어요'); });
+function drawKite(a, x, y, s, t, pc) {
+  const hx = x + 9 * s, hy0 = y - 46 * s;
+  const kx = x + (110 + 40 * Math.sin(t * 0.0006 + a.seed)) * U * (0.7 + WXF.wind / 20), ky = horizonY() * (0.42 + 0.14 * Math.sin(t * 0.00045 + a.seed * 3));
+  ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 0.8;
+  ctx.beginPath(); ctx.moveTo(hx, hy0); ctx.quadraticCurveTo((hx + kx) / 2 + 20 * U, (hy0 + ky) / 2 + 40 * U, kx, ky + 12 * U); ctx.stroke();
+  const tilt = Math.sin(t * 0.002 + a.seed) * 0.25, k = U * 1.1;
+  ctx.save(); ctx.translate(kx, ky); ctx.rotate(tilt);
+  ctx.fillStyle = pc; ctx.beginPath(); ctx.moveTo(0, -14 * k); ctx.lineTo(10 * k, 0); ctx.lineTo(0, 12 * k); ctx.lineTo(-10 * k, 0); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 0.8 * k;
+  ctx.beginPath(); ctx.moveTo(0, -14 * k); ctx.lineTo(0, 12 * k); ctx.moveTo(-10 * k, 0); ctx.lineTo(10 * k, 0); ctx.stroke();
+  ctx.strokeStyle = pc; ctx.lineWidth = 1.2 * k; ctx.beginPath(); ctx.moveTo(0, 12 * k);
+  for (let i = 1; i <= 6; i++) ctx.lineTo(Math.sin(t * 0.006 + i + a.seed) * 4 * k, 12 * k + i * 5 * k);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/* ───────── 보름달 밤 등 띄우기 ─────────
+   보름달 무렵의 밤에만 작은 등에 한 줄을 적어 바다로 띄운다. 그날 밤 띄운 등은 모두 수평선에 모인다. */
+const lanternBtn = document.getElementById('lanternBtn'), lanternSheet = document.getElementById('lanternSheet');
+const lanternText = document.getElementById('lanternText'), lanternNote = document.getElementById('lanternNote');
+const lanterns = [];       // {id, text, ts, color, born, sx, sy}
+const fullMoonNight = (t, night) => night && Math.abs(moonPhase(t) - 0.5) < 0.04;
+function addLantern(l, live) {
+  if (!l || lanterns.some(o => o.id === l[0])) return;
+  const o = { id: l[0], text: String(l[1]).slice(0, 20), ts: l[2], color: l[3] | 0, born: live ? performance.now() : 0, mine: !!l[4] };
+  if (live && o.mine) { const s = sOf(me.vd); o.sx = xOf(me.vx, me.vd); o.sy = yOf(me.vd) - 70 * s; }
+  else if (live) { o.sx = W * (0.2 + Math.random() * 0.6); o.sy = H * 0.95; }
+  lanterns.push(o); while (lanterns.length > 80) lanterns.shift();
+}
+function lanternSpot(o) { return [W * (0.06 + 0.88 * hash(o.id * 1.7 + 3)), horizonY() - (4 + 14 * hash(o.id * 2.3 + 1)) * U]; }
+function lanternPos(o, pn) {
+  const [tx, ty] = lanternSpot(o), bob = Math.sin(pn / 1400 + o.id) * 1.5 * U;
+  if (!o.born) return [tx, ty + bob, 0];
+  const k = clamp((pn - o.born) / 14000, 0, 1), e = 1 - Math.pow(1 - k, 2);
+  if (k >= 1) { o.born = 0; return [tx, ty + bob, 0]; }
+  return [lerp(o.sx, tx, e) + Math.sin(pn / 700) * 6 * U * (1 - k), lerp(o.sy, ty, e) - Math.sin(Math.PI * k) * 60 * U, 1 - k];
+}
+function drawLanterns(pn, nf) {
+  if (nf < 0.3 || !lanterns.length) return;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (const o of lanterns) {
+    const [x, y, big] = lanternPos(o, pn), r = (3 + big * 9) * U, fl = 0.85 + 0.15 * Math.sin(pn / 160 + o.id);
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r * 4);
+    g.addColorStop(0, `rgba(255,190,110,${0.55 * nf * fl})`); g.addColorStop(1, 'rgba(255,170,90,0)');
+    ctx.fillStyle = g; ctx.fillRect(x - r * 4, y - r * 4, r * 8, r * 8);
+    ctx.fillStyle = `rgba(255,214,150,${0.95 * nf})`;
+    if (big > 0.2) { ctx.beginPath(); ctx.moveTo(x - r * 0.7, y - r); ctx.lineTo(x + r * 0.7, y - r); ctx.lineTo(x + r * 0.55, y + r); ctx.lineTo(x - r * 0.55, y + r); ctx.closePath(); ctx.fill(); }
+    else { ctx.beginPath(); ctx.arc(x, y, Math.max(1.4 * U, r * 0.45), 0, 6.3); ctx.fill(); }
+    const ry = horizonY() + (horizonY() - y) * 0.6 + 6 * U;          // 물에 비친 빛
+    if (!big) { ctx.fillStyle = `rgba(255,190,120,${0.25 * nf})`; ctx.fillRect(x - 0.8 * U, horizonY() + 2 * U, 1.6 * U, Math.max(2 * U, ry - horizonY())); }
+  }
+  ctx.restore();
+}
+function hitLantern(cx, cy, pn) {
+  if (palette(hourNow()).stars < 0.4) return false;
+  for (const o of lanterns) {
+    const [x, y] = lanternPos(o, pn);
+    if (Math.hypot(cx - x, cy - y) < 14) { toast(`누군가 띄운 등 · “${o.text}”`); return true; }
+  }
+  return false;
+}
+function lanternTick(t, night) { lanternBtn.classList.toggle('on', joined && fullMoonNight(t, night) && !RAINY()); }
+lanternBtn.addEventListener('click', () => { lanternNote.textContent = ''; lanternSheet.classList.add('on'); setTimeout(() => lanternText.focus(), 50); wake(); });
+document.getElementById('lanternCancel').addEventListener('click', () => { lanternSheet.classList.remove('on'); lanternText.blur(); });
+document.getElementById('lanternSend').addEventListener('click', () => {
+  const v = lanternText.value.replace(/\s+/g, ' ').trim();
+  if (!v) { lanternNote.textContent = '한 글자 이상 써 주세요'; return; }
+  if (ws && online) ws.send(JSON.stringify({ t: 'ln', text: v }));
+  else onLanternResult({ ok: true, l: [-Date.now(), v, now(), me.color, 1] });
+});
+function onLanternResult(m) {
+  if (!m.ok) { lanternNote.textContent = m.msg || '띄우지 못했어요'; return; }
+  lanternSheet.classList.remove('on'); lanternText.value = ''; lanternText.blur();
+  if (m.l) { m.l[4] = 1; addLantern(m.l, true); }
+  setTimeout(() => addItem('skylantern', dex.skylantern ? '등이 수평선으로 날아가요' : '등이 수평선으로 날아가요 · 도감에 담았어요'), 1500);
+}
+
+/* ───────── 입김: 실제 목포 기온이 5도 아래면 ───────── */
+function drawBreathPuff(x, y, s, t, seed, dir) {
+  if (!WX || WX.t === null || WX.t >= 5) return;
+  const p = ((t / 3600) + seed * 0.37) % 1; if (p > 0.38) return;
+  const k = p / 0.38;
+  ctx.fillStyle = `rgba(255,255,255,${0.5 * (1 - k)})`;
+  for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(x + dir * (4 + k * 14 + i * 3) * s, y - (k * 8 + i * 2) * s, (2.5 + k * 5 - i) * s, 0, 6.3); ctx.fill(); }
+}
+
+/* ───────── 목포의 불꽃 ─────────
+   목포에 실제로 불꽃이 오르는 날짜를 여기에 적어 두면, 그 시각에 대교 너머 하늘에도 불꽃이 오른다.
+   [시작(한국 시각), 분, 이름] */
+const FIREWORKS = [
+  ['2027-01-01T00:00:00+09:00', 15, '새해'],
+];
+function fwState(ms) {
+  const dk = v => Math.floor((v + 9 * 3600e3) / 864e5);
+  for (const [at, mins, name] of FIREWORKS) {
+    const s = Date.parse(at), e = s + mins * 60e3;
+    if (ms >= s && ms < e) return { on: true, name };
+    if (ms < s && (dk(s) === dk(ms) || s - ms < 6 * 3600e3)) return { on: false, name, at: s };
+  }
+  return null;
+}
+const rockets = []; let nextRocket = 0, fwTold = false, fwSeenAt = 0;
+const FW_COLORS = [[255, 120, 110], [255, 210, 120], [140, 210, 255], [190, 150, 255], [140, 255, 190], [255, 255, 240]];
+function drawFireworks(pn, t) {
+  const st = fwState(t);
+  if (st && st.on) {
+    if (pn > nextRocket) {
+      nextRocket = pn + 500 + Math.random() * 1100;
+      rockets.push({ x: W * (0.28 + Math.random() * 0.6), yb: horizonY() * (0.18 + Math.random() * 0.35), t0: pn, c: FW_COLORS[Math.floor(Math.random() * FW_COLORS.length)], n: 40 + Math.floor(Math.random() * 30), sp: (60 + Math.random() * 50) * U, seed: Math.random() * 6 });
+    }
+    if (joined) { if (!fwSeenAt) fwSeenAt = pn; if (!fwTold && pn - fwSeenAt > (FAST ? 2000 : 10000)) { fwTold = true; addItem('firework', `목포 ${st.name} 불꽃을 함께 봤어요 · 도감에 담았어요`); } }
+  }
+  if (!rockets.length) return;
+  const hy = horizonY();
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (let i = rockets.length - 1; i >= 0; i--) {
+    const r = rockets[i], e = (pn - r.t0) / 1000;
+    if (e > 3.2) { rockets.splice(i, 1); continue; }
+    if (e < 1) {
+      const y = lerp(hy, r.yb, 1 - Math.pow(1 - e, 2));
+      ctx.fillStyle = `rgba(255,230,190,${0.8 * (1 - e * 0.3)})`; ctx.beginPath(); ctx.arc(r.x, y, 1.6 * U, 0, 6.3); ctx.fill();
+    } else {
+      const b = e - 1, a = clamp(1 - b / 2.2, 0, 1);
+      if (b < 0.15) { const g = ctx.createRadialGradient(r.x, r.yb, 0, r.x, r.yb, r.sp * 1.2); g.addColorStop(0, `rgba(${r.c},${0.35 * (1 - b / 0.15)})`); g.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = g; ctx.fillRect(r.x - r.sp * 1.2, r.yb - r.sp * 1.2, r.sp * 2.4, r.sp * 2.4); }
+      ctx.strokeStyle = `rgba(${r.c},${a})`; ctx.lineWidth = 1.8 * U; ctx.lineCap = 'round';
+      const pos = (ang, bb, sp) => { const d = sp * (1 - Math.exp(-bb * 2.2)); return [r.x + Math.cos(ang) * d, r.yb + Math.sin(ang) * d + 18 * U * bb * bb]; };
+      for (let j = 0; j < r.n; j++) {
+        const ang = j / r.n * 6.283 + r.seed, sp = j % 3 ? r.sp : r.sp * 0.6;
+        const [px, py] = pos(ang, b, sp), [qx, qy] = pos(ang, Math.max(0, b - 0.12), sp);
+        if (py > hy) continue;
+        ctx.beginPath(); ctx.moveTo(qx, qy); ctx.lineTo(px, py); ctx.stroke();
+      }
+    }
+  }
+  ctx.restore();
+}
+
+/* ───────── 이어 쓰는 모래 문장 ─────────
+   누군가 쓴 모래 글씨 가까이 가서 누르면, 그 뒤에 한 낱말을 이어 쓸 수 있다. 파도가 오기 전까지 문장이 자란다. */
+let appendTo = null;
+function hitWriting(cx, cy) {
+  for (const w of writings) {
+    if (w.wash) continue;
+    const s = sOf(w.d), x = xOf(w.x, w.d), y = yOf(w.d), half = Math.max(30, w.text.length * 13 * s);
+    if (Math.abs(cx - x) < half && Math.abs(cy - y) < 8 * s + 4) return w;
+  }
+  return null;
+}
+
 /* ───────── 알림 한 줄 · 물때 표시 ───────── */
 const toastEl = document.getElementById('toast'); let toastTimer = 0;
 function toast(msg) {
@@ -1469,7 +1933,8 @@ function infoTick(t, tide) {
   const dir = tide.rising ? '물이 들어오는 중' : '물이 빠지는 중';
   tideEl.textContent = `목포 ${dir} · ${tide.nextHigh ? '만조' : '간조'} ${hm(tide.next)}${tide.approx ? ' (어림)' : ''}`;
   const sh = showState(t), ms = showerToday(t), isNight = palette(hourNow()).stars > 0.4;
-  eventEl.textContent = sh.on ? '밤 9시, 해변에 빛이 지나가는 중' : sh.soon ? '곧 9시, 해변에 빛이 지나가요'
+  const fw = fwState(t);
+  eventEl.textContent = fw && fw.on ? `목포 ${fw.name} 불꽃이 오르는 중` : fw ? `오늘 ${hm(fw.at)} 목포 ${fw.name} 불꽃` : sh.on ? '밤 9시, 해변에 빛이 지나가는 중' : sh.soon ? '곧 9시, 해변에 빛이 지나가요'
     : ms && isNight ? `오늘 밤 ${ms.name} 유성우` : ms ? `오늘 밤 ${ms.name} 유성우가 와요` : '';
   wxEl.textContent = WX && WX.t !== null ? `목포 ${Math.round(WX.t)}° · ${WX.d || wxDesc(WX.code | 0)} · 바람 ${Math.round(WX.ws)}m/s` : '';
 }
@@ -1523,13 +1988,19 @@ const MONTH_START = [0, 0, 2, 2, 2, 6, 6, 6, 6, 9, 9, 0];   // 1월~12월에 처
 let stallIdx = MONTH_START[kst(Date.now()).mo], stallOpen = false, stallDismissed = false;
 const stallEl = document.getElementById('stall');
 function stallShow() {
+  if (performance.now() < stallSpecial) {
+    const s = weekSentence(now()).map(x => x[1]).join(' ');
+    document.getElementById('stallFish').textContent = '노점 주인이 고개를 끄덕여요';
+    document.getElementById('stallLine').textContent = `“${s}” · 이번 주 등대가 깜빡인 말을 다 모으셨네요. 바다는 한 주에 한 문장씩 말해요. 다음 주에도 등대를 봐 주세요.`;
+    return;
+  }
   const name = ORDER[stallIdx % ORDER.length], [a, b] = FISH[name];
   document.getElementById('stallFish').textContent = a;
   document.getElementById('stallLine').textContent = b;
 }
 document.getElementById('stallNext').addEventListener('click', e => { e.stopPropagation(); stallIdx++; stallShow(); wake(); });
 function stallCheck() {
-  const near = joined && Math.abs(me.vx - STALL.x) < 170 && Math.abs(me.vd - STALL.d) < 0.22;
+  const near = joined && (Math.abs(me.vx - STALL.x) < 170 && Math.abs(me.vd - STALL.d) < 0.22 || performance.now() < stallForce);
   if (!near) stallDismissed = false;
   const want = near && !stallDismissed;
   if (want && !stallOpen) { stallShow(); wake(); hint.classList.add('gone'); }
@@ -1625,7 +2096,7 @@ function stepMe(dt) {
     const n = Math.hypot(dx, dd) || 1;
     me.x = clamp(me.x + dx / n * SPEED_X * dt, 40, WORLD_W - 40);
     me.d = clamp(me.d + dd / n * SPEED_D * dt, D_MIN, D_MAX);
-    me.walk = 1;
+    me.walk = 1; resetStill();
   } else me.walk = 0;
   me.vx = me.x; me.vd = me.d;
 }
@@ -1655,14 +2126,21 @@ function frame(pn) {
   const nf = nightF(pal), G = geo();
   drawSky(pal, t, hourNow());
   drawMeteors(pn, t, pal);
+  drawFireworks(pn, t);
+  drawConstel(pn, pal);
   drawFar(pal, t, nf, G);
   drawLighthouse(G, nf, t, pn);
   drawFog(G);
   drawBeach(pal, t, wv, nf, G);
+  porpTick(pn, pal, dE); drawPorpoise(pn, nf);
   drawWrack(pal);
   drawWritings(pn, t, pal);
   drawDecor(pal);
   spawnItems(t, wv); drawItems(pn, t, wv);
+  crabTick(pn, t); drawCrabs(pn, nf);
+  gullTick(pn, pal.stars < 0.4); drawGull(pn);
+  if (t - highAt > 5000) { highAt = t; HIGH_NOW = nearHigh(t); }
+  if (HIGH_NOW && joined && !highTold && !(me.sit && !RAINY()) && me.vd < dE + wobble(me.vx, t) + 0.012) { highTold = true; addItem('hightide', dex.hightide ? '만조의 물이 발목까지 올라왔어요' : '만조의 물이 발목까지 올라왔어요 · 도감에 담았어요'); }
   drawProjections(t, nf);
   drawBottles(pn, t, dE, nf);
 
@@ -1683,6 +2161,7 @@ function frame(pn) {
   castleTick(t, wv); pickTick();
   infoTick(t, tide);
   if (night !== lastNight || RAINY() !== lastRainy) { lastNight = night; lastRainy = RAINY(); actLabel(); }
+  kiteTick(); lanternTick(t, night);
   stallCheck();
 
   if (pal.shade > 0.01) {       // 저녁·밤의 어스름
@@ -1696,6 +2175,7 @@ function frame(pn) {
     lg.addColorStop(0, `rgba(255,186,110,${0.20 * nf})`); lg.addColorStop(1, 'rgba(255,186,110,0)');
     ctx.fillStyle = lg; ctx.fillRect(0, H * 0.62, W, H * 0.38); ctx.restore();
   }
+  drawLanterns(pn, nf);
   drawPrecip(pn, t);
   requestAnimationFrame(frame);
 }
@@ -1814,8 +2294,8 @@ function showCount() {
   countEl.textContent = online ? where + (n > 1 ? `지금 ${n}명이 파도를 보고 있어요` : '지금은 혼자 보는 바다예요') : '혼자 보는 바다 (연결 없음)';
 }
 function addPeer(a) {
-  const [id, x, d, sit, color, name] = a;
-  peers.set(id, { x, d, vx: x, vd: d, sit: !!sit, color: color | 0, name: String(name || '').slice(0, 10), walk: 0, seed: seedOf(id) });
+  const [id, x, d, sit, color, name, k] = a;
+  peers.set(id, { x, d, vx: x, vd: d, sit: !!sit, kite: !!k, color: color | 0, name: String(name || '').slice(0, 10), walk: 0, seed: seedOf(id) });
 }
 function connect() {
   if (!location.host) { showCount(); return; }
@@ -1823,7 +2303,7 @@ function connect() {
   catch (e) { ws = null; showCount(); return; }
   ws.onopen = () => {
     retry = 2000;
-    ws.send(JSON.stringify({ t: 'join', name: me.name, color: me.color, x: Math.round(me.x), d: +me.d.toFixed(3), sit: me.sit ? 1 : 0 }));
+    ws.send(JSON.stringify({ t: 'join', name: me.name, color: me.color, x: Math.round(me.x), d: +me.d.toFixed(3), sit: me.sit ? 1 : 0, k: me.kite ? 1 : 0 }));
   };
   ws.onmessage = ev => {
     let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
@@ -1834,20 +2314,24 @@ function connect() {
       if (m.today) setToday(m.today);
       if (m.wx) setWX(m.wx);
       if (m.castle) onCastle({ lvl: m.castle[0], gen: m.castle[1] });
+      for (const l of m.ln || []) addLantern(l, false);
       askBottleNews();
     } else if (m.t === 'in') addPeer(m.p);
     else if (m.t === 'out') peers.delete(m.id);
     else if (m.t === 'g') onGesture(m.from, m.to);
     else if (m.t === 'b') onBottle(m);
     else if (m.t === 'bs') onSent(m);
-    else if (m.t === 'w') addWriting(m.w);
+    else if (m.t === 'w') addWriting(m.w, true);
+    else if (m.t === 'wu') onWritingUpdate(m);
+    else if (m.t === 'ln') addLantern(m.l, true);
+    else if (m.t === 'lr') onLanternResult(m);
     else if (m.t === 'wr') onSandResult(m);
     else if (m.t === 'today') { setToday(m.today); roomCount = m.rooms || roomCount; if (m.wx) setWX(m.wx); }
     else if (m.t === 'wx') setWX(m.wx);
     else if (m.t === 'cs') onCastle(m);
     else if (m.t === 'mineR') onBottleNews(m.r || {});
     else if (m.t === 'm') {
-      for (const [id, x, d, sit] of m.p) { const p = peers.get(id); if (p) { p.x = x; p.d = d; p.sit = !!sit; } }
+      for (const [id, x, d, sit, k] of m.p) { const p = peers.get(id); if (p) { p.x = x; p.d = d; p.sit = !!sit; p.kite = !!k; } }
     }
     showCount();
   };
@@ -1859,10 +2343,10 @@ function connect() {
 }
 setInterval(() => {      // 내 위치 알리기
   if (!ws || ws.readyState !== 1 || !online) return;
-  const s = `${Math.round(me.x)},${me.d.toFixed(3)},${me.sit ? 1 : 0}`, t = Date.now();
+  const s = `${Math.round(me.x)},${me.d.toFixed(3)},${me.sit ? 1 : 0},${me.kite ? 1 : 0}`, t = Date.now();
   if (s === lastSent && t - lastSentAt < 15000) return;
   lastSent = s; lastSentAt = t;
-  ws.send(JSON.stringify({ t: 's', x: Math.round(me.x), d: +me.d.toFixed(3), sit: me.sit ? 1 : 0 }));
+  ws.send(JSON.stringify({ t: 's', x: Math.round(me.x), d: +me.d.toFixed(3), sit: me.sit ? 1 : 0, k: me.kite ? 1 : 0 }));
 }, 130);
 
 /* ───────── 조작 ───────── */
@@ -1871,7 +2355,7 @@ let lastNight = false;
 let lastRainy = false;
 function actLabel() { act.textContent = lastRainy ? (me.sit ? '다시 걷기' : '우산 쓰고 서 있기') : me.sit ? '일어나기' : (lastNight ? '랜턴 켜고 앉기' : '파라솔 펴고 앉기'); }
 function setSit(v) {
-  me.sit = v; me.tx = me.td = null;
+  me.sit = v; me.tx = me.td = null; resetStill(); if (v) sitAt = performance.now();
   actLabel();
   if (v) { if (!bottle && !nextBottleAt) scheduleBottle(2, 5); }
   else { nextBottleAt = 0; letterSheet.classList.remove('on'); }
@@ -1884,8 +2368,14 @@ cv.addEventListener('pointerdown', e => {
   if (document.querySelector('.sheet.on')) return;
   if (stallOpen) { stallDismissed = true; stallOpen = false; stallEl.classList.remove('on'); }
   if (!joined) return;
+  const wr = hitWriting(e.clientX, e.clientY);
+  if (wr && Math.abs(me.x - wr.x) < 380 && Math.abs(me.d - wr.d) < 0.3) { openAppend(wr); return; }
   const who = hitPeer(e.clientX, e.clientY);
   if (who !== null) { if (ws && online) ws.send(JSON.stringify({ t: 'g', to: who })); hint.classList.add('gone'); return; }
+  resetStill();
+  const pn = performance.now();
+  if (e.clientY < horizonY() + 4 && (hitStar(e.clientX, e.clientY, pn) || hitLantern(e.clientX, e.clientY, pn))) return;
+  if (hitPorpoise(e.clientX, e.clientY, pn) || hitGull(e.clientX, e.clientY, pn)) return;
   if (hitCastle(e.clientX, e.clientY)) { buildCastle(); return; }
   const it = hitItem(e.clientX, e.clientY);
   if (it) {
@@ -1950,7 +2440,7 @@ function enter() {
   setTimeout(() => hint.classList.add('gone'), 9000);
 }
 document.getElementById('go').addEventListener('click', enter);
-if (FAST) window.__pm = { me, castle: () => castle, items: () => items, setWX, buildCastle, addItem, spawnReset: () => { itemEpoch = -1; }, beaconWord };   // 시험용
+if (FAST) window.__pm = { me, castle: () => castle, items: () => items, setWX, buildCastle, addItem, spawnReset: () => { itemEpoch = -1; }, beaconWord, crabs: () => crabs, gull: () => gull, porpNow: () => { porpNext = 0; }, porp: () => porp, FIREWORKS, weekSentence, cst: () => cst, constelPts, lanterns, writings, dex: () => dex, high: () => HIGH_NOW, setSit, peers, xy: (x, d) => [xOf(x, d), yOf(d)] };   // 시험용
 nick.addEventListener('keydown', e => { if (e.key === 'Enter') enter(); });
 })();
 </script>
