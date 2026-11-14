@@ -43,10 +43,12 @@ function save(name, obj) {
 }
 
 /* ───────── 도감 완성 카드 ─────────
-   다 모은 사람이 카드 그림(JPEG)을 노점에 알린다. 서버에는 남기지 않고, 주인에게 알림으로만 보낸다.
-   한 사람(ipTag) 하루 한 번. NTFY_TOPIC 을 정해 두어야 알림이 간다. */
+   다 모은 사람이 카드 그림(JPEG)을 노점에 알린다. 서버에는 남기지 않고, 주인 텔레그램으로만 보낸다.
+   한 사람(ipTag) 하루 한 번. TELEGRAM_BOT_TOKEN 이 있어야 알림이 간다.
+   TELEGRAM_CHAT_ID 가 없으면 봇에게 마지막으로 말을 건 1:1 대화방을 찾아 쓴다. */
 const cardLast = new Map();          // tag → 마지막으로 알린 시각
-const NTFY_TOPIC = (process.env.NTFY_TOPIC || '').trim(), NTFY_TOKEN = (process.env.NTFY_TOKEN || '').trim();
+const TG_TOKEN = (process.env.TELEGRAM_BOT_TOKEN || '').trim();
+let tgChat = (process.env.TELEGRAM_CHAT_ID || '').trim() || (load('tg.json', {}).chat || '');
 function postCard(req, res) {
   const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim(), tag = ipTag(ip);
   let body = '', big = false;
@@ -63,17 +65,32 @@ function postCard(req, res) {
     json(res, 200, { ok: 1 });
   });
 }
+async function tgCall(method, body) {
+  const r = await fetch(`https://api.telegram.org/bot${TG_TOKEN}/${method}`, { method: 'POST', body, signal: AbortSignal.timeout(12000) });
+  const j = await r.json().catch(() => ({}));
+  if (!j.ok) throw new Error(`${r.status} ${j.description || ''}`.trim());
+  return j.result;
+}
+async function findChat() {
+  if (tgChat) return tgChat;
+  const ups = await tgCall('getUpdates', new URLSearchParams({ limit: '50' }));
+  for (let i = ups.length - 1; i >= 0; i--) {
+    const c = (ups[i].message || ups[i].edited_message || {}).chat;
+    if (c && c.type === 'private') { tgChat = String(c.id); save('tg.json', { chat: tgChat }); console.log('[알림] 텔레그램 대화방을 찾았어요:', tgChat); return tgChat; }
+  }
+  throw new Error('봇에게 먼저 아무 말이나 한 번 보내 주세요');
+}
 async function notifyOwner(text, img) {
   console.log('[완성 카드] ' + text);
-  if (!NTFY_TOPIC) return 'NTFY_TOPIC 없음';
-  // ntfy.sh: 카드 그림을 첨부로 같이 보낸다 (휴대폰 ntfy 앱에서 바로 보임)
-  const q = new URLSearchParams({ title: '파도멍 도감 완성', message: text, tags: 'shell' });
-  if (img) q.set('filename', 'padomeong-card.jpg');
+  if (!TG_TOKEN) return 'TELEGRAM_BOT_TOKEN 없음';
   try {
-    const r = await fetch(`https://ntfy.sh/${encodeURIComponent(NTFY_TOPIC)}?${q}`, { method: img ? 'PUT' : 'POST', body: img || '', signal: AbortSignal.timeout(10000), headers: NTFY_TOKEN ? { Authorization: 'Bearer ' + NTFY_TOKEN } : {} });
-    const t = (await r.text()).slice(0, 160);
-    if (!r.ok) console.log('[알림] ntfy 응답', r.status, t);
-    return `${r.status} ${t}`;
+    const chat = await findChat();
+    if (img) {
+      const f = new FormData(); f.append('chat_id', chat); f.append('caption', text);
+      f.append('photo', new Blob([img], { type: 'image/jpeg' }), 'padomeong-card.jpg');
+      await tgCall('sendPhoto', f);
+    } else await tgCall('sendMessage', new URLSearchParams({ chat_id: chat, text }));
+    return '보냈어요';
   } catch (e) { console.log('[알림] 못 보냄:', e.message); return '못 보냄: ' + e.message; }
 }
 
@@ -183,9 +200,9 @@ const server = http.createServer((req, res) => {
     if (!ADMIN_KEY) return json(res, 403, { 안내: 'ADMIN_KEY 환경변수를 정하면 열려요' });
     if (!isAdmin(u)) return json(res, 403, { 안내: '열쇠가 맞지 않아요' });
     if (p === '/stats') return json(res, 200, statsView());
-    if (p === '/admin/ntfy-test') {
-      if (!NTFY_TOPIC) return json(res, 200, { 안내: 'NTFY_TOPIC 환경변수가 비어 있어요' });
-      notifyOwner('파도멍 서버에서 보낸 시험 알림이에요', null).then(r => json(res, 200, { 주제: NTFY_TOPIC.slice(0, 10) + '…(' + NTFY_TOPIC.length + '글자)', 토큰: NTFY_TOKEN ? (NTFY_TOKEN.startsWith('tk_') ? 'tk_로 시작, ' : 'tk_로 시작하지 않음, ') + NTFY_TOKEN.length + '글자' : '없음', ntfy응답: r }));
+    if (p === '/admin/notify-test') {
+      if (!TG_TOKEN) return json(res, 200, { 안내: 'TELEGRAM_BOT_TOKEN 환경변수가 비어 있어요' });
+      notifyOwner('파도멍 서버에서 보낸 시험 알림이에요 🐚', null).then(r => json(res, 200, { 결과: r, 대화방: tgChat || '(아직 못 찾음)', 안내: tgChat && !process.env.TELEGRAM_CHAT_ID ? '이 대화방 번호를 TELEGRAM_CHAT_ID 환경변수에 넣어 두면 서버가 다시 켜져도 바로 보내요' : undefined }));
       return;
     }
     if (p === '/admin/bottles') return json(res, 200, bottles.list.slice().reverse().map(b => ({ id: b.id, 글: b.text, 날짜: new Date(b.ts).toISOString(), 신고: b.reports.length, 숨김: !!b.hidden })));
