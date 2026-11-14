@@ -67,7 +67,7 @@ function day() {
   const k = kstDay();
   if (!stats[k]) {
     stats[k] = { 방문: 0, 머문시간합_초: 0, 앉은시간합_초: 0, 머문시간분포: Object.fromEntries(BUCKETS.map(b => [b, 0])),
-                 최대동시접속: 0, 입장: 0, 손흔들기: 0, 띄운병: 0, 받은병: 0, 빈병: 0, 신고: 0, 센파도: 0, 모래글씨: 0 };
+                 최대동시접속: 0, 입장: 0, 손흔들기: 0, 띄운병: 0, 받은병: 0, 빈병: 0, 신고: 0, 모래글씨: 0 };
     const keys = Object.keys(stats).sort(); while (keys.length > 120) delete stats[keys.shift()];
   }
   return stats[k];
@@ -202,8 +202,8 @@ function roomsChanged() {        // 해변 수가 바뀌면 모두에게 알려 
 function pickRoom() {
   for (let r = 1; ; r++) { const set = rooms.get(r); if (!set || set.size < ROOM_CAP) return r; }
 }
-// 오늘 다녀간 사람, 오늘 함께 센 파도 (화면 위에 보여 줄 숫자)
-function todayView() { const d = day(); return { v: d.입장 || 0, w: d.센파도 || 0 }; }
+// 오늘 다녀간 사람 (화면 위에 보여 줄 숫자)
+function todayView() { const d = day(); return { v: d.입장 || 0 }; }
 function checkSand(text) {
   if (typeof text !== 'string') return null;
   const s = text.replace(/[\u0000-\u001f\u007f<>]/g, '').replace(/\s+/g, ' ').trim();
@@ -223,7 +223,7 @@ wss.on('connection', (ws, req) => {
   if (people.size >= MAX_PEOPLE || ipCount > MAX_PER_IP) return ws.close(1013, 'full');
   perIp.set(ip, ipCount);
 
-  let id = null, msgs = 0, windowStart = Date.now(), lastGesture = 0, lastSand = 0, lastCount = 0;
+  let id = null, msgs = 0, windowStart = Date.now(), lastGesture = 0, lastSand = 0;
   const joinedAt = Date.now(); let sitSince = 0, sitTotal = 0;
   const mine = new Set(), seen = new Set();          // 이 연결이 띄운 병, 이미 받은 병
   ws.alive = Date.now();
@@ -269,10 +269,6 @@ wss.on('connection', (ws, req) => {
       if (t - lastGesture < 2000 || to === id || !other || other.room !== me.room) return;
       lastGesture = t; bump('손흔들기');
       sendRoom(me.room, { t: 'g', from: id, to });
-
-    } else if (m.t === 'c') {                     // 물결 세기: 파도 하나에 한 번만 셀 수 있어 8초에 한 번까지
-      if (t - lastCount < 8000) return;
-      lastCount = t; bump('센파도');
 
     } else if (m.t === 'w') {                     // 모래에 글씨 쓰기 (파도가 지울 때까지만 남음)
       if (t - lastSand < 20000) return send(ws, { t: 'wr', ok: false, msg: '조금 있다가 다시 써요' });
