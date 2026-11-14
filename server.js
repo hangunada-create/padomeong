@@ -145,6 +145,13 @@ const server = http.createServer((req, res) => {
     if (!ADMIN_KEY) return json(res, 403, { 안내: 'ADMIN_KEY 환경변수를 정하면 열려요' });
     if (!isAdmin(u)) return json(res, 403, { 안내: '열쇠가 맞지 않아요' });
     if (p === '/stats') return json(res, 200, statsView());
+    if (p === '/admin/stories') {
+      let rows = [];
+      try { rows = fs.readFileSync(path.join(DATA_DIR, 'stories.jsonl'), 'utf8').trim().split('\n').filter(Boolean).map(l => JSON.parse(l)).reverse(); } catch (e) {}
+      const esc = v => String(v || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
+      return res.end(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>사연 한 점</title><body style="font-family:system-ui;max-width:720px;margin:24px auto;padding:0 16px;line-height:1.6"><h2>사연 한 점 (${rows.length})</h2><p style="color:#888">서버를 새로 올리면 이 목록이 지워져요. 고른 사연은 따로 옮겨 두세요.</p>${rows.map(r => `<div style="border-top:1px solid #ddd;padding:12px 0"><b>${esc(r.name)}</b> ${r.ig ? '· @' + esc(r.ig) : ''} <span style="color:#999">${esc(r.at)}</span><div style="white-space:pre-wrap">${esc(r.text)}</div></div>`).join('')}</body>`);
+    }
     if (p === '/admin/bottles') return json(res, 200, bottles.list.slice().reverse().map(b => ({ id: b.id, 글: b.text, 날짜: new Date(b.ts).toISOString(), 신고: b.reports.length, 숨김: !!b.hidden })));
     if (p === '/admin/hide' || p === '/admin/show') {
       const b = bottles.list.find(b => b.id === Number(u.searchParams.get('id')));
@@ -174,7 +181,7 @@ const server = http.createServer((req, res) => {
    실패하면 이전 값을 그대로 쓴다. 출처 표기: 기상청(공공누리 제1유형). */
 const KMA_KEY = process.env.KMA_KEY || '';
 const KMA_NX = 50, KMA_NY = 66;
-let weather = null;
+let weather = null, rainEndAt = 0; const wxHist = [];
 function kmaBase(minsBack, minute) {       // 한국 시각 기준 발표 날짜·시각
   const d = new Date(Date.now() + 9 * 3600e3 - minsBack * 60e3);
   const ymd = d.toISOString().slice(0, 10).replace(/-/g, '');
@@ -213,13 +220,19 @@ function kmaToWx(nc, fc) {
   else if (pty === 7) { code = 85; d = '눈날림'; cc = 100; }
   else if (reh >= 95) { code = 45; d = '안개'; cc = Math.max(cc, 80); }
   if (lgt > 0) { code = 95; d = pty ? '천둥 번개' : '마른 번개'; }
-  return { t: num(v.T1H, null), code, d, p: rn, cc, ws: num(v.WSD, 0), at: Date.now() };
+  return { t: num(v.T1H, null), code, d, p: rn, cc, ws: num(v.WSD, 0), h: reh, rain: pty > 0, at: Date.now() };
 }
 async function fetchWeather() {
   try {
     const nc = await kmaCall('getUltraSrtNcst', 10, '00');
     let fc = null; try { fc = await kmaCall('getUltraSrtFcst', 45, '30'); } catch (e) { console.log('[날씨] 예보 못 받음:', e.message); }
-    weather = kmaToWx(nc, fc);
+    const w = kmaToWx(nc, fc), was = weather;
+    wxHist.push({ t: Date.now(), ws: w.ws }); while (wxHist.length && Date.now() - wxHist[0].t > 24 * 3600e3) wxHist.shift();
+    w.gust = Math.max(...wxHist.map(x => x.ws));                       // 지난 24시간 가장 센 바람
+    if (was && was.rain && !w.rain) rainEndAt = Date.now();             // 비가 막 그쳤다 → 무지개
+    if (w.rain) rainEndAt = 0;
+    w.after = rainEndAt;
+    weather = w;
     if (people.size) sendAll({ t: 'wx', wx: weather });
   } catch (e) { console.log('[날씨] 받지 못함:', e.message); }
 }
@@ -243,6 +256,25 @@ const nightKey = () => { const d = new Date(Date.now() + 9 * 3600e3 - 12 * 3600e
 function lanternList() { const k = nightKey(); if (lanterns.key !== k) { lanterns.key = k; lanterns.list = []; lanterns.by.clear(); } return lanterns.list; }
 let nextL = 1;
 const shotsBy = { key: '', n: new Map() };
+// 해변 공 (해변마다 하나): [x, d, vx, vd, 찬 시각]
+const balls = new Map(); const BALL_K = 1.4;
+const ballOf = room => { if (!balls.has(room)) balls.set(room, [1500, 0.5, 0, 0, Date.now()]); return balls.get(room); };
+function ballNow(b, ms) { const e = Math.max(0, (ms - b[4]) / 1000), f = (1 - Math.exp(-BALL_K * e)) / BALL_K; return [clamp(b[0] + b[2] * f, 80, WORLD_W - 80), clamp(b[1] + b[3] * f, 0.02, 0.7)]; }
+// 모래 오목 (해변마다 한 판, 9×9)
+const omoks = new Map();
+const omokOf = room => { if (!omoks.has(room)) omoks.set(room, { b: Array(81).fill('0'), turn: 1, p: [null, null], win: 0, last: 0 }); return omoks.get(room); };
+const omokView = o => ({ t: 'ob', b: o.b.join(''), turn: o.turn, p: o.p.map(x => (x ? x.name : '')), win: o.win });
+function omokWin(b, i) {
+  const c = b[i], r = Math.floor(i / 9), q = i % 9;
+  for (const [dr, dq] of [[0, 1], [1, 0], [1, 1], [1, -1]]) {
+    let n = 1;
+    for (const sg of [1, -1]) for (let k = 1; k < 5; k++) { const rr = r + dr * k * sg, qq = q + dq * k * sg; if (rr < 0 || rr > 8 || qq < 0 || qq > 8 || b[rr * 9 + qq] !== c) break; n++; }
+    if (n >= 5) return true;
+  }
+  return false;
+}
+// 사연 한 점: data 폴더의 stories.jsonl 에 한 줄씩 (새로 올리면 지워지니 /admin/stories 로 자주 확인)
+const storyBy = { key: '', n: new Map() };
 // 노을 십 분을 함께 본 사람, 오늘의 질문에 달린 답 (한국 날짜가 바뀌면 비움, 저장하지 않음)
 const dayKeyNow = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
 const sunsetSeen = { key: '', ids: new Set() };
@@ -323,7 +355,7 @@ wss.on('connection', (ws, req) => {
       const d = day(); d.최대동시접속 = Math.max(d.최대동시접속, people.size);
       if (!isBot) bump('입장');
       const cs = castleOf(room);
-      send(ws, { t: 'hi', id, now: Date.now(), room, rooms: rooms.size, p: list, w: writings.get(room) || [], today: todayView(), wx: weather, castle: cs.map(c => [c.lvl, c.gen]), ln: lanternList(), qa: qaList().slice(-40), sn: sunsetCount() });
+      send(ws, { t: 'hi', id, now: Date.now(), room, rooms: rooms.size, p: list, w: writings.get(room) || [], today: todayView(), wx: weather, castle: cs.map(c => [c.lvl, c.gen]), ball: ballOf(room), ob: omokView(omokOf(room)), ln: lanternList(), qa: qaList().slice(-40), sn: sunsetCount() });
       sendRoom(room, { t: 'in', p: [id, me.x, me.d, me.sit, me.color, me.name, me.k, me.g] }, id);
       roomsChanged();
       return;
@@ -384,6 +416,45 @@ wss.on('connection', (ws, req) => {
       me.shot = k; shotsBy.n.set(tag, used + 1); bump('불꽃');
       const ax = clamp(num(m.ax, 0), -300, 300), ay = clamp(num(m.ay, -100), -300, 0);
       sendRoom(me.room, { t: 'pf', id, ax, ay }, id);
+
+    } else if (m.t === 'kick') {                  // 해변 공 차기
+      if (t - (me.kickAt || 0) < 500) return; me.kickAt = t;
+      const b = ballOf(me.room), [bx, bd] = ballNow(b, t);
+      if (Math.abs(me.x - bx) > 220 || Math.abs(me.d - bd) > 0.25) return;
+      const nb = [bx, bd, clamp(num(m.vx, 0), -800, 800), clamp(num(m.vd, 0), -1.2, 1.2), t];
+      balls.set(me.room, nb); sendRoom(me.room, { t: 'ball', b: nb }, id);
+
+    } else if (m.t === 'om') {                    // 모래 오목에 돌 놓기
+      const o = omokOf(me.room), i = m.i | 0;
+      if (o.win || i < 0 || i > 80 || o.b[i] !== '0') return send(ws, omokView(o));
+      const seat = o.p[o.turn - 1];
+      if (seat && seat.id !== id && people.has(seat.id) && t - seat.at < 180000) return send(ws, omokView(o));
+      o.p[o.turn - 1] = { id, name: me.name, at: t };
+      o.b[i] = String(o.turn); o.last = t;
+      if (omokWin(o.b, i)) {
+        o.win = o.turn; bump('오목');
+        const room = me.room;
+        setTimeout(() => { const n = omokOf(room); if (n === o && o.win) { omoks.delete(room); sendRoom(room, omokView(omokOf(room))); } }, 20000);
+      } else if (!o.b.includes('0')) { omoks.delete(me.room); }
+      else o.turn = 3 - o.turn;
+      sendRoom(me.room, omokView(o));
+
+    } else if (m.t === 'or') {                    // 새 판 (끝났거나, 오래 멈췄거나, 앉아 있던 사람이 원할 때)
+      const o = omokOf(me.room);
+      if (o.win || t - o.last > 300000 || o.p.some(x => x && x.id === id)) { omoks.delete(me.room); sendRoom(me.room, omokView(omokOf(me.room))); }
+
+    } else if (m.t === 'story') {                 // 사연 한 점 (한 사람 하루 세 번까지)
+      const k = new Date(t + 9 * 3600e3).toISOString().slice(0, 10);
+      if (storyBy.key !== k) { storyBy.key = k; storyBy.n.clear(); }
+      const used = storyBy.n.get(tag) || 0;
+      if (used >= 3) return send(ws, { t: 'sr', ok: false, msg: '오늘은 사연을 충분히 남겼어요' });
+      let text = typeof m.text === 'string' ? m.text.replace(/[\u0000-\u0008\u000b-\u001f\u007f<>]/g, '').trim().slice(0, 500) : '';
+      if (text.length < 10) return send(ws, { t: 'sr', ok: false, msg: '열 글자 이상 적어 주세요' });
+      text = text.replace(/(\d[\d\s.-]{7,}\d)/g, '[번호 지움]');          // 전화번호처럼 보이면 지운다
+      const ig = typeof m.ig === 'string' ? m.ig.replace(/[^A-Za-z0-9._@]/g, '').slice(0, 40) : '';
+      storyBy.n.set(tag, used + 1); bump('사연');
+      fs.appendFile(path.join(DATA_DIR, 'stories.jsonl'), JSON.stringify({ at: new Date(t).toISOString(), name: me.name, ig, text }) + '\n', () => {});
+      send(ws, { t: 'sr', ok: true });
 
     } else if (m.t === 'sn') {                    // 노을 십 분 동안 바닷가에 있었음
       sunsetCount(); if (sunsetSeen.ids.has(id)) return;
