@@ -15,7 +15,7 @@ const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const ADMIN_KEY = process.env.ADMIN_KEY || '';          // 통계·유리병 관리 주소를 여는 열쇠
 const METAMOA_VERIFY = (process.env.METAMOA_VERIFY || '').replace(/[^A-Za-z0-9_\-]/g, '');   // 메타모아 소유자 확인 코드
 const METAMOA_WEBHOOK_SECRET = process.env.METAMOA_WEBHOOK_SECRET || '';
-const WORLD_W = 3200, D_MIN = 0.03, D_MAX = 1;
+const WORLD_W = 3200, D_MIN = -0.25, D_MAX = 1;
 const MAX_PEOPLE = 500;        // 한 바닷가에 동시에 있을 수 있는 사람 수
 const MAX_PER_IP = 8;
 const TYPES = { '.html': 'text/html; charset=utf-8', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml',
@@ -67,12 +67,12 @@ function day() {
   const k = kstDay();
   if (!stats[k]) {
     stats[k] = { 방문: 0, 머문시간합_초: 0, 앉은시간합_초: 0, 머문시간분포: Object.fromEntries(BUCKETS.map(b => [b, 0])),
-                 최대동시접속: 0, 손흔들기: 0, 띄운병: 0, 받은병: 0, 빈병: 0, 신고: 0 };
+                 최대동시접속: 0, 입장: 0, 손흔들기: 0, 띄운병: 0, 받은병: 0, 빈병: 0, 신고: 0, 센파도: 0, 모래글씨: 0 };
     const keys = Object.keys(stats).sort(); while (keys.length > 120) delete stats[keys.shift()];
   }
   return stats[k];
 }
-function bump(field, n = 1) { day()[field] += n; save('stats.json', stats); }
+function bump(field, n = 1) { const d = day(); d[field] = (d[field] || 0) + n; save('stats.json', stats); }
 function recordVisit(sec, sitSec) {
   const d = day();
   if (sec < 5) return;                    // 들어오자마자 나간 연결(새로고침 등)은 세지 않음
@@ -168,22 +168,52 @@ const server = http.createServer((req, res) => {
   });
 });
 
-/* ───────── 실시간 연결 ───────── */
+/* ───────── 실시간 연결 ─────────
+   사람이 많아지면 해변을 여러 개로 나눈다(1번 해변, 2번 해변…). 같은 해변 사람끼리만 서로 보인다.
+   유리병은 모든 해변이 함께 쓰는 바다에 떠다닌다. */
 const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 2048 });
-const people = new Map();      // id → {ws, x, d, sit, color, name}
+const people = new Map();      // id → {ws, room, x, d, sit, color, name, bot}
+const rooms = new Map();       // 해변 번호 → Set(id)
+const writings = new Map();    // 해변 번호 → [[id, x, d, text, ts, color]]  (모래 글씨, 저장하지 않음)
+const ROOM_CAP = Number(process.env.ROOM_CAP) || 80;           // 해변 하나에 들어가는 사람 수
 const perIp = new Map();
 const dirty = new Set();
-let nextId = 1;
+let nextId = 1, nextW = 1;
 
 function cleanName(v) {
   if (typeof v !== 'string') return '';
   return v.replace(/[\u0000-\u001f\u007f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 10);
 }
-function sendAll(obj, except) {
-  const s = JSON.stringify(obj);
-  for (const [id, p] of people) if (id !== except && p.ws.readyState === 1) p.ws.send(s);
-}
 const send = (ws, obj) => { if (ws.readyState === 1) ws.send(JSON.stringify(obj)); };
+function sendRoom(room, obj, except) {
+  const set = rooms.get(room); if (!set) return;
+  const s = JSON.stringify(obj);
+  for (const id of set) { const p = people.get(id); if (id !== except && p && p.ws.readyState === 1) p.ws.send(s); }
+}
+function sendAll(obj) {
+  const s = JSON.stringify(obj);
+  for (const p of people.values()) if (p.ws.readyState === 1) p.ws.send(s);
+}
+let lastRoomCount = 1;
+function roomsChanged() {        // 해변 수가 바뀌면 모두에게 알려 "○번 해변" 표시를 맞춘다
+  if (rooms.size === lastRoomCount) return;
+  lastRoomCount = rooms.size; sendAll({ t: 'today', today: todayView(), rooms: rooms.size });
+}
+function pickRoom() {
+  for (let r = 1; ; r++) { const set = rooms.get(r); if (!set || set.size < ROOM_CAP) return r; }
+}
+// 오늘 다녀간 사람, 오늘 함께 센 파도 (화면 위에 보여 줄 숫자)
+function todayView() { const d = day(); return { v: d.입장 || 0, w: d.센파도 || 0 }; }
+function checkSand(text) {
+  if (typeof text !== 'string') return null;
+  const s = text.replace(/[\u0000-\u001f\u007f<>]/g, '').replace(/\s+/g, ' ').trim();
+  if (s.length < 1 || s.length > 12) return null;
+  const flat = s.replace(/\s/g, '').toLowerCase();
+  if (/(https?:|www\.|\.(com|kr|net|org|io|me|gg|ly)\b|@[a-z0-9_]{3,})/i.test(s)) return null;
+  if (/\d[\d\s\-.]{3,}\d/.test(s)) return null;
+  if (BANNED.some(w => flat.includes(w))) return null;
+  return s;
+}
 
 wss.on('connection', (ws, req) => {
   const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
@@ -193,7 +223,7 @@ wss.on('connection', (ws, req) => {
   if (people.size >= MAX_PEOPLE || ipCount > MAX_PER_IP) return ws.close(1013, 'full');
   perIp.set(ip, ipCount);
 
-  let id = null, msgs = 0, windowStart = Date.now(), lastGesture = 0;
+  let id = null, msgs = 0, windowStart = Date.now(), lastGesture = 0, lastSand = 0, lastCount = 0;
   const joinedAt = Date.now(); let sitSince = 0, sitTotal = 0;
   const mine = new Set(), seen = new Set();          // 이 연결이 띄운 병, 이미 받은 병
   ws.alive = Date.now();
@@ -208,14 +238,18 @@ wss.on('connection', (ws, req) => {
 
     if (m.t === 'join' && id === null) {
       id = nextId++;
-      const me = { ws, x: clamp(num(m.x, WORLD_W / 2), 40, WORLD_W - 40), d: clamp(num(m.d, 0.8), D_MIN, D_MAX),
+      const room = pickRoom();
+      const me = { ws, room, x: clamp(num(m.x, WORLD_W / 2), 40, WORLD_W - 40), d: clamp(num(m.d, 0.8), D_MIN, D_MAX),
                    sit: m.sit ? 1 : 0, color: clamp(Math.floor(num(m.color, 0)), 0, 7), name: cleanName(m.name), bot: isBot };
+      if (!rooms.has(room)) rooms.set(room, new Set());
       const list = [];
-      for (const [pid, p] of people) list.push([pid, p.x, p.d, p.sit, p.color, p.name]);
-      people.set(id, me);
+      for (const pid of rooms.get(room)) { const p = people.get(pid); if (p) list.push([pid, p.x, p.d, p.sit, p.color, p.name]); }
+      rooms.get(room).add(id); people.set(id, me);
       const d = day(); d.최대동시접속 = Math.max(d.최대동시접속, people.size);
-      send(ws, { t: 'hi', id, now: Date.now(), p: list });
-      sendAll({ t: 'in', p: [id, me.x, me.d, me.sit, me.color, me.name] }, id);
+      if (!isBot) bump('입장');
+      send(ws, { t: 'hi', id, now: Date.now(), room, rooms: rooms.size, p: list, w: writings.get(room) || [], today: todayView() });
+      sendRoom(room, { t: 'in', p: [id, me.x, me.d, me.sit, me.color, me.name] }, id);
+      roomsChanged();
       return;
     }
     if (id === null) return;
@@ -230,11 +264,26 @@ wss.on('connection', (ws, req) => {
       me.sit = sit;
       dirty.add(id);
 
-    } else if (m.t === 'g') {                     // 손 흔들기 / 랜턴 불 나누기
-      const to = Number(m.to);
-      if (t - lastGesture < 2000 || to === id || !people.has(to)) return;
+    } else if (m.t === 'g') {                     // 손 흔들기 / 랜턴 불 나누기 (같은 해변 안에서)
+      const to = Number(m.to), other = people.get(to);
+      if (t - lastGesture < 2000 || to === id || !other || other.room !== me.room) return;
       lastGesture = t; bump('손흔들기');
-      sendAll({ t: 'g', from: id, to });
+      sendRoom(me.room, { t: 'g', from: id, to });
+
+    } else if (m.t === 'c') {                     // 물결 세기: 파도 하나에 한 번만 셀 수 있어 8초에 한 번까지
+      if (t - lastCount < 8000) return;
+      lastCount = t; bump('센파도');
+
+    } else if (m.t === 'w') {                     // 모래에 글씨 쓰기 (파도가 지울 때까지만 남음)
+      if (t - lastSand < 20000) return send(ws, { t: 'wr', ok: false, msg: '조금 있다가 다시 써요' });
+      const text = checkSand(m.text);
+      if (!text) return send(ws, { t: 'wr', ok: false, msg: '이 글씨는 모래에 남길 수 없어요' });
+      lastSand = t; bump('모래글씨');
+      const w = [nextW++, clamp(num(m.x, me.x), 40, WORLD_W - 40), clamp(num(m.d, me.d), -0.3, D_MAX), text, t, me.color];
+      const list = writings.get(me.room) || []; list.push(w); while (list.length > 40) list.shift();
+      writings.set(me.room, list);
+      send(ws, { t: 'wr', ok: true });
+      sendRoom(me.room, { t: 'w', w });
 
     } else if (m.t === 'bq') {                    // 유리병 하나 받기
       const pool = bottles.list.filter(b => !b.hidden && !mine.has(b.id) && !seen.has(b.id));
@@ -266,28 +315,44 @@ wss.on('connection', (ws, req) => {
   ws.on('close', () => {
     const c = (perIp.get(ip) || 1) - 1; if (c <= 0) perIp.delete(ip); else perIp.set(ip, c);
     if (id !== null) {
-      const t = Date.now(); if (sitSince) sitTotal += t - sitSince;
+      const t = Date.now(), me = people.get(id); if (sitSince) sitTotal += t - sitSince;
       recordVisit((t - joinedAt) / 1000, sitTotal / 1000);
-      people.delete(id); dirty.delete(id); sendAll({ t: 'out', id });
+      people.delete(id); dirty.delete(id);
+      if (me) {
+        const set = rooms.get(me.room); if (set) { set.delete(id); if (!set.size && me.room > 1) { rooms.delete(me.room); writings.delete(me.room); } }
+        sendRoom(me.room, { t: 'out', id });
+        roomsChanged();
+      }
     }
   });
   ws.on('error', () => {});
 });
 
-// 움직인 사람들의 위치를 모아서 한 번에 전달
+// 움직인 사람들의 위치를 해변별로 모아서 한 번에 전달
 setInterval(() => {
   if (!dirty.size) return;
-  const list = [];
-  for (const id of dirty) { const p = people.get(id); if (p) list.push([id, p.x, p.d, p.sit]); }
+  const byRoom = new Map();
+  for (const id of dirty) {
+    const p = people.get(id); if (!p) continue;
+    if (!byRoom.has(p.room)) byRoom.set(p.room, []);
+    byRoom.get(p.room).push([id, p.x, p.d, p.sit]);
+  }
   dirty.clear();
-  if (list.length) {
-    for (const [id, p] of people) {
-      if (p.ws.readyState !== 1) continue;
+  for (const [room, list] of byRoom) {
+    for (const id of rooms.get(room) || []) {
+      const p = people.get(id); if (!p || p.ws.readyState !== 1) continue;
       const others = list.filter(a => a[0] !== id);
       if (others.length) p.ws.send(JSON.stringify({ t: 'm', p: others }));
     }
   }
 }, 150);
+
+// 30초마다 오늘 숫자를 모두에게, 15분 넘은 모래 글씨는 정리
+setInterval(() => {
+  if (people.size) sendAll({ t: 'today', today: todayView(), rooms: rooms.size });
+  const t = Date.now();
+  for (const [room, list] of writings) writings.set(room, list.filter(w => t - w[4] < 15 * 60e3));
+}, 30000);
 
 // 60초 동안 소식이 없는 연결은 정리 (화면은 15초마다 한 번씩 위치를 다시 보냄)
 setInterval(() => {
