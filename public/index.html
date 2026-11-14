@@ -192,7 +192,7 @@
     <small>내 모습 · 낮엔 파라솔, 밤엔 담요, 비 오면 우산</small>
     <div id="swatches"></div>
     <div id="genders"><button data-g="m">남</button><button data-g="f">여</button></div>
-    <div id="seats" class="opts"><button data-s="mat">돗자리</button><button data-s="chair">의자</button><button data-s="hammock">해먹</button></div>
+    <div id="seats" class="opts"><button data-s="mat">돗자리</button><button data-s="chair">의자</button></div>
     <button id="go">바닷가로 가기</button>
   </div>
 </div>
@@ -538,7 +538,8 @@ function showState(t) {          // 밤 9시부터 10분 동안 해변 미디어
 }
 function drawWhale(u, t, nf) {
   // 빛으로 그린 고래가 해변을 가로질러 헤엄친다
-  const s = 1.25 * U, x = W * (-0.3 + 1.6 * u), y = yOf(0.46) + Math.sin(t / 1800) * 8 * U;
+  const wx = lerp(-300, WORLD_W + 300, u), s = 1.25 * sOf(0.46), x = xOf(wx, 0.46), y = yOf(0.46) + Math.sin(t / 1800) * 8 * U;   // 해변 위 한자리를 따라 헤엄친다(화면을 따라오지 않게)
+  if (x < -320 * s || x > W + 320 * s) return;
   ctx.save(); ctx.translate(x, y); ctx.scale(s, s * 0.5);
   ctx.strokeStyle = `rgba(140,230,255,${0.75 * nf})`; ctx.shadowColor = 'rgba(80,200,255,1)'; ctx.shadowBlur = 18; ctx.lineWidth = 3.2;
   const tail = Math.sin(t / 700) * 14;
@@ -777,9 +778,9 @@ function drawPerson(a, t, inWater, night) {
   const pc = PARASOLS[a.color % PARASOLS.length];
   const shirt = SHIRTS[Math.floor(a.seed) % SHIRTS.length], hair = HAIRS[Math.floor(a.seed * 7) % HAIRS.length];
 
-  if (sat && (a.st === 'chair' || a.st === 'hammock')) {
+  if (sat && a.st === 'chair') {
     const br = Math.sin(t * 0.0016 + a.seed) * 0.6 * s;
-    if (a.st === 'chair') {
+    {
       // 접이식 의자 (뒷모습): 사람이 조금 높이 앉는다
       if (night) lanternGlow(x + 30 * s, y - 6 * s, 120 * s, 0.48);
       else { ctx.fillStyle = 'rgba(40,30,20,.16)'; ctx.beginPath(); ctx.ellipse(x + 20 * s, y + 5 * s, 50 * s, 12 * s, 0, 0, 6.3); ctx.fill(); }
@@ -795,23 +796,6 @@ function drawPerson(a, t, inWater, night) {
       if (a.g === 'f') { ctx.beginPath(); ctx.ellipse(x, y - 44 * s - br, 9.5 * s, 11 * s, 0, 0, 6.3); ctx.fill(); }
       if (night) lantern(x + 30 * s, y - 6 * s, s * 1.1, t, a.seed);
       else { ctx.strokeStyle = '#e9e4da'; ctx.lineWidth = 3 * s; ctx.beginPath(); ctx.moveTo(x + 24 * s, y + 1 * s); ctx.lineTo(x + 15 * s, y - 92 * s); ctx.stroke(); canopy(x + 15 * s, y - 90 * s, 46 * s, 22 * s, pc); }
-    } else {
-      // 해먹: 기둥 두 개 사이에 누워서 흔들흔들
-      ctx.save(); ctx.translate(x, y); ctx.scale(1.3, 1.3); ctx.translate(-x, -y);
-      const sw = Math.sin(t * 0.0011 + a.seed) * 2.5 * s;
-      if (night) lanternGlow(x + 34 * s, y - 40 * s, 130 * s, 0.5);
-      ctx.fillStyle = 'rgba(40,30,20,.16)'; ctx.beginPath(); ctx.ellipse(x, y + 3 * s, 42 * s, 8 * s, 0, 0, 6.3); ctx.fill();
-      ctx.strokeStyle = '#8a6a4f'; ctx.lineWidth = 3 * s; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(x - 36 * s, y + 1 * s); ctx.lineTo(x - 34 * s, y - 46 * s); ctx.moveTo(x + 36 * s, y + 1 * s); ctx.lineTo(x + 34 * s, y - 46 * s); ctx.stroke();
-      ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 1 * s;
-      ctx.beginPath(); ctx.moveTo(x - 34 * s, y - 40 * s); ctx.quadraticCurveTo(x + sw, y - 4 * s, x + 34 * s, y - 40 * s); ctx.stroke();
-      ctx.fillStyle = shirt; ctx.beginPath(); ctx.ellipse(x + 3 * s + sw, y - 17 * s, 18 * s, 6.5 * s, -0.06, 0, 6.3); ctx.fill();
-      ctx.fillStyle = pc; ctx.beginPath(); ctx.moveTo(x - 30 * s, y - 34 * s); ctx.quadraticCurveTo(x + sw, y - 2 * s, x + 30 * s, y - 34 * s); ctx.quadraticCurveTo(x + sw, y - 10 * s, x - 30 * s, y - 34 * s); ctx.fill();   // 해먹 천
-      if (night) { ctx.fillStyle = pc; ctx.beginPath(); ctx.ellipse(x + 8 * s + sw, y - 19 * s, 14 * s, 5 * s, -0.06, Math.PI, 0); ctx.fill(); }
-      ctx.fillStyle = hair; ctx.beginPath(); ctx.arc(x - 18 * s + sw, y - 23 * s, 7.5 * s, 0, 6.3); ctx.fill();
-      ctx.fillStyle = '#f1cfae'; ctx.beginPath(); ctx.arc(x - 16 * s + sw, y - 21 * s, 5 * s, 0, 6.3); ctx.fill();
-      if (night) lantern(x + 34 * s, y - 40 * s, s, t, a.seed);
-      ctx.restore();
     }
   } else if (night && sat) {
     // 밤: 돗자리에 앉아 담요를 두르고, 옆에 랜턴
@@ -3656,7 +3640,7 @@ const gEl = document.getElementById('genders');
   b.classList.toggle('on', b.dataset.g === me.g);
   b.addEventListener('click', () => { me.g = b.dataset.g; [...gEl.children].forEach(x => x.classList.toggle('on', x === b)); });
 });
-me.st = ['mat', 'chair', 'hammock'].includes(load('pm_seat', 'mat')) ? load('pm_seat', 'mat') : 'mat';
+me.st = ['mat', 'chair'].includes(load('pm_seat', 'mat')) ? load('pm_seat', 'mat') : 'mat';
 const stEl = document.getElementById('seats');
 [...stEl.children].forEach(b => {
   b.classList.toggle('on', b.dataset.s === me.st);

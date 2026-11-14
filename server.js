@@ -339,7 +339,7 @@ wss.on('connection', (ws, req) => {
       id = nextId++;
       const room = pickRoom();
       const me = { ws, room, x: clamp(num(m.x, WORLD_W / 2), 40, WORLD_W - 40), d: clamp(num(m.d, 0.8), D_MIN, D_MAX),
-                   sit: m.sit ? 1 : 0, k: m.k ? 1 : 0, g: m.g === 'f' ? 'f' : 'm', st: ['mat', 'chair', 'hammock'].includes(m.st) ? m.st : 'mat', n: m.n ? 1 : 0, color: clamp(Math.floor(num(m.color, 0)), 0, 7), name: cleanName(m.name), bot: isBot };
+                   sit: m.sit ? 1 : 0, k: m.k ? 1 : 0, g: m.g === 'f' ? 'f' : 'm', st: ['mat', 'chair'].includes(m.st) ? m.st : 'mat', n: m.n ? 1 : 0, color: clamp(Math.floor(num(m.color, 0)), 0, 7), name: cleanName(m.name), bot: isBot };
       if (!rooms.has(room)) rooms.set(room, new Set());
       const list = [];
       for (const pid of rooms.get(room)) { const p = people.get(pid); if (p) list.push([pid, p.x, p.d, p.sit, p.color, p.name, p.k, p.g, p.st, p.n]); }
@@ -410,7 +410,7 @@ wss.on('connection', (ws, req) => {
       sendRoom(me.room, { t: 'pf', id, ax, ay }, id);
 
     } else if (m.t === 'look') {                  // 앉을 것·목걸이 바꾸기
-      me.st = ['mat', 'chair', 'hammock'].includes(m.st) ? m.st : me.st; me.n = m.n ? 1 : 0;
+      me.st = ['mat', 'chair'].includes(m.st) ? m.st : me.st; me.n = m.n ? 1 : 0;
       sendRoom(me.room, { t: 'look', id, st: me.st, n: me.n }, id);
 
     } else if (m.t === 'gc') {                    // 끼룩 (갈매기 흉내)
