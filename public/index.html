@@ -113,6 +113,10 @@
                     user-select: text; -webkit-user-select: text; }
   .sheet .note { font-size: 12px; color: #8a6a4f; min-height: 16px; margin-top: 6px; }
   .sheet .guide { font-size: 11.5px; line-height: 1.6; color: #7d8a94; margin: 6px 0 4px; padding-bottom: 8px; border-bottom: 1px dashed #e2dccd; word-break: keep-all; }
+  #doneAsk { margin-top: 10px; display: grid; gap: 6px; } #doneAsk .ask { font-size: 12.5px; color: #4b5d6b; }
+  #doneAsk select, #doneAsk input { font: inherit; font-size: 14px; padding: 8px 10px; border: 1px solid #d8d2c4; border-radius: 10px; background: #fff; color: #22303a; width: 100%; box-sizing: border-box; }
+  .sheet .gift { display: none; margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: #eef5fa; font-size: 13.5px; line-height: 1.6; color: #22365a; word-break: keep-all; }
+  .sheet .gift.on { display: block; } .sheet .gift b { font-size: 16px; letter-spacing: .02em; } .sheet .gift a { color: #2f7fb5; font-weight: 700; }
   .sheet img.pic { width: 100%; border-radius: 8px; margin-top: 10px; display: block; box-shadow: 0 4px 14px rgba(0,0,0,.15); }
   #gate { position: fixed; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center;
           background: linear-gradient(rgba(16,40,70,.35), rgba(16,40,70,.6)); transition: opacity .9s ease; }
@@ -178,7 +182,13 @@
 <div id="omokSheet" class="sheet"><div class="k">모래 오목 · 다섯 알을 먼저 잇는 쪽이 이겨요. 같은 해변 사람들과 함께 둬요.</div><div id="omokGrid"></div><div class="note" id="omokNote"></div><div class="row"><button class="sub" id="omokNew">새 판</button><button class="main" id="omokClose">닫기</button></div></div>
 <div id="mapSheet" class="sheet"><div class="k">낡은 지도</div><canvas id="mapCanvas" class="pic" width="560" height="360"></canvas><div class="note" id="mapNote"></div><div class="row"><button class="main" id="mapClose">닫기</button></div></div>
 <div id="photoSheet" class="sheet"><div class="k">짙은 갈색 병 속에 빛바랜 그림 한 장이 말려 있었어요</div><canvas id="photoCanvas" class="pic" width="560" height="380"></canvas><div class="note" id="photoNote"></div><div class="row"><button class="main" id="photoClose">닫기</button></div></div>
-<div id="doneSheet" class="sheet"><div class="k">도감 완성 카드</div><img id="doneImg" class="pic" alt="도감 완성 카드"><div class="note" id="doneNote">그림을 길게 누르거나 '그림으로 저장'을 누르면 간직할 수 있어요</div><div class="row"><button class="sub" id="doneSave">그림으로 저장</button><button class="sub" id="doneHang">노점에 알리기</button><button class="main" id="doneClose">닫기</button></div></div>
+<div id="doneSheet" class="sheet"><div class="k">도감 완성 카드</div><img id="doneImg" class="pic" alt="도감 완성 카드"><div class="note" id="doneNote">그림을 길게 누르거나 '그림으로 저장'을 누르면 간직할 수 있어요</div>
+<div id="doneAsk"><div class="ask">노점 주인에게 한마디 남겨 주세요 (모두 고르지 않아도 돼요)</div>
+<select id="doneBest"><option value="">가장 좋았던 순간</option><option>노을</option><option>별자리</option><option>상괭이</option><option>갈매기</option><option>옛 사진 병</option><option>불꽃</option><option>산책하는 할머니</option><option>비 오는 날</option><option>모래성·오목</option><option>그냥 파도 보기</option></select>
+<select id="doneFrom"><option value="">어떻게 오셨어요?</option><option>메타모아</option><option>인스타그램</option><option>아는 사람 소개</option><option>검색</option><option>이음수산 가게</option><option>기타</option></select>
+<input id="doneWord" maxlength="40" placeholder="아쉬웠던 것, 더 있었으면 하는 것 (40자)" autocomplete="off"></div>
+<div class="gift" id="doneGift"></div>
+<div class="row"><button class="sub" id="doneSave">그림으로 저장</button><button class="sub" id="doneHang">노점에 알리기</button><button class="main" id="doneClose">닫기</button></div></div>
 <div id="stall" class="hud" aria-live="polite">
   <svg id="stallLogo" class="k" viewBox="130 205 626 470" aria-label="이음수산 로고"><g fill="none"><circle cx="307" cy="335" r="86.5" stroke="#67a9dc" stroke-width="55"/><circle cx="584" cy="340" r="86.5" stroke="#67a9dc" stroke-width="55"/><polyline points="157,647 289,508 418,644" stroke="#22365a" stroke-width="56" stroke-linejoin="miter"/><polyline points="467,646 598,508 729,644" stroke="#22365a" stroke-width="56" stroke-linejoin="miter"/></g></svg>
   <div class="f" id="stallFish"></div>
@@ -1469,6 +1479,7 @@ function openDone() {
   doneURL = makeDone(); doneImg.src = doneURL;
   doneNote.textContent = "그림을 길게 누르거나 '그림으로 저장'을 누르면 간직할 수 있어요";
   document.getElementById('doneHang').disabled = load('pm_cardhung', '') === String(dayIdx(now()));
+  showGift(load('pm_doneno', ''));
   doneSheet.classList.add('on'); wake();
 }
 document.getElementById('doneClose').addEventListener('click', () => doneSheet.classList.remove('on'));
@@ -1476,12 +1487,20 @@ document.getElementById('doneSave').addEventListener('click', () => {
   const a = document.createElement('a'); a.href = doneURL; a.download = '파도멍-도감-완성.jpg'; document.body.appendChild(a); a.click(); a.remove();
   doneNote.textContent = '저장되지 않으면 그림을 길게 눌러 저장해 주세요';
 });
+function showGift(no) {
+  const g = document.getElementById('doneGift'); g.classList.toggle('on', !!no); document.getElementById('doneAsk').style.display = no ? 'none' : '';
+  if (!no) return;
+  g.innerHTML = '';
+  const b = document.createElement('b'); b.textContent = '파도멍 ' + no;
+  const a = document.createElement('a'); a.href = 'https://instagram.com/ieumfish'; a.target = '_blank'; a.rel = 'noopener'; a.textContent = '@ieumfish';
+  g.append(b, document.createElement('br'), '이 번호를 이음수산 인스타그램 ', a, ' 로 DM 주시면 생선회와 작은 굿즈를 선물로 보내 드려요.');
+}
 document.getElementById('doneHang').addEventListener('click', async () => {
   const btn = document.getElementById('doneHang'); btn.disabled = true; doneNote.textContent = '노점에 알리는 중…';
   try {
-    const r = await fetch('/card', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: me.name, img: doneURL }) });
+    const r = await fetch('/card', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: me.name, img: doneURL, best: document.getElementById('doneBest').value, from: document.getElementById('doneFrom').value, word: document.getElementById('doneWord').value, days: Math.max(1, dayIdx(now()) - (parseInt(load('pm_first', ''), 10) || dayIdx(now())) + 1) }) });
     const j = await r.json().catch(() => ({}));
-    if (r.ok) { save('pm_cardhung', String(dayIdx(now()))); doneNote.textContent = '노점 주인에게 알렸어요 · 다 모아 줘서 고마워요'; chime([660, 880], 0.15); }
+    if (r.ok) { save('pm_cardhung', String(dayIdx(now()))); if (j.no) { save('pm_doneno', j.no); showGift(j.no); } doneNote.textContent = '노점 주인에게 알렸어요 · 다 모아 줘서 고마워요'; chime([660, 880], 0.15); }
     else { doneNote.textContent = j.안내 || '지금은 알릴 수 없어요'; if (r.status !== 429) btn.disabled = false; }
   } catch (e) { doneNote.textContent = '바닷가와 연결이 끊겨 알리지 못했어요'; btn.disabled = false; }
 });
@@ -3748,6 +3767,7 @@ function enter() {
   if (joined) return;
   me.name = nick.value.replace(/\s+/g, ' ').trim().slice(0, 10) || randomName();
   save('pm_name', me.name); save('pm_color', me.color); save('pm_gender', me.g);
+  if (!load('pm_first', '')) save('pm_first', String(Math.floor((now() + 9 * 3600e3) / 864e5)));   // 처음 온 날 (도감 완성까지 며칠 걸렸는지)
   joined = true; me.tx = me.x; me.td = 0.5;       // 들어오면 바다 쪽으로 몇 걸음
   document.getElementById('gate').classList.add('gone'); nick.blur();
   startAudio(); if (AC && AC.state === 'suspended') AC.resume();

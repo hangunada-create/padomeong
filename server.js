@@ -57,13 +57,29 @@ function postCard(req, res) {
     if (big) return json(res, 413, { 안내: '그림이 너무 커요' });
     let m; try { m = JSON.parse(body); } catch (e) { return json(res, 400, { 안내: '알 수 없는 카드예요' }); }
     const name = checkSand(String(m.name || ''), 10) || '바닷가 사람';
+    const BEST = ['노을', '별자리', '상괭이', '갈매기', '옛 사진 병', '불꽃', '산책하는 할머니', '비 오는 날', '모래성·오목', '그냥 파도 보기'];
+    const FROM = ['메타모아', '인스타그램', '아는 사람 소개', '검색', '이음수산 가게', '기타'];
+    const best = BEST.includes(m.best) ? m.best : '', from = FROM.includes(m.from) ? m.from : '';
+    const word = String(m.word || '').replace(/[\u0000-\u001f\u007f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 40);
+    const days = Math.min(3650, Math.max(1, Math.floor(Number(m.days) || 0)));
     const buf = Buffer.from(String(m.img || '').replace(/^data:image\/jpeg;base64,/, ''), 'base64');
     if (buf.length < 2000 || buf.length > 420e3 || buf[0] !== 0xff || buf[1] !== 0xd8) return json(res, 400, { 안내: '그림이 이상해요' });
     if (Date.now() - (cardLast.get(tag) || 0) < 20 * 3600e3) return json(res, 429, { 안내: '오늘은 이미 알렸어요' });
     cardLast.set(tag, Date.now()); bump('완성카드');
-    notifyOwner(`${name} 님이 파도멍 도감을 다 모았어요`, buf);
-    json(res, 200, { ok: 1 });
+    const no = doneNo();
+    const lines = [`🐚 파도멍 ${no} · ${name} 님 (${days}일 걸림)`];
+    if (best || from) lines.push([best && `좋았던 순간: ${best}`, from && `온 길: ${from}`].filter(Boolean).join(' · '));
+    if (word) lines.push(`한마디: ${word}`);
+    lines.push('→ 이 번호로 @ieumfish 에 DM이 오면 생선회와 작은 굿즈 선물');
+    notifyOwner(lines.join('\n'), buf);
+    json(res, 200, { ok: 1, no });
   });
+}
+// 완성 번호: 날짜 + 헷갈리지 않는 글자 세 개 (예: #1114-K7Q). 서버가 다시 켜져도 겹치기 어렵게
+function doneNo() {
+  const d = new Date(Date.now() + 9 * 3600e3), A = 'ACDEFGHJKLMNPQRTUVWXY34679';
+  let r = ''; for (let i = 0; i < 3; i++) r += A[crypto.randomInt(A.length)];
+  return `#${String(d.getUTCMonth() + 1).padStart(2, '0')}${String(d.getUTCDate()).padStart(2, '0')}-${r}`;
 }
 async function tgCall(method, body) {
   const r = await fetch(`https://api.telegram.org/bot${TG_TOKEN}/${method}`, { method: 'POST', body, signal: AbortSignal.timeout(12000) });
