@@ -129,7 +129,7 @@
   <button id="sndBtn" class="chip">소리 켜짐</button>
 </div>
 <div id="hint" class="hud">모래사장을 눌러 걸어가 보세요 · 다른 사람을 누르면 손을 흔들어요</div>
-<div id="credit" class="hud"><span id="sndCredit" style="display:none">파도소리 Andrew Holman (freesound.org, CC0) · </span>물때 국립해양조사원 예보(목포)</div>
+<div id="credit" class="hud"><span id="sndCredit" style="display:none">파도소리 Andrew Holman (freesound.org, CC0) · </span>물때 국립해양조사원 예보(목포) · 날씨 기상청</div>
 <div id="toast" class="hud"></div>
 <button id="bottleBtn" class="hud">유리병이 밀려왔어요 · 열어 보기</button>
 <div id="acts" class="hud">
@@ -1034,7 +1034,7 @@ function drawWritings(pn, t, pal) {
 }
 
 /* ───────── 목포 날씨 ─────────
-   서버가 15분마다 받아 둔 목포 날씨(Open-Meteo)를 화면에 옮긴다: 구름, 안개, 비, 눈, 천둥, 바람에 따른 파도 크기 */
+   서버가 15분마다 받아 둔 목포 날씨(기상청)를 화면에 옮긴다: 구름, 안개, 비, 눈, 천둥, 바람에 따른 파도 크기 */
 let WX = null, WXF = { cloud: 0, rain: 0, snow: 0, fog: 0, thunder: 0, wind: 0 };
 function setWX(w) {
   if (!w) return; WX = w;
@@ -1413,7 +1413,7 @@ function makePostcard() {
   const t = now(), k = kst(t), d = new Date(t + 9 * 3600e3), tide = tideInfo(t);
   const date = `${d.getUTCFullYear()}. ${d.getUTCMonth() + 1}. ${d.getUTCDate()} · ${k.h}:${String(k.m).padStart(2, '0')}`;
   const bits = [tide.rising ? '물이 들어오는 중' : '물이 빠지는 중'];
-  if (WX) bits.push(`${Math.round(WX.t)}° ${wxDesc(WX.code | 0)}`);
+  if (WX) bits.push(`${Math.round(WX.t)}° ${WX.d || wxDesc(WX.code | 0)}`);
   const y0 = cv.height + pad;
   g.fillStyle = '#2a3a48'; g.textBaseline = 'top';
   g.font = `700 ${22 * dpr}px "Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif`; g.fillText('파도멍 · 목포 대반동', pad, y0 + 16 * dpr);
@@ -1455,7 +1455,7 @@ function infoTick(t, tide) {
   const sh = showState(t), ms = showerToday(t), isNight = palette(hourNow()).stars > 0.4;
   eventEl.textContent = sh.on ? '밤 9시, 해변에 빛이 지나가는 중' : sh.soon ? '곧 9시, 해변에 빛이 지나가요'
     : ms && isNight ? `오늘 밤 ${ms.name} 유성우` : ms ? `오늘 밤 ${ms.name} 유성우가 와요` : '';
-  wxEl.textContent = WX && WX.t !== null ? `목포 ${Math.round(WX.t)}° · ${wxDesc(WX.code | 0)} · 바람 ${Math.round(WX.ws)}m/s` : '';
+  wxEl.textContent = WX && WX.t !== null ? `목포 ${Math.round(WX.t)}° · ${WX.d || wxDesc(WX.code | 0)} · 바람 ${Math.round(WX.ws)}m/s` : '';
 }
 
 /* ───────── 이음수산 노점 ─────────

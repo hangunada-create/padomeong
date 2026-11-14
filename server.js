@@ -168,23 +168,65 @@ const server = http.createServer((req, res) => {
   });
 });
 
-/* ───────── 목포 날씨 (Open-Meteo, 열쇠 없이 쓰는 무료 날씨 자료) ─────────
-   15분마다 한 번 받아 두고, 들어오는 사람들에게 나눠 준다. 실패하면 이전 값을 그대로 쓴다. */
+/* ───────── 목포 날씨 (기상청 단기예보 조회서비스, 공공데이터포털) ─────────
+   15분마다 대반동 격자(50,66)의 초단기실황(기온·강수·바람·습도)과 초단기예보(하늘·낙뢰)를 받아
+   화면이 쓰는 모양으로 바꿔 나눠 준다. KMA_KEY가 없으면 날씨 없이 맑은 바다로 둔다.
+   실패하면 이전 값을 그대로 쓴다. 출처 표기: 기상청(공공누리 제1유형). */
+const KMA_KEY = process.env.KMA_KEY || '';
+const KMA_NX = 50, KMA_NY = 66;
 let weather = null;
+function kmaBase(minsBack, minute) {       // 한국 시각 기준 발표 날짜·시각
+  const d = new Date(Date.now() + 9 * 3600e3 - minsBack * 60e3);
+  const ymd = d.toISOString().slice(0, 10).replace(/-/g, '');
+  return [ymd, String(d.getUTCHours()).padStart(2, '0') + minute];
+}
+async function kmaCall(op, minsBack, minute) {
+  const key = KMA_KEY.includes('%') ? KMA_KEY : encodeURIComponent(KMA_KEY);
+  for (const back of [minsBack, minsBack + 60]) {          // 아직 안 나왔으면 한 시간 전 발표로
+    const [date, time] = kmaBase(back, minute);
+    const u = `https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/${op}?serviceKey=${key}`
+      + `&numOfRows=60&pageNo=1&dataType=JSON&base_date=${date}&base_time=${time}&nx=${KMA_NX}&ny=${KMA_NY}`;
+    const r = await fetch(u, { signal: AbortSignal.timeout(8000) });
+    const txt = await r.text();
+    let j; try { j = JSON.parse(txt); } catch { throw new Error(op + ' 응답이 JSON이 아님: ' + txt.slice(0, 120)); }
+    const h = j.response && j.response.header, items = j.response && j.response.body && j.response.body.items;
+    if (h && h.resultCode === '00' && items && items.item && items.item.length) return items.item;
+    if (h && h.resultCode !== '03') throw new Error(op + ' ' + h.resultCode + ' ' + h.resultMsg);
+  }
+  throw new Error(op + ' 자료 없음');
+}
+function kmaToWx(nc, fc) {
+  const v = {}; for (const it of nc) v[it.category] = +it.obsrValue;
+  const f = {}; if (fc) {                       // 가장 가까운 예보 시각 값만
+    const first = fc.map(it => it.fcstDate + it.fcstTime).sort()[0];
+    for (const it of fc) if (it.fcstDate + it.fcstTime === first) f[it.category] = it.fcstValue;
+  }
+  const pty = v.PTY | 0, rn = num(v.RN1, 0), sky = +f.SKY || 1, lgt = +f.LGT || 0, reh = num(v.REH, 0);
+  let code = 0, d = '맑음', cc = 10;
+  if (sky === 3) { code = 2; d = '구름 많음'; cc = 70; }
+  if (sky === 4) { code = 3; d = '흐림'; cc = 100; }
+  if (pty === 1) { code = rn < 3 ? 61 : rn < 15 ? 63 : 65; d = '비'; cc = 100; }
+  else if (pty === 2) { code = 66; d = '비 또는 눈'; cc = 100; }
+  else if (pty === 3) { code = rn < 1 ? 71 : rn < 5 ? 73 : 75; d = '눈'; cc = 100; }
+  else if (pty === 5) { code = 51; d = '빗방울'; cc = 100; }
+  else if (pty === 6) { code = 56; d = '빗방울·눈날림'; cc = 100; }
+  else if (pty === 7) { code = 85; d = '눈날림'; cc = 100; }
+  else if (reh >= 95) { code = 45; d = '안개'; cc = Math.max(cc, 80); }
+  if (lgt > 0) { code = 95; d = pty ? '천둥 번개' : '마른 번개'; }
+  return { t: num(v.T1H, null), code, d, p: rn, cc, ws: num(v.WSD, 0), at: Date.now() };
+}
 async function fetchWeather() {
   try {
-    const u = 'https://api.open-meteo.com/v1/forecast?latitude=34.79&longitude=126.38'
-      + '&current=temperature_2m,weather_code,precipitation,cloud_cover,wind_speed_10m&wind_speed_unit=ms&timezone=Asia%2FSeoul';
-    const r = await fetch(u, { signal: AbortSignal.timeout(8000) });
-    if (!r.ok) throw new Error('응답 ' + r.status);
-    const c = (await r.json()).current || {};
-    weather = { t: num(c.temperature_2m, null), code: num(c.weather_code, 0), p: num(c.precipitation, 0),
-                cc: num(c.cloud_cover, 0), ws: num(c.wind_speed_10m, 0), at: Date.now() };
+    const nc = await kmaCall('getUltraSrtNcst', 10, '00');
+    let fc = null; try { fc = await kmaCall('getUltraSrtFcst', 45, '30'); } catch (e) { console.log('[날씨] 예보 못 받음:', e.message); }
+    weather = kmaToWx(nc, fc);
     if (people.size) sendAll({ t: 'wx', wx: weather });
   } catch (e) { console.log('[날씨] 받지 못함:', e.message); }
 }
 if (process.env.WX_FAKE) weather = JSON.parse(process.env.WX_FAKE);   // 시험용
-else { setTimeout(fetchWeather, 2000); setInterval(fetchWeather, 15 * 60e3); }
+else if (KMA_KEY) { setTimeout(fetchWeather, 2000); setInterval(fetchWeather, 15 * 60e3); }
+else console.log('[날씨] KMA_KEY가 없어 날씨 없이 엽니다');
+module.exports.__kmaToWx = kmaToWx;
 
 /* ───────── 실시간 연결 ─────────
    사람이 많아지면 해변을 여러 개로 나눈다(1번 해변, 2번 해변…). 같은 해변 사람끼리만 서로 보인다.
