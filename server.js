@@ -69,7 +69,8 @@ async function notifyOwner(text, img) {
   // ntfy.sh: 카드 그림을 첨부로 같이 보낸다 (휴대폰 ntfy 앱에서 바로 보임)
   const q = new URLSearchParams({ title: '파도멍 도감 완성', message: text, tags: 'shell', filename: 'padomeong-card.jpg' });
   try {
-    const r = await fetch(`https://ntfy.sh/${encodeURIComponent(NTFY_TOPIC)}?${q}`, { method: 'PUT', body: img, signal: AbortSignal.timeout(10000) });
+    if (!img) q.delete('filename');
+    const r = await fetch(`https://ntfy.sh/${encodeURIComponent(NTFY_TOPIC)}?${q}`, { method: img ? 'PUT' : 'POST', body: img || '', signal: AbortSignal.timeout(10000) });
     if (!r.ok) console.log('[알림] ntfy 응답', r.status);
   } catch (e) { console.log('[알림] 못 보냄:', e.message); }
 }
@@ -180,6 +181,7 @@ const server = http.createServer((req, res) => {
     if (!ADMIN_KEY) return json(res, 403, { 안내: 'ADMIN_KEY 환경변수를 정하면 열려요' });
     if (!isAdmin(u)) return json(res, 403, { 안내: '열쇠가 맞지 않아요' });
     if (p === '/stats') return json(res, 200, statsView());
+    if (p === '/admin/ntfy-test') { if (!NTFY_TOPIC) return json(res, 200, { 안내: 'NTFY_TOPIC 환경변수가 비어 있어요' }); notifyOwner('파도멍 서버에서 보낸 시험 알림이에요', null); return json(res, 200, { 안내: '시험 알림을 보냈어요' }); }
     if (p === '/admin/bottles') return json(res, 200, bottles.list.slice().reverse().map(b => ({ id: b.id, 글: b.text, 날짜: new Date(b.ts).toISOString(), 신고: b.reports.length, 숨김: !!b.hidden })));
     if (p === '/admin/hide' || p === '/admin/show') {
       const b = bottles.list.find(b => b.id === Number(u.searchParams.get('id')));
