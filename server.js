@@ -46,7 +46,7 @@ function save(name, obj) {
    다 모은 사람이 카드 그림(JPEG)을 노점에 알린다. 서버에는 남기지 않고, 주인에게 알림으로만 보낸다.
    한 사람(ipTag) 하루 한 번. NTFY_TOPIC 을 정해 두어야 알림이 간다. */
 const cardLast = new Map();          // tag → 마지막으로 알린 시각
-const NTFY_TOPIC = (process.env.NTFY_TOPIC || '').trim();
+const NTFY_TOPIC = (process.env.NTFY_TOPIC || '').trim(), NTFY_TOKEN = (process.env.NTFY_TOKEN || '').trim();
 function postCard(req, res) {
   const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim(), tag = ipTag(ip);
   let body = '', big = false;
@@ -70,7 +70,7 @@ async function notifyOwner(text, img) {
   const q = new URLSearchParams({ title: '파도멍 도감 완성', message: text, tags: 'shell' });
   if (img) q.set('filename', 'padomeong-card.jpg');
   try {
-    const r = await fetch(`https://ntfy.sh/${encodeURIComponent(NTFY_TOPIC)}?${q}`, { method: img ? 'PUT' : 'POST', body: img || '', signal: AbortSignal.timeout(10000) });
+    const r = await fetch(`https://ntfy.sh/${encodeURIComponent(NTFY_TOPIC)}?${q}`, { method: img ? 'PUT' : 'POST', body: img || '', signal: AbortSignal.timeout(10000), headers: NTFY_TOKEN ? { Authorization: 'Bearer ' + NTFY_TOKEN } : {} });
     const t = (await r.text()).slice(0, 160);
     if (!r.ok) console.log('[알림] ntfy 응답', r.status, t);
     return `${r.status} ${t}`;

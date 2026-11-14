@@ -100,6 +100,7 @@ ADMIN_KEY=아무열쇠 npm start
 | `DATA_DIR` | 병과 통계를 저장할 폴더 (기본: `data`) |
 | `METAMOA_SPACE_ID`, `METAMOA_KEY` | 메타모아에 접속자 수 보내기 (아래 참고) |
 | `NTFY_TOPIC` | 누가 "노점에 알리기"를 누르면 ntfy.sh 로 주인 휴대폰에 알림(완성 카드 그림 첨부). 남이 짐작하기 어려운 이름으로 |
+| `NTFY_TOKEN` | ntfy.sh 무료 계정의 액세스 토큰(tk_…). Render는 여러 앱이 같은 바깥 주소를 써서 계정 없이 보내면 하루 한도에 금방 걸림. 토큰을 넣으면 내 계정 한도로 보냄 |
 | `METAMOA_VERIFY` | 메타모아 소유자 확인 코드. 넣으면 확인 메타 태그와 확인 파일이 자동으로 생김 |
 | `METAMOA_WEBHOOK_SECRET` | 메타모아 알림 서명 확인용 비밀값 (있을 때만) |
 | `KMA_KEY` | 공공데이터포털 '기상청_단기예보 조회서비스' 인증키(Decoding 키). 없으면 날씨 없이 맑은 바다로 열림 |
