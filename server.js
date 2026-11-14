@@ -42,6 +42,51 @@ function save(name, obj) {
   }, 2000);
 }
 
+/* ───────── 도감 완성 카드 ─────────
+   다 모은 사람이 카드 그림(JPEG)을 노점 벽에 건다. 한 사람(ipTag) 하루 한 장, 벽에는 최근 60장.
+   NTFY_TOPIC 을 정해 두면 ntfy.sh 로 주인 휴대폰에 알림을 보낸다. 보내는 것은 이름·시각·그림 주소뿐. */
+const CARD_DIR = path.join(DATA_DIR, 'cards');
+try { fs.mkdirSync(CARD_DIR, { recursive: true }); } catch (e) {}
+const cards = load('cards.json', { seq: 0, list: [] });
+const cardLast = new Map();          // tag → 마지막으로 건 시각
+const NTFY_TOPIC = process.env.NTFY_TOPIC || '';
+const SITE_URL = (process.env.SITE_URL || 'https://padomeong.onrender.com').replace(/\/$/, '');
+function postCard(req, res) {
+  const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim(), tag = ipTag(ip);
+  let body = '', big = false;
+  req.on('data', c => { body += c; if (body.length > 600e3) { big = true; req.destroy(); } });
+  req.on('end', () => {
+    if (big) return json(res, 413, { 안내: '그림이 너무 커요' });
+    let m; try { m = JSON.parse(body); } catch (e) { return json(res, 400, { 안내: '알 수 없는 카드예요' }); }
+    const name = checkSand(String(m.name || ''), 10) || '바닷가 사람';
+    const b64 = String(m.img || '').replace(/^data:image\/jpeg;base64,/, '');
+    const buf = Buffer.from(b64, 'base64');
+    if (buf.length < 2000 || buf.length > 420e3 || buf[0] !== 0xff || buf[1] !== 0xd8) return json(res, 400, { 안내: '그림이 이상해요' });
+    const last = cardLast.get(tag) || 0;
+    if (Date.now() - last < 20 * 3600e3) return json(res, 429, { 안내: '오늘은 이미 걸었어요' });
+    cardLast.set(tag, Date.now());
+    const id = Date.now() * 10 % 1e12 + (++cards.seq % 10);
+    fs.writeFile(path.join(CARD_DIR, id + '.jpg'), buf, err => {
+      if (err) return json(res, 500, { 안내: '걸지 못했어요' });
+      cards.list.push({ id, name, ts: Date.now() });
+      while (cards.list.length > 60) { const old = cards.list.shift(); fs.unlink(path.join(CARD_DIR, old.id + '.jpg'), () => {}); }
+      save('cards.json', cards); bump('완성카드');
+      notifyOwner(`${name} 님이 파도멍 도감을 다 모으고 노점에 카드를 걸었어요`, `${SITE_URL}/cards/${id}.jpg`, buf);
+      json(res, 200, { id });
+    });
+  });
+}
+async function notifyOwner(text, url, img) {
+  console.log('[완성 카드] ' + text + ' ' + url);
+  if (!NTFY_TOPIC) return;
+  // ntfy.sh: 카드 그림을 첨부로 같이 보낸다 (휴대폰 ntfy 앱에서 바로 보임)
+  const q = new URLSearchParams({ title: '파도멍 도감 완성', message: text, tags: 'shell', click: url, filename: 'padomeong-card.jpg' });
+  try {
+    const r = await fetch(`https://ntfy.sh/${encodeURIComponent(NTFY_TOPIC)}?${q}`, { method: 'PUT', body: img, signal: AbortSignal.timeout(10000) });
+    if (!r.ok) console.log('[알림] ntfy 응답', r.status);
+  } catch (e) { console.log('[알림] 못 보냄:', e.message); }
+}
+
 /* ───────── 유리병 편지 ───────── */
 const bottles = load('bottles.json', { next: 1, list: [] });   // {id, text, ts, reports:[tag...], hidden}
 const MAX_BOTTLES = 3000;
@@ -138,6 +183,17 @@ const server = http.createServer((req, res) => {
       res.writeHead(204); res.end();
     });
     return;
+  }
+
+  // 도감 완성 카드: 노점 벽에 걸기 / 목록 / 그림
+  if (p === '/card' && req.method === 'POST') return postCard(req, res);
+  if (p === '/cards') return json(res, 200, cards.list.slice(-30).reverse().map(c => ({ id: c.id, name: c.name, ts: c.ts })));
+  const cm = p.match(/^\/cards\/(\d{1,12})\.jpg$/);
+  if (cm) {
+    return fs.readFile(path.join(CARD_DIR, cm[1] + '.jpg'), (err, data) => {
+      if (err) { res.writeHead(404); return res.end(); }
+      res.writeHead(200, { 'content-type': 'image/jpeg', 'cache-control': 'public, max-age=86400' }); res.end(data);
+    });
   }
 
   // 관리용: ADMIN_KEY 환경변수를 정해 두었을 때만 열림

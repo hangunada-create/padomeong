@@ -52,6 +52,7 @@
   #stall .l { margin-top: 6px; font-size: 14.5px; line-height: 1.6; }
   #stall .b { margin-top: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 12.5px; color: #6a7884; }
   #stall a { color: #2f7fb5; font-weight: 600; text-decoration: none; }
+  #stall .b { flex-wrap: wrap; gap: 4px 12px; } #stall .b button, #stall a { white-space: nowrap; } #stall a { margin-left: auto; }
   #stall button { border: 0; background: none; font: inherit; font-size: 12.5px; color: #6a7884; cursor: pointer; padding: 4px 0; }
   #tideLine, #eventLine { font-size: 12.5px; opacity: .88; margin-top: 2px; }
   #eventLine:empty { display: none; }
@@ -111,6 +112,11 @@
                     padding: 11px 12px; font: inherit; font-size: 16px; line-height: 1.5; color: #2a3a48; background: #fff; outline: none;
                     user-select: text; -webkit-user-select: text; }
   .sheet .note { font-size: 12px; color: #8a6a4f; min-height: 16px; margin-top: 6px; }
+  .sheet .guide { font-size: 11.5px; line-height: 1.6; color: #7d8a94; margin: 6px 0 4px; padding-bottom: 8px; border-bottom: 1px dashed #e2dccd; word-break: keep-all; }
+  .sheet img.pic { width: 100%; border-radius: 8px; margin-top: 10px; display: block; box-shadow: 0 4px 14px rgba(0,0,0,.15); }
+  #wallList { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+  #wallList figure { margin: 0; font-size: 11.5px; color: #6a7884; text-align: center; } #wallList img { width: 100%; border-radius: 6px; display: block; margin-bottom: 3px; }
+  #wallList .empty { grid-column: 1 / -1; font-size: 13px; color: #8a6a4f; padding: 14px 0; text-align: center; }
   #gate { position: fixed; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center;
           background: linear-gradient(rgba(16,40,70,.35), rgba(16,40,70,.6)); transition: opacity .9s ease; }
   #gate.gone { opacity: 0; pointer-events: none; }
@@ -159,7 +165,7 @@
   <button id="dexBtn" class="chip">도감</button>
   <button id="cardBtn" class="chip">엽서</button>
 </div>
-<div id="dexSheet" class="sheet"><div class="k">물이 빠지면 무언가 드러나요</div><div id="dexGrid"></div><div class="note" id="dexNote"></div><div id="dexExtra"></div>
+<div id="dexSheet" class="sheet"><div class="k">물이 빠지면 무언가 드러나요</div><div class="guide" id="dexGuide">? 칸을 누르면 실마리가 나와요. 날씨와 물때, 달과 별을 따라 천천히 모여요.<br>도감은 지금 이 기기, 이 브라우저에 담겨요. 다른 기기나 시크릿 창에서는 따로 모이고, 방문 기록을 지우면 사라져요.<br>다 모으면 완성 카드를 받아 노점 벽에 걸 수 있어요.</div><div id="dexGrid"></div><div class="note" id="dexNote"></div><div id="dexExtra"></div>
 <div class="row"><span></span><button class="main" id="dexClose">닫기</button></div></div>
 <div id="cardSheet" class="sheet"><div class="k">지금 이 바다를 엽서 한 장으로</div><img id="cardImg" alt="파도멍 엽서">
 <div class="note">휴대폰은 사진을 길게 눌러 저장할 수도 있어요</div>
@@ -175,11 +181,13 @@
 <div id="omokSheet" class="sheet"><div class="k">모래 오목 · 다섯 알을 먼저 잇는 쪽이 이겨요. 같은 해변 사람들과 함께 둬요.</div><div id="omokGrid"></div><div class="note" id="omokNote"></div><div class="row"><button class="sub" id="omokNew">새 판</button><button class="main" id="omokClose">닫기</button></div></div>
 <div id="mapSheet" class="sheet"><div class="k">낡은 지도</div><canvas id="mapCanvas" class="pic" width="560" height="360"></canvas><div class="note" id="mapNote"></div><div class="row"><button class="main" id="mapClose">닫기</button></div></div>
 <div id="photoSheet" class="sheet"><div class="k">짙은 갈색 병 속에 빛바랜 그림 한 장이 말려 있었어요</div><canvas id="photoCanvas" class="pic" width="560" height="380"></canvas><div class="note" id="photoNote"></div><div class="row"><button class="main" id="photoClose">닫기</button></div></div>
+<div id="doneSheet" class="sheet"><div class="k">도감 완성 카드</div><img id="doneImg" class="pic" alt="도감 완성 카드"><div class="note" id="doneNote">그림을 길게 누르거나 '그림으로 저장'을 누르면 간직할 수 있어요</div><div class="row"><button class="sub" id="doneSave">그림으로 저장</button><button class="sub" id="doneHang">노점 벽에 걸기</button><button class="main" id="doneClose">닫기</button></div></div>
+<div id="wallSheet" class="sheet"><div class="k">이음수산 노점 벽 · 도감을 다 모은 사람들</div><div id="wallList"></div><div class="row"><span></span><button class="main" id="wallClose">닫기</button></div></div>
 <div id="stall" class="hud" aria-live="polite">
   <svg id="stallLogo" class="k" viewBox="130 205 626 470" aria-label="이음수산 로고"><g fill="none"><circle cx="307" cy="335" r="86.5" stroke="#67a9dc" stroke-width="55"/><circle cx="584" cy="340" r="86.5" stroke="#67a9dc" stroke-width="55"/><polyline points="157,647 289,508 418,644" stroke="#22365a" stroke-width="56" stroke-linejoin="miter"/><polyline points="467,646 598,508 729,644" stroke="#22365a" stroke-width="56" stroke-linejoin="miter"/></g></svg>
   <div class="f" id="stallFish"></div>
   <div class="l" id="stallLine"></div>
-  <div class="b"><button id="stallNext">다른 이야기</button><button id="stallFeed">멸치 한 줌</button><a href="https://ieumfish.co.kr" target="_blank" rel="noopener">가게 구경하기 · ieumfish.co.kr</a></div>
+  <div class="b"><button id="stallNext">다른 이야기</button><button id="stallFeed">멸치 한 줌</button><button id="stallWall">노점 벽</button><a href="https://ieumfish.co.kr" target="_blank" rel="noopener">가게 구경하기 · ieumfish.co.kr</a></div>
 </div>
 <button id="act" class="hud">파라솔 펴고 앉기</button>
 
@@ -1337,7 +1345,9 @@ const eul = w => { const c = w.charCodeAt(w.length - 1) - 0xAC00; return w + (c 
 function addItem(id, msg) {
   const first = !dex[id]; dex[id] = (dex[id] || 0) + 1; save('pm_dex', JSON.stringify(dex)); dexLabel();
   toast(msg || (first ? `${eul(ITEM[id].name)} 주웠어요 · 도감에 담았어요` : `${eul(ITEM[id].name)} 또 주웠어요`));
+  if (first && dexDone()) setTimeout(() => { chime([523, 659, 784, 1047], 0.2); toast('도감을 다 모았어요 · 도감에서 완성 카드를 받아 가세요'); }, 3500);
 }
+const dexDone = () => ITEMS.every(([id]) => dex[id]);
 function drawItemShape(g, id, x, y, s) {
   g.save(); g.translate(x, y); g.scale(s, s);
   const blob = (c, rx, ry) => { g.fillStyle = c; g.beginPath(); g.ellipse(0, 0, rx, ry, 0, 0, 6.3); g.fill(); };
@@ -1436,6 +1446,65 @@ function pickTick() {
   }
 }
 const dexSheet = document.getElementById('dexSheet'), dexGrid = document.getElementById('dexGrid'), dexNote = document.getElementById('dexNote');
+/* ───────── 도감 완성 카드: 그림으로 저장, 노점 벽에 걸기 ───────── */
+const doneSheet = document.getElementById('doneSheet'), doneImg = document.getElementById('doneImg'), doneNote = document.getElementById('doneNote');
+let doneURL = '';
+function makeDone() {
+  const c = document.createElement('canvas'), w = 720, h = 1000; c.width = w; c.height = h; const g = c.getContext('2d');
+  const bg = g.createLinearGradient(0, 0, 0, h); bg.addColorStop(0, '#cfe3ee'); bg.addColorStop(0.34, '#e9e3d2'); bg.addColorStop(1, '#e2cfa8');
+  g.fillStyle = bg; g.fillRect(0, 0, w, h);
+  g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 3; for (let k = 0; k < 3; k++) { g.beginPath(); for (let x = 0; x <= w; x += 12) g.lineTo(x, 300 + k * 16 + Math.sin(x / 38 + k) * 5); g.stroke(); }
+  g.fillStyle = '#22365a'; g.textAlign = 'center'; g.font = '700 54px system-ui, sans-serif'; g.fillText('파도멍 도감', w / 2, 112);
+  g.font = '500 24px system-ui, sans-serif'; g.fillStyle = '#4b5d6b'; g.fillText('목포 대반동 바닷가', w / 2, 154);
+  const d = new Date(now() + 9 * 3600e3), ds = `${d.getUTCFullYear()}. ${d.getUTCMonth() + 1}. ${d.getUTCDate()}.`;
+  g.font = '700 34px system-ui, sans-serif'; g.fillStyle = '#5b4630'; g.fillText(me.name || '바닷가 사람', w / 2, 222);
+  g.font = '500 22px system-ui, sans-serif'; g.fillText(`${ITEMS.length}가지를 다 모았어요 · ${ds}`, w / 2, 260);
+  const cols = 7, cw = 86, x0 = (w - cols * cw) / 2 + cw / 2, y0 = 380;
+  ITEMS.forEach(([id], i) => {
+    const x = x0 + (i % cols) * cw, y = y0 + Math.floor(i / cols) * 92;
+    g.fillStyle = 'rgba(255,255,255,.55)'; g.beginPath(); g.arc(x, y, 36, 0, 6.3); g.fill();
+    g.save(); drawItemShape(g, id, x, y + 2, 2.3); g.restore();
+  });
+  g.fillStyle = '#6a7884'; g.font = '500 20px system-ui, sans-serif'; g.textAlign = 'center';
+  g.fillText('padomeong.onrender.com · 이음수산 노점에서', w / 2, h - 40);
+  return c.toDataURL('image/jpeg', 0.86);
+}
+function openDone() {
+  doneURL = makeDone(); doneImg.src = doneURL;
+  doneNote.textContent = "그림을 길게 누르거나 '그림으로 저장'을 누르면 간직할 수 있어요";
+  document.getElementById('doneHang').disabled = load('pm_cardhung', '') === String(dayIdx(now()));
+  doneSheet.classList.add('on'); wake();
+}
+document.getElementById('doneClose').addEventListener('click', () => doneSheet.classList.remove('on'));
+document.getElementById('doneSave').addEventListener('click', () => {
+  const a = document.createElement('a'); a.href = doneURL; a.download = '파도멍-도감-완성.jpg'; document.body.appendChild(a); a.click(); a.remove();
+  doneNote.textContent = '저장되지 않으면 그림을 길게 눌러 저장해 주세요';
+});
+document.getElementById('doneHang').addEventListener('click', async () => {
+  const btn = document.getElementById('doneHang'); btn.disabled = true; doneNote.textContent = '노점으로 가져가는 중…';
+  try {
+    const r = await fetch('/card', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: me.name, img: doneURL }) });
+    const j = await r.json().catch(() => ({}));
+    if (r.ok) { save('pm_cardhung', String(dayIdx(now()))); doneNote.textContent = '노점 벽에 걸었어요 · 노점에서 "노점 벽"을 눌러 보세요'; chime([660, 880], 0.15); }
+    else { doneNote.textContent = j.안내 || '지금은 걸 수 없어요'; if (r.status !== 429) btn.disabled = false; }
+  } catch (e) { doneNote.textContent = '바닷가와 연결이 끊겨 걸지 못했어요'; btn.disabled = false; }
+});
+const wallSheet = document.getElementById('wallSheet'), wallList = document.getElementById('wallList');
+async function openWall() {
+  wallList.innerHTML = '<div class="empty">벽을 살펴보는 중…</div>'; wallSheet.classList.add('on'); wake();
+  try {
+    const list = await (await fetch('/cards')).json();
+    wallList.innerHTML = '';
+    if (!list.length) { wallList.innerHTML = '<div class="empty">아직 걸린 카드가 없어요. 도감을 다 모으면 첫 카드를 걸 수 있어요</div>'; return; }
+    for (const c of list) {
+      const f = document.createElement('figure'), im = new Image(); im.src = `/cards/${c.id}.jpg`; im.alt = c.name; im.loading = 'lazy';
+      const d = new Date(c.ts + 9 * 3600e3), cap = document.createElement('figcaption'); cap.textContent = `${c.name} · ${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일`;
+      f.append(im, cap); wallList.appendChild(f);
+    }
+  } catch (e) { wallList.innerHTML = '<div class="empty">바닷가와 연결이 끊겨 벽을 볼 수 없어요</div>'; }
+}
+document.getElementById('stallWall').addEventListener('click', openWall);
+document.getElementById('wallClose').addEventListener('click', () => wallSheet.classList.remove('on'));
 const HINTS = {
   oyster: '물이 빠지면 모래 위를 둘러보세요', clam: '물이 빠지면 모래 위를 둘러보세요', pebble: '물이 빠지면 모래 위를 둘러보세요', kelp: '물이 빠지면 모래 위를 둘러보세요', crab: '물이 빠지면 모래 위를 둘러보세요',
   conch: '물 빠진 모래에서, 조금 드물게', star: '물 빠진 모래에서, 조금 드물게', glassG: '물 빠진 모래에서, 조금 드물게', feather: '바람 센 날 물 빠진 모래에서',
@@ -1467,6 +1536,7 @@ function openDex() {
   const bits = []; if (glassHave.size) bits.push(`바다 유리 ${glassHave.size}/7`); if (photoHave.size) bits.push(`옛 그림 ${photoHave.size}/7`); if (mapHave.size) bits.push(`지도 조각 ${mapHave.size}/7`);
   if (bits.length) { const sp = document.createElement('span'); sp.textContent = bits.join(' · '); ex.appendChild(sp); }
   neckButtons(ex);
+  if (dexDone()) { const b = document.createElement('button'); b.textContent = '완성 카드'; b.onclick = () => { dexSheet.classList.remove('on'); openDone(); }; ex.appendChild(b); }
   if (mapHave.size) { const b = document.createElement('button'); b.textContent = '지도 보기'; b.onclick = () => { dexSheet.classList.remove('on'); openMap(); }; ex.appendChild(b); }
   for (const [id, name] of ITEMS) {
     const cell = document.createElement('button'), got = !!dex[id];
