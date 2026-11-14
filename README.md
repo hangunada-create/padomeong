@@ -187,3 +187,4 @@ Node.js 서버를 그대로 돌려 주는 곳이면 어디든 됩니다. 예:
 ## 사진 출처
 
 - `public/img/old/consul.jpg`: 한국교육방송공사의 「한국기행_목포_건축물09」(2017)은 CC BY 라이선스로 제공됩니다. 공유마당(https://gongu.copyright.or.kr/gongu/wrt/wrt/view.do?wrtSn=13063017&menuNo=200018). 방송 글자가 없도록 잘라 내고 색을 바래게 고쳤습니다.
+- `public/img/old/samhak.jpg`: 본 저작물은 '한국정책방송원'에서 1970년 작성하여 공공누리 제1유형으로 개방한 '목포시 전경(작성자: 한국정책방송원)'을 이용하였으며, 해당 저작물은 공유마당(https://gongu.copyright.or.kr/gongu/wrt/wrt/view.do?wrtSn=13071610&menuNo=200018)에서 무료로 내려받을 수 있습니다. 색을 바래게 고쳤습니다.

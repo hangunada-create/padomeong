@@ -2898,7 +2898,7 @@ document.getElementById('mapClose').addEventListener('click', () => mapSheet.cla
 
 /* ───────── 옛 그림 병: 하루에 한 번, 짙은 갈색 병에 빛바랜 그림 한 장 ───────── */
 const OLD = [
-  ['1897년 개항 무렵의 목포항', 'port'], ['삼학도, 학 세 마리가 내려앉았다는 세 섬', 'samhak'], ['유달산 바위 능선', 'yudal'],
+  ['1897년 개항 무렵의 목포항', 'port'], ['1970년, 유달산에서 내려다본 목포 시내와 삼학도', 'samhak', 'img/old/samhak.jpg', '사진: 한국정책방송원 「목포시 전경」(1970), 공공누리 제1유형 · 공유마당 · 색을 바래게 고침'], ['유달산 바위 능선', 'yudal'],
   ['고하도의 목화밭', 'cotton'], ['호남선 기차가 닿던 목포역', 'train'], ['1900년에 지은 붉은 벽돌 옛 일본영사관, 지금은 목포근대역사관', 'consul', 'img/old/consul.jpg', '사진: 한국교육방송공사 「한국기행_목포_건축물09」(2017), CC BY · 공유마당 · 색을 바래게 고침'], ['삿갓 쓴 두 바위, 갓바위', 'gat'],
 ];
 let photoHave = loadSet('pm_photos'), oldBottle = null, oldBottleAt = performance.now() + (FAST ? 5000 : 180000 + Math.random() * 300000);
