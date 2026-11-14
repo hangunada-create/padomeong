@@ -163,7 +163,7 @@
     <h1>파도멍</h1>
     <p>목포 대반동 바닷가입니다.<br>파라솔 하나 들고 와서 마음에 드는 자리에 앉으세요.<br>파도가 왔다가, 갑니다.</p>
     <div class="namebox"><input id="nick" maxlength="10" placeholder="바닷가에서 쓸 이름" autocomplete="off"><button id="reroll" aria-label="다른 이름">↻</button></div>
-    <small>내 색 · 낮엔 파라솔, 밤엔 담요</small>
+    <small>내 색 · 낮엔 파라솔, 밤엔 담요, 비 오면 우산</small>
     <div id="swatches"></div>
     <button id="go">바닷가로 가기</button>
   </div>
@@ -728,14 +728,27 @@ function lantern(lx, ly, s, t, seed) {
   ctx.fillStyle = 'rgba(255,255,240,.9)'; ctx.fillRect(lx - 1.2 * s, ly - 3 * s, 2.4 * s, 5 * s);
   return fl;
 }
+const RAINY = () => WXF.rain > 0.05 || WXF.snow > 0.05;     // 비나 눈이 오면 다들 우산을 쓰고 선다
+function umbrella(x, y, s, t, a, pc) {
+  const sway = Math.sin(t * 0.0013 + a.seed) * 1.2 * s + (WXF.wind > 6 ? Math.sin(t * 0.006 + a.seed) * 2 * s : 0);
+  const tx = x - 3 * s + sway, ty = y - 104 * s;
+  ctx.strokeStyle = '#3a3f47'; ctx.lineWidth = 2.2 * s; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(x - 9 * s, y - 40 * s); ctx.lineTo(tx, ty - 14 * s); ctx.stroke();
+  ctx.beginPath(); ctx.arc(x - 12 * s, y - 40 * s, 3 * s, 0, Math.PI); ctx.stroke();        // 손잡이
+  canopy(tx, ty, 33 * s, 17 * s, pc);
+  ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 1 * s;                        // 우산 끝 빗방울
+  for (let k = -2; k <= 2; k++) { const dx = tx + k * 15 * s, ph = ((t / 700 + k * 0.37 + a.seed) % 1);
+    ctx.beginPath(); ctx.moveTo(dx, ty + 1 * s + ph * 10 * s); ctx.lineTo(dx, ty + 4 * s + ph * 10 * s); ctx.stroke(); }
+}
 function drawPerson(a, t, inWater, night) {
   const s = sOf(a.vd), x = xOf(a.vx, a.vd);
+  const rainy = RAINY(), sat = a.sit && !rainy;
   if (x < -90 * s || x > W + 90 * s) return;
   let y = yOf(a.vd);
   const pc = PARASOLS[a.color % PARASOLS.length];
   const shirt = SHIRTS[Math.floor(a.seed) % SHIRTS.length], hair = HAIRS[Math.floor(a.seed * 7) % HAIRS.length];
 
-  if (night && a.sit) {
+  if (night && sat) {
     // 밤: 돗자리에 앉아 담요를 두르고, 옆에 랜턴
     const lx = x + 30 * s, ly = y - 6 * s;
     lanternGlow(lx, ly, 120 * s, 0.48);
@@ -752,7 +765,7 @@ function drawPerson(a, t, inWater, night) {
     ctx.fillStyle = hair;
     ctx.beginPath(); ctx.arc(x, y - 39 * s - br, 10 * s, 0, 6.3); ctx.fill();
     lantern(lx, ly, s * 1.1, t, a.seed);
-  } else if (a.sit) {
+  } else if (sat) {
     // 파라솔 그늘, 돗자리
     ctx.fillStyle = 'rgba(40,30,20,.16)';
     ctx.beginPath(); ctx.ellipse(x + 20 * s, y + 5 * s, 50 * s, 12 * s, 0, 0, 6.3); ctx.fill();
@@ -779,7 +792,9 @@ function drawPerson(a, t, inWater, night) {
     ctx.strokeStyle = '#5b6b7c'; ctx.lineWidth = 5.5 * s; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(x - 4 * s, y - 24 * s); ctx.lineTo(x - 4 * s + sw * 6 * s, y - 1 * s);
     ctx.moveTo(x + 4 * s, y - 24 * s); ctx.lineTo(x + 4 * s - sw * 6 * s, y - 1 * s); ctx.stroke();
-    if (night) {
+    if (rainy) {
+      // 비: 우산은 머리 그린 뒤에 씌운다
+    } else if (night) {
       // 밤: 어깨에 접은 담요, 손에 랜턴
       ctx.fillStyle = pc;
       ctx.beginPath(); ctx.ellipse(x - 6 * s, y - 50 * s, 9 * s, 5 * s, -0.5, 0, 6.3); ctx.fill();
@@ -797,6 +812,7 @@ function drawPerson(a, t, inWater, night) {
     ctx.beginPath(); ctx.arc(x, y - 62 * s, 10 * s, 0, 6.3); ctx.fill();
     ctx.fillStyle = hair;
     ctx.beginPath(); ctx.arc(x, y - 64 * s, 10.4 * s, Math.PI * 1.02, Math.PI * 1.98); ctx.closePath(); ctx.fill();
+    if (rainy) umbrella(x, y, s, t, a, pc);
     if (night) {               // 손에 든 랜턴이 걸음에 따라 흔들림
       const lx = x + 15 * s + sw * 3 * s, ly = y - 22 * s + Math.abs(sw) * 1.5 * s;
       ctx.strokeStyle = shirt; ctx.lineWidth = 4 * s;
@@ -807,17 +823,17 @@ function drawPerson(a, t, inWater, night) {
   }
   if (a.waveUntil && performance.now() < a.waveUntil) {      // 손 흔들기
     const wag = Math.sin(performance.now() / 110) * 5 * s;
-    const sx = x + (a.sit ? 9 : 9) * s, sy = y - (a.sit ? 26 : 48) * s, hx = sx + 11 * s + wag, hy2 = sy - 30 * s;
+    const sx = x + 9 * s, sy = y - (sat ? 26 : 48) * s, hx = sx + 11 * s + wag, hy2 = sy - 30 * s;
     ctx.strokeStyle = shirt; ctx.lineWidth = 4.5 * s; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(hx, hy2); ctx.stroke();
     ctx.fillStyle = '#f1cfae'; ctx.beginPath(); ctx.arc(hx, hy2 - 2 * s, 3.6 * s, 0, 6.3); ctx.fill();
   }
   if (inWater) {       // 발끝에 닿은 물
     ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = 2 * s;
-    ctx.beginPath(); ctx.ellipse(x, yOf(a.vd) + 1 * s, (a.sit ? 34 : 17) * s, (a.sit ? 9 : 5) * s, 0, 0, 6.3); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(x, yOf(a.vd) + 1 * s, (sat ? 34 : 17) * s, (sat ? 9 : 5) * s, 0, 0, 6.3); ctx.stroke();
   }
   if (a.name) {
-    const ly = y - (a.sit ? 110 : 104) * s;
+    const ly = y - (sat ? 110 : rainy ? 130 : 104) * s;
     ctx.font = `600 ${Math.max(11, 13 * s)}px system-ui, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(20,40,60,.45)'; ctx.strokeText(a.name, x, ly);
@@ -829,7 +845,7 @@ function drawPerson(a, t, inWater, night) {
 let myId = null;
 const gestures = [];                 // {from, to, t0}
 const entityOf = id => (id === myId ? me : peers.get(id));
-function screenOf(a, lift) { const s = sOf(a.vd); return [xOf(a.vx, a.vd), yOf(a.vd) - (a.sit ? lift * 0.55 : lift) * s, s]; }
+function screenOf(a, lift) { const s = sOf(a.vd); return [xOf(a.vx, a.vd), yOf(a.vd) - (a.sit && !RAINY() ? lift * 0.55 : lift) * s, s]; }
 function onGesture(from, to) {
   const a = entityOf(from), b = entityOf(to); if (!a || !b) return;
   const pn = performance.now();
@@ -858,7 +874,7 @@ function drawGift(a, pn, night) {   // 받은 빛이 한동안 그 사람 곁에
   if (!a.giftUntil || pn > a.giftUntil) return;
   const left = (a.giftUntil - pn) / 15000, s = sOf(a.vd), x = xOf(a.vx, a.vd), y = yOf(a.vd);
   if (night) {
-    const lx = a.sit ? x + 30 * s : x + 15 * s, ly = a.sit ? y - 6 * s : y - 22 * s;
+    const st = a.sit && !RAINY(), lx = st ? x + 30 * s : x + 15 * s, ly = st ? y - 6 * s : y - 22 * s;
     const g = ctx.createRadialGradient(lx, ly, 0, lx, ly, 70 * s);
     g.addColorStop(0, a.giftColor); g.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.save(); ctx.globalAlpha = 0.55 * Math.min(1, left * 3); ctx.globalCompositeOperation = 'lighter';
@@ -867,7 +883,7 @@ function drawGift(a, pn, night) {   // 받은 빛이 한동안 그 사람 곁에
     for (let k = 0; k < 6; k++) {
       const ang = pn / 900 + k * Math.PI / 3, r = 22 * s;
       ctx.fillStyle = `rgba(255,252,230,${0.85 * Math.min(1, left * 3)})`;
-      ctx.beginPath(); ctx.arc(x + Math.cos(ang) * r, y - (a.sit ? 48 : 70) * s + Math.sin(ang) * r * 0.4, 2.2 * s, 0, 6.3); ctx.fill();
+      ctx.beginPath(); ctx.arc(x + Math.cos(ang) * r, y - (a.sit && !RAINY() ? 48 : 70) * s + Math.sin(ang) * r * 0.4, 2.2 * s, 0, 6.3); ctx.fill();
     }
   }
 }
@@ -983,7 +999,7 @@ function drawBreath(t) {
   if (!breathing || !joined) return;
   const p = (t / WAVE_T) % 1, inhale = p < 0.32;
   const k = inhale ? Math.sin(Math.PI / 2 * p / 0.32) : Math.cos(Math.PI / 2 * (p - 0.32) / 0.68);
-  const s = sOf(me.vd), x = xOf(me.vx, me.vd), y = yOf(me.vd) - (me.sit ? 30 : 45) * s;
+  const s = sOf(me.vd), x = xOf(me.vx, me.vd), y = yOf(me.vd) - (me.sit && !RAINY() ? 30 : 45) * s;
   const r = (34 + 46 * k) * s;
   ctx.strokeStyle = `rgba(255,255,255,${0.35 + 0.3 * k})`; ctx.lineWidth = 2.2 * s;
   ctx.beginPath(); ctx.arc(x, y, r, 0, 6.3); ctx.stroke();
@@ -1666,7 +1682,7 @@ function frame(pn) {
   bottleTick(pn, dE);
   castleTick(t, wv); pickTick();
   infoTick(t, tide);
-  if (night !== lastNight) { lastNight = night; actLabel(); }
+  if (night !== lastNight || RAINY() !== lastRainy) { lastNight = night; lastRainy = RAINY(); actLabel(); }
   stallCheck();
 
   if (pal.shade > 0.01) {       // 저녁·밤의 어스름
@@ -1852,7 +1868,8 @@ setInterval(() => {      // 내 위치 알리기
 /* ───────── 조작 ───────── */
 const act = document.getElementById('act'), hint = document.getElementById('hint');
 let lastNight = false;
-function actLabel() { act.textContent = me.sit ? '일어나기' : (lastNight ? '랜턴 켜고 앉기' : '파라솔 펴고 앉기'); }
+let lastRainy = false;
+function actLabel() { act.textContent = lastRainy ? (me.sit ? '다시 걷기' : '우산 쓰고 서 있기') : me.sit ? '일어나기' : (lastNight ? '랜턴 켜고 앉기' : '파라솔 펴고 앉기'); }
 function setSit(v) {
   me.sit = v; me.tx = me.td = null;
   actLabel();
@@ -1872,7 +1889,7 @@ cv.addEventListener('pointerdown', e => {
   if (hitCastle(e.clientX, e.clientY)) { buildCastle(); return; }
   const it = hitItem(e.clientX, e.clientY);
   if (it) {
-    if (me.sit) { toast('일어나서 주우러 가요'); return; }
+    if (me.sit) { toast(RAINY() ? '걸어가서 주워요' : '일어나서 주우러 가요'); return; }
     pendingPick = it; me.tx = it.x; me.td = clamp(it.d + 0.02, D_MIN, D_MAX); return;
   }
   if (bottle && bottle.state === 'rest') {
