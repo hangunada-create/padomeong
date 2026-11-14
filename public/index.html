@@ -83,7 +83,10 @@
   #dexGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
   #dexGrid .cell { border: 0; border-radius: 12px; background: #efe7d6; padding: 6px 2px 7px; display: flex; flex-direction: column; align-items: center; gap: 2px;
                    font: inherit; font-size: 10.5px; color: #5c4d38; cursor: pointer; min-height: 70px; }
-  #dexGrid .cell.no { background: #f3eee3; cursor: default; }
+  #dexGrid .cell.no { background: #f3eee3; cursor: pointer; }
+  #dexGrid .tip { grid-column: 1 / -1; font-size: 12.5px; line-height: 1.55; color: #5b4630; background: #fbf3e2; border-radius: 10px; padding: 8px 10px; word-break: keep-all; }
+  #dexGrid .cell.sel { outline: 2px solid #c9a46a; }
+  .sheet .guide .gift2 { display: block; margin-top: 4px; color: #2f6f9f; font-weight: 600; }
   #dexGrid canvas { width: 44px; height: 44px; }
   #cardImg { width: 100%; border-radius: 8px; margin-top: 10px; display: block; box-shadow: 0 4px 14px rgba(0,0,0,.15); }
   @media (max-width: 600px) {
@@ -166,7 +169,7 @@
   <button id="dexBtn" class="chip">도감</button>
   <button id="cardBtn" class="chip">엽서</button>
 </div>
-<div id="dexSheet" class="sheet"><div class="k">물이 빠지면 무언가 드러나요</div><div class="guide" id="dexGuide">? 칸을 누르면 실마리가 나와요. 날씨와 물때, 달과 별을 따라 천천히 모여요.<br>도감은 지금 이 기기, 이 브라우저에 담겨요. 다른 기기나 시크릿 창에서는 따로 모이고, 방문 기록을 지우면 사라져요.<br>다 모으면 완성 카드를 받아 간직하고, 노점에 알릴 수 있어요.</div><div id="dexGrid"></div><div class="note" id="dexNote"></div><div id="dexExtra"></div>
+<div id="dexSheet" class="sheet"><div class="k">물이 빠지면 무언가 드러나요</div><div class="guide" id="dexGuide">? 칸을 누르면 실마리가 나와요. 날씨와 물때, 달과 별을 따라 천천히 모여요.<br>도감은 지금 이 기기, 이 브라우저에 담겨요. 다른 기기나 시크릿 창에서는 따로 모이고, 방문 기록을 지우면 사라져요.<br>다 모으면 완성 카드를 받아 간직하고, 노점에 알릴 수 있어요.<span class="gift2">🎁 도감을 다 모은 분께 이음수산 생선회와 작은 굿즈를 보내 드립니다. (선착순 10명)</span></div><div id="dexGrid"></div><div class="note" id="dexNote"></div><div id="dexExtra"></div>
 <div class="row"><span></span><button class="main" id="dexClose">닫기</button></div></div>
 <div id="cardSheet" class="sheet"><div class="k">지금 이 바다를 엽서 한 장으로</div><img id="cardImg" alt="파도멍 엽서">
 <div class="note">휴대폰은 사진을 길게 눌러 저장할 수도 있어요</div>
@@ -1493,7 +1496,7 @@ function showGift(no) {
   g.innerHTML = '';
   const b = document.createElement('b'); b.textContent = '파도멍 ' + no;
   const a = document.createElement('a'); a.href = 'https://instagram.com/ieumfish'; a.target = '_blank'; a.rel = 'noopener'; a.textContent = '@ieumfish';
-  g.append(b, document.createElement('br'), '이 번호를 이음수산 인스타그램 ', a, ' 로 DM 주시면 생선회와 작은 굿즈를 선물로 보내 드려요.');
+  g.append(b, document.createElement('br'), '이 번호를 이음수산 인스타그램 ', a, ' 로 DM 주시면 생선회와 작은 굿즈를 선물로 보내 드려요. (선착순 10명)');
 }
 document.getElementById('doneHang').addEventListener('click', async () => {
   const btn = document.getElementById('doneHang'); btn.disabled = true; doneNote.textContent = '노점에 알리는 중…';
@@ -1504,6 +1507,16 @@ document.getElementById('doneHang').addEventListener('click', async () => {
     else { doneNote.textContent = j.안내 || '지금은 알릴 수 없어요'; if (r.status !== 429) btn.disabled = false; }
   } catch (e) { doneNote.textContent = '바닷가와 연결이 끊겨 알리지 못했어요'; btn.disabled = false; }
 });
+function dexTip(cell, text) {             // 누른 칸이 있는 줄 바로 아래에 펼친다
+  const old = dexGrid.querySelector('.tip'), was = dexGrid.querySelector('.cell.sel');
+  if (old) old.remove(); if (was) was.classList.remove('sel');
+  if (was === cell) return;                // 같은 칸을 다시 누르면 닫힘
+  const cells = [...dexGrid.querySelectorAll('.cell')], i = cells.indexOf(cell);
+  const cols = getComputedStyle(dexGrid).gridTemplateColumns.split(' ').length || 4;
+  const last = cells[Math.min(cells.length - 1, Math.floor(i / cols) * cols + cols - 1)];
+  const tip = document.createElement('div'); tip.className = 'tip'; tip.textContent = text;
+  last.after(tip); cell.classList.add('sel');
+}
 const HINTS = {
   oyster: '물이 빠지면 모래 위를 둘러보세요', clam: '물이 빠지면 모래 위를 둘러보세요', pebble: '물이 빠지면 모래 위를 둘러보세요', kelp: '물이 빠지면 모래 위를 둘러보세요', crab: '물이 빠지면 모래 위를 둘러보세요',
   conch: '물 빠진 모래에서, 조금 드물게', star: '물 빠진 모래에서, 조금 드물게', glassG: '물 빠진 모래에서, 조금 드물게', feather: '바람 센 날 물 빠진 모래에서',
@@ -1547,8 +1560,7 @@ function openDex() {
     cell.appendChild(c);
     const lab = document.createElement('span'); lab.textContent = got ? name : '';
     cell.appendChild(lab);
-    if (got) cell.addEventListener('click', () => { dexNote.textContent = `${name} · ${dex[id]}번 · ${ITEM[id].desc}`; });
-    else cell.addEventListener('click', () => { dexNote.textContent = '실마리 · ' + dexHint(id); });
+    cell.addEventListener('click', () => dexTip(cell, got ? `${name} · ${dex[id]}번 · ${ITEM[id].desc}` : '실마리 · ' + dexHint(id)));
     dexGrid.appendChild(cell);
   }
   dexSheet.classList.add('on'); wake();
