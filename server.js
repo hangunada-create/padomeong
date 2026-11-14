@@ -243,6 +243,12 @@ const nightKey = () => { const d = new Date(Date.now() + 9 * 3600e3 - 12 * 3600e
 function lanternList() { const k = nightKey(); if (lanterns.key !== k) { lanterns.key = k; lanterns.list = []; lanterns.by.clear(); } return lanterns.list; }
 let nextL = 1;
 const shotsBy = { key: '', n: new Map() };
+// 노을 십 분을 함께 본 사람, 오늘의 질문에 달린 답 (한국 날짜가 바뀌면 비움, 저장하지 않음)
+const dayKeyNow = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+const sunsetSeen = { key: '', ids: new Set() };
+const qa = { key: '', list: [], by: new Map() }; let nextQ = 1;
+function qaList() { const k = dayKeyNow(); if (qa.key !== k) { qa.key = k; qa.list = []; qa.by.clear(); } return qa.list; }
+function sunsetCount() { const k = dayKeyNow(); if (sunsetSeen.key !== k) { sunsetSeen.key = k; sunsetSeen.ids.clear(); } return sunsetSeen.ids.size; }
 const castleOf = room => { if (!castles.has(room)) castles.set(room, Array.from({ length: CASTLE_N }, () => ({ lvl: 0, gen: 1, by: new Map() }))); return castles.get(room); };
 const ROOM_CAP = Number(process.env.ROOM_CAP) || 80;           // 해변 하나에 들어가는 사람 수
 const perIp = new Map();
@@ -317,7 +323,7 @@ wss.on('connection', (ws, req) => {
       const d = day(); d.최대동시접속 = Math.max(d.최대동시접속, people.size);
       if (!isBot) bump('입장');
       const cs = castleOf(room);
-      send(ws, { t: 'hi', id, now: Date.now(), room, rooms: rooms.size, p: list, w: writings.get(room) || [], today: todayView(), wx: weather, castle: cs.map(c => [c.lvl, c.gen]), ln: lanternList() });
+      send(ws, { t: 'hi', id, now: Date.now(), room, rooms: rooms.size, p: list, w: writings.get(room) || [], today: todayView(), wx: weather, castle: cs.map(c => [c.lvl, c.gen]), ln: lanternList(), qa: qaList().slice(-40), sn: sunsetCount() });
       sendRoom(room, { t: 'in', p: [id, me.x, me.d, me.sit, me.color, me.name, me.k, me.g] }, id);
       roomsChanged();
       return;
@@ -378,6 +384,25 @@ wss.on('connection', (ws, req) => {
       me.shot = k; shotsBy.n.set(tag, used + 1); bump('불꽃');
       const ax = clamp(num(m.ax, 0), -300, 300), ay = clamp(num(m.ay, -100), -300, 0);
       sendRoom(me.room, { t: 'pf', id, ax, ay }, id);
+
+    } else if (m.t === 'sn') {                    // 노을 십 분 동안 바닷가에 있었음
+      sunsetCount(); if (sunsetSeen.ids.has(id)) return;
+      sunsetSeen.ids.add(id); bump('노을');
+      const s = JSON.stringify({ t: 'snc', n: sunsetSeen.ids.size });
+      for (const p of people.values()) if (p.ws.readyState === 1) p.ws.send(s);
+
+    } else if (m.t === 'qa') {                    // 오늘의 질문에 답 달기 (한 사람 하루 세 번까지)
+      const list = qaList(), used = qa.by.get(tag) || 0;
+      if (used >= 3) return send(ws, { t: 'wr', ok: false, msg: '오늘은 충분히 답했어요' });
+      if (t - lastSand < 8000) return send(ws, { t: 'wr', ok: false, msg: '조금 있다가 다시 써요' });
+      const text = checkSand(m.text, 16);
+      if (!text) return send(ws, { t: 'wr', ok: false, msg: '이 글씨는 모래에 남길 수 없어요' });
+      lastSand = t; qa.by.set(tag, used + 1); bump('질문답');
+      const a = [nextQ++, text, me.color];
+      list.push(a); while (list.length > 40) list.shift();
+      send(ws, { t: 'wr', ok: true });
+      const s = JSON.stringify({ t: 'qa', a });
+      for (const p of people.values()) if (p.ws.readyState === 1) p.ws.send(s);
 
     } else if (m.t === 'ln') {                    // 보름달 밤 등 띄우기 (하룻밤에 한 사람 하나)
       const list = lanternList();

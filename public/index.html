@@ -753,6 +753,7 @@ function drawPerson(a, t, inWater, night) {
   const rainy = RAINY(), sat = a.sit && !rainy;
   if (x < -90 * s || x > W + 90 * s) return;
   let y = yOf(a.vd);
+  drawLongShadow(x, y, s);
   const pc = PARASOLS[a.color % PARASOLS.length];
   const shirt = SHIRTS[Math.floor(a.seed) % SHIRTS.length], hair = HAIRS[Math.floor(a.seed * 7) % HAIRS.length];
 
@@ -1037,20 +1038,25 @@ function addWriting(w, live) {
 }
 const sandK = document.getElementById('sandK'), SAND_K = sandK.textContent;
 document.getElementById('sandBtn').addEventListener('click', () => {
-  appendTo = null; sandK.textContent = SAND_K; sandText.maxLength = 16; sandText.placeholder = '16자까지';
+  appendTo = null; answering = false; sandK.textContent = SAND_K; sandText.maxLength = 16; sandText.placeholder = '16자까지';
   sandNote.textContent = ''; sandSheet.classList.add('on'); setTimeout(() => sandText.focus(), 50); wake();
 });
 function openAppend(w) {
-  appendTo = w; sandK.textContent = `‘${w.text}’ 뒤에 한 낱말을 이어 써요. 파도가 오면 함께 지워져요.`;
+  appendTo = w; answering = false; sandK.textContent = `‘${w.text}’ 뒤에 한 낱말을 이어 써요. 파도가 오면 함께 지워져요.`;
   sandText.maxLength = 8; sandText.placeholder = '8자까지'; sandText.value = '';
   sandNote.textContent = ''; sandSheet.classList.add('on'); setTimeout(() => sandText.focus(), 50); wake();
 }
 function onWritingUpdate(m) { const w = writings.find(o => o.id === m.id); if (w) { w.text = String(m.text).slice(0, 40); checkSentence(w, true); } }
-document.getElementById('sandCancel').addEventListener('click', () => { sandSheet.classList.remove('on'); sandText.blur(); appendTo = null; });
+document.getElementById('sandCancel').addEventListener('click', () => { sandSheet.classList.remove('on'); sandText.blur(); appendTo = null; answering = false; });
 document.getElementById('sandSend').addEventListener('click', () => {
   const v = sandText.value.replace(/\s+/g, ' ').trim();
   if (!v) { sandNote.textContent = '한 글자 이상 써 주세요'; return; }
   checkBeaconWord(v);
+  if (answering) {
+    if (ws && online) ws.send(JSON.stringify({ t: 'qa', text: v }));
+    else { addAnswer([-Date.now(), v, me.color]); closeSand(); }
+    return;
+  }
   if (appendTo) {
     if (appendTo.wash || !writings.includes(appendTo)) { sandNote.textContent = '파도가 먼저 지웠어요'; return; }
     if (ws && online && appendTo.id > 0) ws.send(JSON.stringify({ t: 'w', text: v, to: appendTo.id }));
@@ -1061,7 +1067,7 @@ document.getElementById('sandSend').addEventListener('click', () => {
   if (ws && online) ws.send(JSON.stringify({ t: 'w', text: v, x: Math.round(me.x), d: +d.toFixed(3) }));
   else { addWriting([-Date.now(), me.x, d, v, now(), me.color], true); closeSand(); }
 });
-function closeSand() { sandSheet.classList.remove('on'); sandText.value = ''; sandText.blur(); appendTo = null; }
+function closeSand() { sandSheet.classList.remove('on'); sandText.value = ''; sandText.blur(); appendTo = null; answering = false; }
 function onSandResult(m) { if (m.ok) closeSand(); else sandNote.textContent = m.msg || '쓰지 못했어요'; }
 function drawWritings(pn, t, pal) {
   const wv = waveAt(t);
@@ -1247,6 +1253,7 @@ const ITEMS = [
   ['constel', '계절의 별자리', 3, '맑은 밤, 별을 이어 그 계절의 별자리를 그렸다.'],
   ['skylantern', '보름달 등', 3, '보름달 뜬 밤, 한 줄을 적어 수평선으로 띄웠다.'],
   ['firework', '목포의 불꽃', 3, '목포 하늘에 불꽃이 오른 밤, 이 바다에서 함께 보았다.'],
+  ['sunset', '노을 십 분', 3, '해가 지는 십 분 동안 이 바다에 있었다.'],
   ['myfire', '내가 쏜 불꽃', 3, '저녁 바다에서 딱 한 발, 당겨서 쏘아 올렸다.'],
   ['sentence', '일주일의 문장', 3, '등대가 일주일 동안 깜빡인 낱말을 이어 노점 앞 모래에 썼다.'],
 ];
@@ -1286,6 +1293,7 @@ function drawItemShape(g, id, x, y, s) {
     case 'constel': { const P = [[-9, 3], [-4, -4], [1, 1], [6, -6], [10, -1]]; g.strokeStyle = 'rgba(90,110,170,.8)'; g.lineWidth = 1; g.beginPath(); P.forEach(([a, b], i) => i ? g.lineTo(a, b) : g.moveTo(a, b)); g.stroke(); g.fillStyle = '#4a5a8a'; for (const [a, b] of P) { g.beginPath(); g.arc(a, b, 1.8, 0, 6.3); g.fill(); } break; }
     case 'skylantern': g.fillStyle = 'rgba(255,190,110,.35)'; g.beginPath(); g.arc(0, 0, 10, 0, 6.3); g.fill(); g.fillStyle = '#f2b45e'; g.beginPath(); g.moveTo(-5, -7); g.lineTo(5, -7); g.lineTo(4, 7); g.lineTo(-4, 7); g.closePath(); g.fill(); g.fillStyle = '#fff3d6'; g.fillRect(-1.5, 2, 3, 3); break;
     case 'firework': g.strokeStyle = '#e8574a'; g.lineWidth = 1.3; for (let k = 0; k < 10; k++) { const a = k * Math.PI / 5; g.strokeStyle = k % 2 ? '#e8574a' : '#f2a03d'; g.beginPath(); g.moveTo(Math.cos(a) * 3, Math.sin(a) * 3); g.lineTo(Math.cos(a) * 10, Math.sin(a) * 10); g.stroke(); } break;
+    case 'sunset': g.fillStyle = '#f29a52'; g.beginPath(); g.arc(0, 2, 7, Math.PI, 0); g.fill(); g.fillStyle = 'rgba(110,170,210,.9)'; g.fillRect(-11, 2, 22, 6); g.fillStyle = 'rgba(255,220,150,.9)'; g.fillRect(-3, 4, 6, 1.5); break;
     case 'myfire': g.strokeStyle = '#c86fd0'; g.lineWidth = 1.3; for (let k = 0; k < 12; k++) { const a = k * Math.PI / 6; g.strokeStyle = k % 2 ? '#c86fd0' : '#f2c14e'; g.beginPath(); g.moveTo(Math.cos(a) * 4, Math.sin(a) * 4 - 2); g.lineTo(Math.cos(a) * 10, Math.sin(a) * 10 - 2); g.stroke(); } g.strokeStyle = 'rgba(200,170,120,.8)'; g.beginPath(); g.moveTo(0, 10); g.lineTo(0, 4); g.stroke(); break;
     case 'sentence': g.fillStyle = '#f6f1e2'; g.fillRect(-10, -7, 20, 14); g.fillStyle = '#8a6a4f'; for (let k = 0; k < 3; k++) g.fillRect(-7, -4 + k * 4, k === 2 ? 8 : 14, 1.4); break;
     case 'beacon': g.fillStyle = '#f6f1e2'; g.fillRect(-9, -6, 18, 12); g.fillStyle = '#2a3a48'; for (const [a, w2] of [[-6, 1.5], [-3, 4], [2, 1.5], [5, 1.5]]) g.fillRect(a, -1, w2, 1.8); break;
@@ -1489,6 +1497,14 @@ function makePostcard() {
   const g = c.getContext('2d');
   g.fillStyle = '#fbf7ee'; g.fillRect(0, 0, c.width, c.height);
   g.drawImage(cv, pad, pad);
+  if (GOLD > 0.2) {                                   // 노을 십 분 도장
+    const r = 44 * dpr, cx = c.width - pad - r - 16 * dpr, cy = pad + r + 16 * dpr;
+    g.save(); g.translate(cx, cy); g.rotate(-0.18); g.strokeStyle = 'rgba(214,92,52,.9)'; g.lineWidth = 3 * dpr;
+    g.beginPath(); g.arc(0, 0, r, 0, 6.3); g.stroke(); g.beginPath(); g.arc(0, 0, r - 6 * dpr, 0, 6.3); g.stroke();
+    g.fillStyle = 'rgba(214,92,52,.9)'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = `800 ${17 * dpr}px "Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif`; g.fillText('노을 십 분', 0, -6 * dpr);
+    g.font = `600 ${11 * dpr}px "Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif`; g.fillText('목포 대반동', 0, 13 * dpr); g.restore();
+  }
   const t = now(), k = kst(t), d = new Date(t + 9 * 3600e3), tide = tideInfo(t);
   const date = `${d.getUTCFullYear()}. ${d.getUTCMonth() + 1}. ${d.getUTCDate()} · ${k.h}:${String(k.m).padStart(2, '0')}`;
   const bits = [tide.rising ? '물이 들어오는 중' : '물이 빠지는 중'];
@@ -2056,6 +2072,203 @@ cv.addEventListener('pointerup', shotRelease);
 cv.addEventListener('pointercancel', () => { aimDrag = null; });
 function onPeerShot(m) { const p = peers.get(m.id); if (p) addShot(p, m.ax, m.ay, p.color, false); }
 
+const hourOf = ms => { const k = kst(ms); return k.h + k.m / 60 + k.s / 3600; };
+/* ───────── 노을 십 분 ─────────
+   실제 해넘이 앞뒤 10분 동안 바다가 금빛이 되고 그림자가 길어진다.
+   끝나면 오늘 노을을 함께 본 사람 수를 알려 준다. 그 사이 찍은 엽서에는 노을 도장이 찍힌다. */
+let GOLD = 0, sunsetSent = '', sunsetN = 0, sunsetSeen = '', sunsetTold = '';
+const dayKey = ms => new Date(ms + 9 * 3600e3).toISOString().slice(0, 10);
+function sunsetTick(t) {
+  const h = hourOf(t), set = sunTimes(t).set, dm = (h - set) * 60;
+  const vis = (1 - 0.7 * WXF.cloud) * (1 - WXF.rain) * (1 - 0.8 * WXF.fog);
+  GOLD = clamp(1 - Math.max(0, Math.abs(dm) - 8) / 6, 0, 1) * vis;
+  const inWin = Math.abs(dm) <= 10, k = dayKey(t);
+  if (joined && inWin) {
+    sunsetSeen = k;
+    if (sunsetSent !== k) {
+      sunsetSent = k;
+      if (ws && online) ws.send(JSON.stringify({ t: 'sn' })); else sunsetN = Math.max(1, sunsetN);
+      setTimeout(() => { if (!dex.sunset) addItem('sunset', '노을 십 분 · 도감에 담았어요'); }, 4000);
+    }
+  }
+  if (joined && sunsetSeen === k && sunsetTold !== k && dm > 10) {
+    sunsetTold = k;
+    toast(`오늘 노을을 함께 본 사람 ${Math.max(1, sunsetN)}명`);
+  }
+}
+function drawGold() {
+  if (GOLD <= 0.01) return;
+  const hy = horizonY();
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, `rgba(255,150,70,${0.16 * GOLD})`); g.addColorStop(hy / H, `rgba(255,170,80,${0.28 * GOLD})`); g.addColorStop(1, `rgba(255,190,120,${0.12 * GOLD})`);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  const sx = W * 0.62, beach = yOf(edgeD(0.5)), pn = performance.now();   // 해가 지는 쪽 바다에 반짝이는 금빛 길
+  for (let i = 0; i < 70; i++) {
+    const k = hash(i * 1.91), y = lerp(hy + 2 * U, beach - 4 * U, k * k), spread = lerp(10, 80, k * k) * U;
+    const x = sx + (hash(i * 4.7) - 0.5) * 2 * spread, tw = 0.5 + 0.5 * Math.sin(pn / (180 + hash(i) * 260) + i);
+    ctx.fillStyle = `rgba(255,${200 + Math.round(40 * tw)},140,${0.75 * GOLD * tw * (1 - 0.5 * k)})`;
+    ctx.fillRect(x - (4 + 14 * k) * U, y, (8 + 28 * k) * U, (1 + k) * U);
+  }
+}
+function drawLongShadow(x, y, s) {
+  if (GOLD <= 0.01) return;
+  ctx.fillStyle = `rgba(70,40,30,${0.22 * GOLD})`;
+  ctx.beginPath(); ctx.ellipse(x + 4 * s, y + 26 * s * GOLD, 7 * s, 26 * s * GOLD + 2 * s, -0.12, 0, 6.3); ctx.fill();
+}
+
+/* ───────── 오늘의 질문 ─────────
+   매일 아침 파도가 모래 위에 질문 하나를 써 두고 간다. 누르면 그 아래에 답을 이어 쓸 수 있다. 자정에 파도가 지운다. */
+const QUESTIONS = [
+  '지금 보고 싶은 사람은?', '오늘 들은 가장 좋은 말은?', '바다에 두고 가고 싶은 것은?', '어릴 때 꿈은?', '요즘 자주 먹는 것은?',
+  '내일 꼭 하고 싶은 한 가지는?', '가장 좋아하는 계절은?', '오늘 고마웠던 사람은?', '요즘 듣는 노래는?', '가 보고 싶은 섬은?',
+  '최근에 처음 해 본 일은?', '마음이 편해지는 냄새는?', '오늘 하늘은 무슨 색이었나요?', '잘하고 싶은 것 하나는?', '오래 간직한 물건은?',
+  '지금 창밖에는 무엇이 보이나요?', '오늘 하루를 한 단어로?', '바다 하면 떠오르는 기억은?', '요즘 웃게 만드는 것은?', '다시 가고 싶은 곳은?',
+  '나에게 해 주고 싶은 말은?', '좋아하는 생선 요리는?', '처음 바다를 본 날은?', '요즘 읽는 책은?', '잠들기 전에 하는 일은?',
+  '기다리고 있는 소식이 있나요?', '오늘 걸은 길에서 본 것은?', '누구와 이 바다를 보고 싶나요?', '지금 마음의 날씨는?', '올해 가장 잘한 일은?',
+  '요즘 배우고 싶은 것은?',
+];
+const QSPOT = { x: 1060, d: 0.38 };
+const qAnswers = [];       // [id, text, color]
+const questionOf = ms => QUESTIONS[((Math.floor((ms + 9 * 3600e3) / 864e5) % QUESTIONS.length) + QUESTIONS.length) % QUESTIONS.length];
+let qDay = '';
+function addAnswer(a) {
+  if (!a || qAnswers.some(o => o[0] === a[0])) return;
+  qAnswers.push([a[0], String(a[1]).slice(0, 16), a[2] | 0]); while (qAnswers.length > 40) qAnswers.shift();
+}
+function drawQuestion(pn, t, pal) {
+  const k = dayKey(t); if (qDay !== k) { if (qDay) qAnswers.length = 0; qDay = k; }
+  const s = sOf(QSPOT.d), x = xOf(QSPOT.x, QSPOT.d), y = yOf(QSPOT.d);
+  if (x < -300 || x > W + 300) return;
+  const ink = rgb(pal.sand.map(c => Math.round(c * 0.5)), 0.75), hi = 'rgba(255,250,235,.35)';
+  ctx.save(); ctx.translate(x, y); ctx.scale(1, 0.5);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.strokeStyle = ink; ctx.lineWidth = 2 * s; ctx.beginPath();                // 물결 표시: 파도가 쓴 글씨
+  for (let i = 0; i <= 24; i++) { const px = -60 * s + i * 5 * s, py = -40 * s + Math.sin(i * 0.9) * 3 * s; i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+  ctx.stroke();
+  ctx.font = `700 ${24 * s}px "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif`;
+  const q = questionOf(t);
+  ctx.fillStyle = hi; ctx.fillText(q, 0, 2 * s); ctx.fillStyle = ink; ctx.fillText(q, 0, 0);
+  ctx.font = `500 ${19 * s}px "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif`;
+  const show = qAnswers.slice(-4);
+  show.forEach((a, i) => {
+    const yy = (40 + i * 28) * s;
+    ctx.fillStyle = hi; ctx.fillText(a[1], 0, yy + 2 * s);
+    ctx.fillStyle = rgb(pal.sand.map(c => Math.round(c * 0.58)), 0.7); ctx.fillText(a[1], 0, yy);
+  });
+  if (qAnswers.length > 4) { ctx.fillStyle = ink; ctx.fillText(`… 외 ${qAnswers.length - 4}개`, 0, (40 + 4 * 28) * s); }
+  ctx.restore();
+}
+function hitQuestion(cx, cy) {
+  const s = sOf(QSPOT.d), x = xOf(QSPOT.x, QSPOT.d), y = yOf(QSPOT.d), n = Math.min(qAnswers.length, 6);
+  return Math.abs(cx - x) < 130 * s && cy > y - 26 * s && cy < y + (14 + n * 15) * s;
+}
+let answering = false;
+function openAnswer() {
+  appendTo = null; answering = true;
+  sandK.textContent = `오늘의 질문 · “${questionOf(now())}” 아래에 답을 이어 써요. 자정이 되면 파도가 지워요.`;
+  sandText.maxLength = 16; sandText.placeholder = '16자까지'; sandText.value = '';
+  sandNote.textContent = ''; sandSheet.classList.add('on'); setTimeout(() => sandText.focus(), 50); wake();
+}
+
+/* ───────── 절기 ─────────
+   24절기 날에는 화면 위에 한 줄이 뜨고, 몇몇 절기에는 바닷가에 작은 일이 생긴다. */
+const TERMS = [
+  ['춘분', '春分', '낮과 밤이 같은 날'], ['청명', '淸明', '하늘이 맑아지는 날'], ['곡우', '穀雨', '곡식을 깨우는 봄비'], ['입하', '立夏', '여름이 들어서는 날'],
+  ['소만', '小滿', '만물이 차오르는 날'], ['망종', '芒種', '씨 뿌리는 날'], ['하지', '夏至', '낮이 가장 긴 날'], ['소서', '小暑', '더위가 시작되는 날'],
+  ['대서', '大暑', '가장 더운 무렵'], ['입추', '立秋', '가을이 들어서는 날'], ['처서', '處暑', '더위가 그치는 날'], ['백로', '白露', '이슬이 맺히는 날'],
+  ['추분', '秋分', '낮과 밤이 다시 같은 날'], ['한로', '寒露', '찬 이슬이 내리는 날'], ['상강', '霜降', '서리가 내리는 날'], ['입동', '立冬', '겨울이 들어서는 날'],
+  ['소설', '小雪', '첫눈이 온다는 날'], ['대설', '大雪', '큰 눈이 온다는 날'], ['동지', '冬至', '밤이 가장 긴 날 · 노점에 팥죽'], ['소한', '小寒', '가장 추운 무렵'],
+  ['대한', '大寒', '큰 추위'], ['입춘', '立春', '봄이 들어서는 날 · 立春大吉'], ['우수', '雨水', '눈이 녹아 비가 되는 날'], ['경칩', '驚蟄', '개구리가 깨어나는 날'],
+];
+function sunLon(ms) { const n = ms / 864e5 + 2440587.5 - 2451545.0, L = 280.460 + 0.9856474 * n, g = (357.528 + 0.9856003 * n) * Math.PI / 180; return (((L + 1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g)) % 360) + 360) % 360; }
+let termCache = { k: '', v: null };
+function termToday(ms) {
+  const k = dayKey(ms); if (termCache.k === k) return termCache.v;
+  const start = Date.parse(k + 'T00:00:00+09:00'), a = Math.floor(sunLon(start) / 15), b = Math.floor(sunLon(start + 864e5) / 15);
+  return (termCache = { k, v: a !== b ? TERMS[b % 24] : null }).v;
+}
+const flurry = [], petals = [];
+function drawTermEffects(pn, t, pal) {
+  const tm = termToday(t); if (!tm) return;
+  const name = tm[0];
+  if ((name === '소설' || name === '대설') && !WXF.snow) {            // 날이 맑아도 눈 몇 송이
+    if (flurry.length < (name === '대설' ? 60 : 28)) flurry.push({ x: Math.random() * W, y: -10, v: 18 + Math.random() * 22, ph: Math.random() * 6 });
+    ctx.fillStyle = 'rgba(255,255,255,.85)';
+    for (let i = flurry.length - 1; i >= 0; i--) {
+      const f = flurry[i]; f.y += f.v / 60; f.x += Math.sin(pn / 900 + f.ph) * 0.4;
+      if (f.y > H) { flurry.splice(i, 1); continue; }
+      ctx.beginPath(); ctx.arc(f.x, f.y, 1.8 * U, 0, 6.3); ctx.fill();
+    }
+  }
+  if (name === '청명' || name === '곡우') {                             // 바람에 꽃잎
+    if (petals.length < 26) petals.push({ x: -10, y: Math.random() * H * 0.8, v: 30 + Math.random() * 40, ph: Math.random() * 6 });
+    ctx.fillStyle = 'rgba(255,200,215,.85)';
+    for (let i = petals.length - 1; i >= 0; i--) {
+      const p = petals[i]; p.x += p.v / 60; p.y += Math.sin(pn / 500 + p.ph) * 0.6 + 0.2;
+      if (p.x > W + 10) { petals.splice(i, 1); continue; }
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(pn / 400 + p.ph); ctx.beginPath(); ctx.ellipse(0, 0, 3.2 * U, 1.8 * U, 0, 0, 6.3); ctx.fill(); ctx.restore();
+    }
+  }
+  if ((name === '한로' || name === '상강') && hourOf(t) < 9) {         // 아침 모래 위 서리
+    ctx.fillStyle = 'rgba(255,255,255,.7)';
+    for (let i = 0; i < 70; i++) { const wx = hash(i * 3.1) * WORLD_W, d = 0.25 + hash(i * 7.7) * 0.7, x = xOf(wx, d); if (x < 0 || x > W) continue; if (Math.sin(pn / 300 + i) > 0.3) { ctx.beginPath(); ctx.arc(x, yOf(d), 1.3 * U, 0, 6.3); ctx.fill(); } }
+  }
+  if (name === '입춘') {                                                // 모래 위 입춘대길
+    const s = sOf(0.78), x = xOf(1600, 0.78), y = yOf(0.78);
+    ctx.save(); ctx.translate(x, y); ctx.scale(1, 0.5); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = `700 ${30 * s}px "Apple SD Gothic Neo", "Noto Sans KR", serif`;
+    ctx.fillStyle = 'rgba(255,250,235,.35)'; ctx.fillText('立春大吉', 0, 2 * s);
+    ctx.fillStyle = 'rgba(190,60,50,.75)'; ctx.fillText('立春大吉', 0, 0); ctx.restore();
+  }
+  if (name === '동지') {                                                // 노점 앞 팥죽 한 그릇
+    const s = sOf(STALL.d) * 1.6, x = xOf(STALL.x - 75, STALL.d), y = yOf(STALL.d);
+    if (x > -50 && x < W + 50) {
+      ctx.fillStyle = '#efe7d6'; ctx.beginPath(); ctx.ellipse(x, y - 4 * s, 11 * s, 4 * s, 0, 0, Math.PI); ctx.fill();
+      ctx.fillStyle = '#6e2b2b'; ctx.beginPath(); ctx.ellipse(x, y - 4 * s, 10 * s, 2.6 * s, 0, 0, 6.3); ctx.fill();
+      for (let k = 0; k < 3; k++) {
+        const ph = (pn / 1600 + k / 3) % 1;
+        ctx.strokeStyle = `rgba(255,255,255,${0.45 * (1 - ph)})`; ctx.lineWidth = 1.4 * s;
+        ctx.beginPath(); ctx.moveTo(x + (k - 1) * 4 * s, y - 8 * s); ctx.quadraticCurveTo(x + (k - 1) * 4 * s + 5 * s, y - (12 + ph * 14) * s, x + (k - 1) * 4 * s, y - (16 + ph * 22) * s); ctx.stroke();
+      }
+    }
+  }
+}
+
+/* ───────── 겨울 철새 ─────────
+   11월부터 2월까지, 해 뜰 무렵과 해 질 무렵에 철새 무리가 대교 위를 지나간다. 날마다 무리 크기가 다르다. */
+const flocks = []; let flockNext = 0;
+function birdsTick(pn, t) {
+  const mo = kst(t).mo; if (!(mo >= 10 || mo <= 1)) return;
+  const h = hourOf(t), st = sunTimes(t), near = Math.abs(h - st.set) < 0.75 || Math.abs(h - st.rise) < 0.75;
+  if (near && pn > flockNext && !WXF.fog && WXF.rain < 0.5) {
+    flockNext = pn + (FAST ? 5000 : 120000 + Math.random() * 180000);
+    const day = Math.floor((t + 9 * 3600e3) / 864e5), size = 9 + Math.floor(hash(day * 1.37) * 30), dir = Math.random() < 0.5 ? -1 : 1;
+    flocks.push({ t0: pn, dir, y: horizonY() * (0.25 + Math.random() * 0.35), n: size, dur: (FAST ? 9 : 26) * 1000, sp: 0.6 + Math.random() * 0.3 });
+  }
+}
+function drawBirds(pn, pal) {
+  for (let i = flocks.length - 1; i >= 0; i--) {
+    const f = flocks[i], k = (pn - f.t0) / f.dur;
+    if (k > 1) { flocks.splice(i, 1); continue; }
+    const lead = f.dir > 0 ? lerp(-0.1 * W, 1.15 * W, k) : lerp(1.1 * W, -0.15 * W, k);
+    ctx.strokeStyle = pal.stars > 0.5 ? 'rgba(200,210,230,.75)' : 'rgba(35,35,45,.75)'; ctx.lineWidth = 1.3 * U; ctx.lineCap = 'round';
+    for (let j = 0; j < f.n; j++) {
+      const row = Math.ceil(j / 2), side = j % 2 ? 1 : -1;               // V자 대형
+      const bx = lead - f.dir * row * 11 * U * f.sp, by = f.y + (j ? side * row * 6 * U : 0) + Math.sin(pn / 900 + j) * 1.5 * U;
+      const flap = Math.sin(pn / 110 + j * 0.7) * 2.2 * U, w = 4.5 * U;
+      ctx.beginPath(); ctx.moveTo(bx - w, by - flap); ctx.quadraticCurveTo(bx - w * 0.4, by - 1.5 * U, bx, by); ctx.quadraticCurveTo(bx + w * 0.4, by - 1.5 * U, bx + w, by - flap); ctx.stroke();
+    }
+  }
+}
+
+/* ───────── 등대의 수수께끼: 살짝만 알려 준다 ───────── */
+let beaconHintAt = 0, beaconHinted = false;
+function beaconHintTick(pn, nf) {
+  if (beaconHinted || !joined || nf < 0.6 || dex.beacon || RAINY() || WXF.fog) { beaconHintAt = 0; return; }
+  if (!beaconHintAt) beaconHintAt = pn;
+  if (pn - beaconHintAt > (FAST ? 3000 : 40000)) { beaconHinted = true; toast('고하도 등대가 무언가를 깜빡이는 것 같아요…'); }
+}
+
 /* ───────── 알림 한 줄 · 물때 표시 ───────── */
 const toastEl = document.getElementById('toast'); let toastTimer = 0;
 function toast(msg) {
@@ -2071,8 +2284,11 @@ function infoTick(t, tide) {
   tideEl.textContent = `목포 ${dir} · ${tide.nextHigh ? '만조' : '간조'} ${hm(tide.next)}${tide.approx ? ' (어림)' : ''}`;
   const sh = showState(t), ms = showerToday(t), isNight = palette(hourNow()).stars > 0.4;
   const fw = fwState(t);
+  const term = termToday(t), gold = Math.abs(hourOf(t) - sunTimes(t).set) * 60 <= 10;
   eventEl.textContent = fw && fw.on ? `목포 ${fw.name} 불꽃이 오르는 중` : fw ? `오늘 ${hm(fw.at)} 목포 ${fw.name} 불꽃` : sh.on ? '밤 9시, 해변에 빛이 지나가는 중' : sh.soon ? '곧 9시, 해변에 빛이 지나가요'
-    : ms && isNight ? `오늘 밤 ${ms.name} 유성우` : ms ? `오늘 밤 ${ms.name} 유성우가 와요` : '';
+    : gold ? '노을 십 분 · 해가 지는 중'
+    : ms && isNight ? `오늘 밤 ${ms.name} 유성우` : ms ? `오늘 밤 ${ms.name} 유성우가 와요`
+    : term ? `오늘은 ${term[0]}(${term[1]}) · ${term[2]}` : '';
   wxEl.textContent = WX && WX.t !== null ? `목포 ${Math.round(WX.t)}° · ${WX.d || wxDesc(WX.code | 0)} · 바람 ${Math.round(WX.ws)}m/s` : '';
 }
 
@@ -2267,11 +2483,13 @@ function frame(pn) {
   drawConstel(pn, pal);
   drawFar(pal, t, nf, G);
   drawLighthouse(G, nf, t, pn);
+  birdsTick(pn, t); drawBirds(pn, pal);
   drawFog(G);
   drawBeach(pal, t, wv, nf, G);
+  sunsetTick(t); drawGold();
   porpTick(pn, pal, dE); drawPorpoise(pn, nf);
   drawWrack(pal);
-  drawWritings(pn, t, pal);
+  drawWritings(pn, t, pal); drawQuestion(pn, t, pal);
   drawDecor(pal);
   spawnItems(t, wv); drawItems(pn, t, wv);
   crabTick(pn, t); drawCrabs(pn, nf);
@@ -2314,6 +2532,7 @@ function frame(pn) {
   }
   drawLanterns(pn, nf);
   drawShots(pn);
+  drawTermEffects(pn, t, pal); beaconHintTick(pn, nf);
   drawPrecip(pn, t);
   requestAnimationFrame(frame);
 }
@@ -2453,6 +2672,8 @@ function connect() {
       if (m.wx) setWX(m.wx);
       (Array.isArray(m.castle && m.castle[0]) ? m.castle : []).forEach((c, i) => onCastle({ i, lvl: c[0], gen: c[1], init: 1 }));
       for (const l of m.ln || []) addLantern(l, false);
+      for (const a of m.qa || []) addAnswer(a);
+      if (m.sn) sunsetN = m.sn | 0;
       askBottleNews();
     } else if (m.t === 'in') addPeer(m.p);
     else if (m.t === 'out') peers.delete(m.id);
@@ -2463,6 +2684,8 @@ function connect() {
     else if (m.t === 'wu') onWritingUpdate(m);
     else if (m.t === 'ln') addLantern(m.l, true);
     else if (m.t === 'pf') onPeerShot(m);
+    else if (m.t === 'snc') sunsetN = m.n | 0;
+    else if (m.t === 'qa') addAnswer(m.a);
     else if (m.t === 'lr') onLanternResult(m);
     else if (m.t === 'wr') onSandResult(m);
     else if (m.t === 'today') { setToday(m.today); roomCount = m.rooms || roomCount; if (m.wx) setWX(m.wx); }
@@ -2508,6 +2731,7 @@ cv.addEventListener('pointerdown', e => {
   if (stallOpen) { stallDismissed = true; stallOpen = false; stallEl.classList.remove('on'); }
   if (!joined) return;
   if (onShotDown(e)) return;
+  if (hitQuestion(e.clientX, e.clientY) && Math.abs(me.x - QSPOT.x) < 420 && Math.abs(me.d - QSPOT.d) < 0.35) { openAnswer(); return; }
   const wr = hitWriting(e.clientX, e.clientY);
   if (wr && Math.abs(me.x - wr.x) < 380 && Math.abs(me.d - wr.d) < 0.3) { openAppend(wr); return; }
   const who = hitPeer(e.clientX, e.clientY);
@@ -2586,7 +2810,7 @@ function enter() {
   setTimeout(() => hint.classList.add('gone'), 9000);
 }
 document.getElementById('go').addEventListener('click', enter);
-if (FAST) window.__pm = { me, castle: () => castles, items: () => items, setWX, buildCastle, addItem, spawnReset: () => { itemEpoch = -1; }, beaconWord, crabs: () => crabs, gull: () => gull, porpNow: () => { porpNext = 0; }, porp: () => porp, FIREWORKS, weekSentence, cst: () => cst, constelPts, lanterns, writings, dex: () => dex, high: () => HIGH_NOW, setSit, peers, xy: (x, d) => [xOf(x, d), yOf(d)], shots, aim: () => aimDrag };   // 시험용
+if (FAST) window.__pm = { me, castle: () => castles, items: () => items, setWX, buildCastle, addItem, spawnReset: () => { itemEpoch = -1; }, beaconWord, crabs: () => crabs, gull: () => gull, porpNow: () => { porpNext = 0; }, porp: () => porp, FIREWORKS, weekSentence, cst: () => cst, constelPts, lanterns, writings, dex: () => dex, high: () => HIGH_NOW, setSit, peers, xy: (x, d) => [xOf(x, d), yOf(d)], shots, aim: () => aimDrag, termToday, questionOf, qAnswers, flocks, gold: () => GOLD, hitQuestion };   // 시험용
 nick.addEventListener('keydown', e => { if (e.key === 'Enter') enter(); });
 })();
 </script>
