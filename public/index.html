@@ -2899,7 +2899,7 @@ document.getElementById('mapClose').addEventListener('click', () => mapSheet.cla
 /* ───────── 옛 그림 병: 하루에 한 번, 짙은 갈색 병에 빛바랜 그림 한 장 ───────── */
 const OLD = [
   ['1906~7년, 바다에서 본 목포항과 유달산', 'port', 'img/old/port.jpg', '사진: 국립민속박물관 「목포항」(헤르만 산더 기증, 1906~7), 공공누리 제1유형 · 공유마당 · 필름 테두리를 잘라 내고 색을 바래게 고침'], ['1970년, 유달산에서 내려다본 목포 시내와 삼학도', 'samhak', 'img/old/samhak.jpg', '사진: 한국정책방송원 「목포시 전경」(1970), 공공누리 제1유형 · 공유마당 · 색을 바래게 고침'], ['1910년대 사진엽서, 유달산 아래 언덕 위 목포부청(옛 영사관)과 18은행 지점', 'yudal', 'img/old/yudal.jpg', '사진: 한국저작권위원회 「1910년대 목포 유달산 아래 서양식 군산부청, 18은행」, CC BY · 공유마당(부경근대사료연구소 제공)'],
-  ['고하도의 목화밭', 'cotton'], ['호남선 기차가 닿던 목포역', 'train'], ['1900년에 지은 붉은 벽돌 옛 일본영사관, 지금은 목포근대역사관', 'consul', 'img/old/consul.jpg', '사진: 한국교육방송공사 「한국기행_목포_건축물09」(2017), CC BY · 공유마당 · 색을 바래게 고침'], ['삿갓 쓴 두 바위, 갓바위', 'gat', 'img/old/gat.jpg', '사진: [목포 갓바위] 한국민족문화대백과사전(한국학중앙연구원), 공공누리 제1유형 · 아파트를 잘라 내고 색을 바래게 고침'],
+  ['고하도의 목화밭', 'cotton'], ['1914년, 호남선 기차가 닿던 목포역', 'train', 'img/old/train.jpg', '사진: 조선총독부 철도국 『조선철도 40년 약사』의 「목포역」(1914), 퍼블릭 도메인 · 위키미디어 공용 · 잘라 내고 색을 바래게 고침'], ['1900년에 지은 붉은 벽돌 옛 일본영사관, 지금은 목포근대역사관', 'consul', 'img/old/consul.jpg', '사진: 한국교육방송공사 「한국기행_목포_건축물09」(2017), CC BY · 공유마당 · 색을 바래게 고침'], ['삿갓 쓴 두 바위, 갓바위', 'gat', 'img/old/gat.jpg', '사진: [목포 갓바위] 한국민족문화대백과사전(한국학중앙연구원), 공공누리 제1유형 · 아파트를 잘라 내고 색을 바래게 고침'],
 ];
 let photoHave = loadSet('pm_photos'), oldBottle = null, oldBottleAt = performance.now() + (FAST ? 5000 : 180000 + Math.random() * 300000);
 const photoSheet = document.getElementById('photoSheet'), photoCanvas = document.getElementById('photoCanvas'), photoNote = document.getElementById('photoNote');
