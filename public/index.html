@@ -1,0 +1,1386 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>파도멍 — 목포 대반동 바닷가</title>
+<meta name="description" content="목포 대반동 바닷가에 파라솔 하나 들고 와서 앉아, 목포대교 너머로 파도가 오가는 모습과 소리를 함께 보는 곳.">
+<meta property="og:title" content="파도멍">
+<meta property="og:description" content="목포 대반동 바닷가에 파라솔 하나 들고 와서 앉아, 파도가 오가는 걸 함께 봅니다.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="/og.png">
+<meta name="theme-color" content="#2f7fb5">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2714%27 fill=%27%233f9bd8%27/%3E%3Cpath d=%27M0 40c10-8 22-8 32 0s22 8 32 0v24H0z%27 fill=%27%23f1e2b8%27/%3E%3Cpath d=%27M0 40c10-8 22-8 32 0s22 8 32 0%27 fill=%27none%27 stroke=%27%23fff%27 stroke-width=%274%27/%3E%3C/svg%3E">
+<!-- 메타모아 소유자 인증 메타 태그를 받으면 이 줄 아래에 붙여 넣으세요 -->
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0e1c3c; }
+  body { font-family: "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
+         color: #fff; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+
+  .hud { position: fixed; z-index: 2; transition: opacity 1.2s ease; }
+  body.quiet .hud { opacity: 0; pointer-events: none; }
+  body.quiet canvas { cursor: none; }
+
+  #top { top: max(14px, env(safe-area-inset-top)); left: 16px; text-shadow: 0 1px 6px rgba(0,0,0,.35); }
+  #top b { font-size: 17px; letter-spacing: .08em; font-weight: 600; }
+  #count { font-size: 13px; opacity: .9; margin-top: 3px; }
+
+  #tools { top: max(14px, env(safe-area-inset-top)); right: 14px; display: flex; gap: 8px; }
+  .chip { border: 0; border-radius: 999px; padding: 9px 13px; font: inherit; font-size: 13px; color: #fff;
+          background: rgba(20,40,70,.38); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); cursor: pointer; }
+  .chip:active { transform: scale(.96); }
+
+  #act { left: 50%; bottom: max(26px, env(safe-area-inset-bottom)); transform: translateX(-50%);
+         border: 0; border-radius: 999px; padding: 14px 26px; font: inherit; font-size: 16px; font-weight: 600;
+         color: #24435c; background: rgba(255,255,255,.92); box-shadow: 0 6px 22px rgba(0,0,0,.22); cursor: pointer; white-space: nowrap; }
+  #act:active { transform: translateX(-50%) scale(.97); }
+
+  #hint { left: 50%; bottom: calc(max(26px, env(safe-area-inset-bottom)) + 64px); transform: translateX(-50%);
+          font-size: 13px; padding: 7px 14px; border-radius: 999px; background: rgba(20,40,70,.38);
+          white-space: normal; text-align: center; width: max-content; max-width: 88vw; box-sizing: border-box; pointer-events: none; }
+  #hint.gone { opacity: 0; }
+
+  #stall { left: 50%; top: calc(max(14px, env(safe-area-inset-top)) + 58px); transform: translate(-50%, -12px);
+           width: min(88vw, 340px); box-sizing: border-box; padding: 14px 16px 12px; border-radius: 16px;
+           color: #2a3a48; background: rgba(255,250,240,.95); box-shadow: 0 10px 30px rgba(0,0,0,.25);
+           opacity: 0; pointer-events: none; transition: opacity .5s ease, transform .5s ease; }
+  #stall.on { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+  body.quiet #stall.on { opacity: 0; pointer-events: none; }
+  #stall .k { display: block; height: 30px; width: auto; margin-bottom: 4px; }
+  #stall .f { margin-top: 4px; font-size: 17px; font-weight: 700; }
+  #stall .l { margin-top: 6px; font-size: 14.5px; line-height: 1.6; }
+  #stall .b { margin-top: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 12.5px; color: #6a7884; }
+  #stall a { color: #2f7fb5; font-weight: 600; text-decoration: none; }
+  #stall button { border: 0; background: none; font: inherit; font-size: 12.5px; color: #6a7884; cursor: pointer; padding: 4px 0; }
+  #tideLine, #eventLine { font-size: 12.5px; opacity: .88; margin-top: 2px; }
+  #eventLine:empty { display: none; }
+  #credit { left: 14px; bottom: max(10px, env(safe-area-inset-bottom)); font-size: 11px; opacity: .7; max-width: 46vw; }
+  #toast { left: 50%; bottom: calc(max(26px, env(safe-area-inset-bottom)) + 66px); transform: translate(-50%, 8px);
+           font-size: 13.5px; padding: 9px 16px; border-radius: 999px; background: rgba(20,40,70,.55); backdrop-filter: blur(6px);
+           -webkit-backdrop-filter: blur(6px); max-width: 88vw; text-align: center; opacity: 0; pointer-events: none; transition: opacity .5s, transform .5s; }
+  #toast.on { opacity: 1; transform: translate(-50%, 0); }
+  body.quiet #toast.on { opacity: 1; }
+  #sendBtn { right: 14px; bottom: calc(max(26px, env(safe-area-inset-bottom)) + 6px); display: none; }
+  #sendBtn.on { display: block; }
+  #bottleBtn { left: 50%; bottom: calc(max(26px, env(safe-area-inset-bottom)) + 66px); transform: translateX(-50%); display: none;
+               border: 0; border-radius: 999px; padding: 11px 18px; font: inherit; font-size: 14px; font-weight: 600; color: #24435c;
+               background: rgba(255,250,240,.95); box-shadow: 0 6px 20px rgba(0,0,0,.22); cursor: pointer; }
+  #bottleBtn.on { display: block; }
+  body.quiet #bottleBtn.on { opacity: 1; pointer-events: auto; }
+  .sheet { position: fixed; z-index: 4; left: 50%; top: 50%; transform: translate(-50%, -46%); width: min(88vw, 360px); box-sizing: border-box;
+           padding: 18px 18px 14px; border-radius: 18px; color: #2a3a48; background: rgba(255,250,240,.97); box-shadow: 0 16px 40px rgba(0,0,0,.3);
+           opacity: 0; pointer-events: none; transition: opacity .4s, transform .4s; }
+  .sheet.on { opacity: 1; transform: translate(-50%, -50%); pointer-events: auto; }
+  .sheet .k { font-size: 12px; color: #6a7884; letter-spacing: .03em; }
+  .sheet .msg { margin: 10px 0 4px; font-size: 17px; line-height: 1.65; word-break: keep-all; }
+  .sheet .row { margin-top: 14px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .sheet button { border: 0; border-radius: 12px; padding: 10px 14px; font: inherit; font-size: 14px; cursor: pointer; }
+  .sheet .main { background: #2f7fb5; color: #fff; font-weight: 600; }
+  .sheet .sub { background: none; color: #6a7884; padding: 10px 4px; }
+  .sheet textarea { width: 100%; box-sizing: border-box; margin-top: 10px; height: 92px; resize: none; border: 1px solid #d8d2c4; border-radius: 12px;
+                    padding: 11px 12px; font: inherit; font-size: 16px; line-height: 1.5; color: #2a3a48; background: #fff; outline: none;
+                    user-select: text; -webkit-user-select: text; }
+  .sheet .note { font-size: 12px; color: #8a6a4f; min-height: 16px; margin-top: 6px; }
+  #gate { position: fixed; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center;
+          background: linear-gradient(rgba(16,40,70,.35), rgba(16,40,70,.6)); transition: opacity .9s ease; }
+  #gate.gone { opacity: 0; pointer-events: none; }
+  .card { width: min(86vw, 340px); text-align: center; }
+  .card h1 { margin: 0; font-size: 40px; font-weight: 700; letter-spacing: .12em; text-shadow: 0 2px 14px rgba(0,0,0,.3); }
+  .card p { margin: 12px 0 22px; font-size: 15px; line-height: 1.65; opacity: .95; text-shadow: 0 1px 8px rgba(0,0,0,.35); }
+  .card input { width: 100%; box-sizing: border-box; border: 0; border-radius: 14px; padding: 13px 16px; font: inherit; font-size: 16px;
+                text-align: center; color: #24435c; background: rgba(255,255,255,.92); outline: none; user-select: text; -webkit-user-select: text; }
+  .card small { display: block; margin: 16px 0 8px; font-size: 13px; opacity: .9; }
+  #swatches { display: flex; justify-content: center; gap: 9px; flex-wrap: wrap; }
+  #swatches button { width: 30px; height: 30px; border-radius: 50%; border: 3px solid rgba(255,255,255,.55); padding: 0; cursor: pointer; }
+  #swatches button.on { border-color: #fff; transform: scale(1.18); box-shadow: 0 0 0 2px rgba(0,0,0,.18); }
+  #go { margin-top: 24px; width: 100%; border: 0; border-radius: 14px; padding: 15px; font: inherit; font-size: 17px; font-weight: 700;
+        color: #fff; background: #2f7fb5; box-shadow: 0 8px 24px rgba(0,0,0,.25); cursor: pointer; }
+  #go:active { transform: scale(.98); }
+</style>
+</head>
+<body>
+<canvas id="sea"></canvas>
+
+<div id="top" class="hud"><b>파도멍 · 대반동</b><div id="count">바닷가에 들어가는 중…</div><div id="tideLine"></div><div id="eventLine"></div></div>
+<div id="tools" class="hud">
+  <button id="timeBtn" class="chip">지금 시간</button>
+  <button id="sndBtn" class="chip">소리 켜짐</button>
+</div>
+<div id="hint" class="hud">모래사장을 눌러 걸어가 보세요 · 다른 사람을 누르면 손을 흔들어요</div>
+<div id="credit" class="hud"><span id="sndCredit" style="display:none">파도소리 Andrew Holman (freesound.org, CC0) · </span>물때 국립해양조사원 예보(목포)</div>
+<div id="toast" class="hud"></div>
+<button id="bottleBtn" class="hud">유리병이 밀려왔어요 · 열어 보기</button>
+<button id="sendBtn" class="chip hud">병 띄우기</button>
+<div id="bottleSheet" class="sheet"><div class="k">파도가 밀어 온 유리병</div><div class="msg" id="bottleMsg"></div><div class="row"><button class="sub" id="bottleReport">이 글 신고하기</button><button class="main" id="bottleBack">다시 바다로 보내기</button></div></div>
+<div id="letterSheet" class="sheet"><div class="k">한 줄을 유리병에 담아 띄워요. 누가 쓴 건지는 아무도 몰라요.</div><textarea id="letterText" maxlength="80" placeholder="이 바다에 남기고 싶은 한 줄"></textarea><div class="note" id="letterNote"></div><div class="row"><button class="sub" id="letterCancel">그만두기</button><button class="main" id="letterSend">바다에 띄우기</button></div></div>
+<div id="stall" class="hud" aria-live="polite">
+  <svg id="stallLogo" class="k" viewBox="130 205 626 470" aria-label="이음수산 로고"><g fill="none"><circle cx="307" cy="335" r="86.5" stroke="#67a9dc" stroke-width="55"/><circle cx="584" cy="340" r="86.5" stroke="#67a9dc" stroke-width="55"/><polyline points="157,647 289,508 418,644" stroke="#22365a" stroke-width="56" stroke-linejoin="miter"/><polyline points="467,646 598,508 729,644" stroke="#22365a" stroke-width="56" stroke-linejoin="miter"/></g></svg>
+  <div class="f" id="stallFish"></div>
+  <div class="l" id="stallLine"></div>
+  <div class="b"><button id="stallNext">다른 이야기</button><a href="https://ieumfish.co.kr" target="_blank" rel="noopener">가게 구경하기 · ieumfish.co.kr</a></div>
+</div>
+<button id="act" class="hud">파라솔 펴고 앉기</button>
+
+<div id="gate">
+  <div class="card">
+    <h1>파도멍</h1>
+    <p>목포 대반동 바닷가입니다.<br>파라솔 하나 들고 와서 마음에 드는 자리에 앉으세요.<br>파도가 왔다가, 갑니다.</p>
+    <input id="nick" maxlength="10" placeholder="이름 (비워 둬도 돼요)" autocomplete="off">
+    <small>내 색 · 낮엔 파라솔, 밤엔 담요</small>
+    <div id="swatches"></div>
+    <button id="go">바닷가로 가기</button>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/* ───────── 기본 설정 ───────── */
+const WORLD_W = 3200;                 // 해변의 가로 길이
+const D_MIN = 0.03, D_MAX = 1;        // 깊이: 0 = 물가, 1 = 화면 앞쪽
+const WAVE_T = 9500;                  // 파도 한 번의 주기(ms)
+const PARASOLS = ['#e8574a', '#f2a03d', '#f4cf47', '#57b894', '#3f9bd8', '#5a6fd6', '#b06fd0', '#f08fb0'];
+const SHIRTS   = ['#f4f1ea', '#ffd9a8', '#bfe3d0', '#c9d8f5', '#f7c6cf', '#e6e0c2', '#d5c8ee', '#a9d6e5'];
+const HAIRS    = ['#2b2320', '#3a2c22', '#54402c', '#1f1f24', '#6b4b33'];
+
+const cv = document.getElementById('sea');
+const ctx = cv.getContext('2d');
+let W = 0, H = 0, U = 1;
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  U = Math.min(H, W * 1.3) / 820;
+}
+window.addEventListener('resize', resize); resize();
+
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+function hash(n) { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
+
+/* ───────── 화면 투영 ───────── */
+const horizonY = () => H * 0.34;
+const yOf = d => H * (0.56 + 0.40 * d);
+const sOf = d => (0.6 + 0.5 * d) * U * 1.3;
+let camX = WORLD_W / 2;
+const xOf = (wx, d) => W / 2 + (wx - camX) * sOf(d);
+
+/* ───────── 시간(서버와 맞춘 시계) ───────── */
+let clockOffset = 0;
+// 목포 시각: 어디서 접속하든 바닷가의 시간은 한국 시각으로 흐른다
+const kst = ms => { const d = new Date(ms + 9 * 3600e3); return { h: d.getUTCHours(), m: d.getUTCMinutes(), s: d.getUTCSeconds() + d.getUTCMilliseconds() / 1000, wd: d.getUTCDay(), mo: d.getUTCMonth() }; };
+const now = () => Date.now() + clockOffset;
+
+/* ───────── 파도 ───────── */
+function waveAt(t) {
+  const n = Math.floor(t / WAVE_T), p = t / WAVE_T - n;
+  const amp = 0.45 + 0.4 * hash(n) + (hash(n + 0.5) > 0.88 ? 0.3 : 0);   // 가끔 큰 파도
+  let shape, q;
+  if (p < 0.32) { q = p / 0.32; shape = 1 - Math.pow(1 - q, 2.2); }        // 빠르게 밀려옴
+  else { q = (p - 0.32) / 0.68; shape = Math.pow(0.5 + 0.5 * Math.cos(Math.PI * q), 1.3); } // 천천히 빠져나감
+  return { reach: amp * shape, amp, q, rush: p < 0.32 };
+}
+/* 목포 물때 — 국립해양조사원 조석예보(목포)의 고조·저조 표(바다타임 게재본, 2026-11 ~ 2027-01).
+   표가 있는 기간은 표대로, 그 밖은 같은 표로 맞춘 조화분해 모형(분조 19개)으로 어림한다. */
+const TIDE_EXT = [[29891351,330,1],[29891658,55,0],[29892133,422,1],[29892447,141,0],[29892856,317,1],[29893167,94,0],[29893639,402,1],[29893970,146,0],[29894374,317,1],[29894695,116,0],[29895151,392,1],[29895491,131,0],[29895900,337,1],[29896224,115,0],[29896659,392,1],[29896994,103,0],[29897412,371,1],[29897734,99,0],[29898156,396,1],[29898483,73,0],[29898908,406,1],[29899229,81,0],[29899644,397,1],[29899966,46,0],[29900397,434,1],[29900715,68,0],[29901125,393,1],[29901444,25,0],[29901881,451,1],[29902196,62,0],[29902601,385,1],[29902919,12,0],[29903362,458,1],[29903674,62,0],[29904076,376,1],[29904393,6,0],[29904839,457,1],[29905151,69,0],[29905547,366,1],[29905865,8,0],[29906315,449,1],[29906626,80,0],[29907017,356,1],[29907336,17,0],[29907789,436,1],[29908100,93,0],[29908488,347,1],[29908807,30,0],[29909261,422,1],[29909576,109,0],[29909960,336,1],[29910279,47,0],[29910733,406,1],[29911053,126,0],[29911436,323,1],[29911755,68,0],[29912208,389,1],[29912535,142,0],[29912918,310,1],[29913235,92,0],[29913689,373,1],[29914026,155,0],[29914408,299,1],[29914726,117,0],[29915178,358,1],[29915532,160,0],[29915912,294,1],[29916237,138,0],[29916677,347,1],[29917045,150,0],[29917429,303,1],[29917767,145,0],[29918182,343,1],[29918548,126,0],[29918947,329,1],[29919289,131,0],[29919687,347,1],[29920040,91,0],[29920454,366,1],[29920791,106,0],[29921184,355,1],[29921526,51,0],[29921950,406,1],[29922284,79,0],[29922675,363,1],[29923011,12,0],[29923442,442,1],[29923771,56,0],[29924163,369,1],[29924493,-22,0],[29924933,470,1],[29925256,41,0],[29925651,372,1],[29925976,-44,0],[29926423,487,1],[29926741,36,0],[29927139,372,1],[29927459,-54,0],[29927913,493,1],[29928226,39,0],[29928627,368,1],[29928944,-50,0],[29929402,488,1],[29929712,50,0],[29930117,362,1],[29930430,-32,0],[29930892,474,1],[29931199,65,0],[29931607,354,1],[29931919,-3,0],[29932382,453,1],[29932690,81,0],[29933102,345,1],[29933412,33,0],[29933874,428,1],[29934186,96,0],[29934603,339,1],[29934911,72,0],[29935370,402,1],[29935687,104,0],[29936112,338,1],[29936420,106,0],[29936869,378,1],[29937195,103,0],[29937626,348,1],[29937941,126,0],[29938370,360,1],[29938702,91,0],[29939137,367,1],[29939461,128,0],[29939868,349,1],[29940199,74,0],[29940639,390,1],[29940964,119,0],[29941361,342,1],[29941689,55,0],[29942132,410,1],[29942457,107,0],[29942847,339,1],[29943173,39,0],[29943619,423,1],[29943941,96,0],[29944327,338,1],[29944653,28,0],[29945101,430,1],[29945422,88,0],[29945804,339,1],[29946130,20,0],[29946579,431,1],[29946899,84,0],[29947279,340,1],[29947605,17,0],[29948055,428,1],[29948375,83,0],[29948753,341,1],[29949078,17,0],[29949527,423,1],[29949848,84,0],[29950226,341,1],[29950552,20,0],[29950999,416,1],[29951321,88,0],[29951702,338,1],[29952026,27,0],[29952471,408,1],[29952794,93,0],[29953179,333,1],[29953502,38,0],[29953943,398,1],[29954270,98,0],[29954660,327,1],[29954982,53,0],[29955418,385,1],[29955748,103,0],[29956146,321,1],[29956465,74,0],[29956898,370,1],[29957232,105,0],[29957639,319,1],[29957957,99,0],[29958385,353,1],[29958725,103,0],[29959143,324,1],[29959463,123,0],[29959881,337,1],[29960228,94,0],[29960655,339,1],[29960987,135,0],[29961386,326,1],[29961737,74,0],[29962167,365,1],[29962511,126,0],[29962892,323,1],[29963240,45,0],[29963675,397,1],[29964018,104,0],[29964395,328,1],[29964737,12,0],[29965177,429,1],[29965514,80,0],[29965894,338,1],[29966230,-19,0],[29966675,457,1],[29967005,58,0],[29967390,350,1],[29967721,-44,0],[29968170,477,1],[29968493,41,0],[29968884,362,1],[29969210,-59,0],[29969662,488,1],[29969978,30,0],[29970375,371,1],[29970697,-63,0],[29971151,488,1],[29971462,27,0],[29971866,377,1],[29972183,-52,0],[29972637,478,1],[29972946,29,0],[29973357,379,1],[29973669,-29,0],[29974122,458,1],[29974430,36,0],[29974848,375,1],[29975156,7,0],[29975607,429,1],[29975914,49,0],[29976341,368,1],[29976644,52,0],[29977092,395,1],[29977402,64,0],[29977839,359,1],[29978140,99,0],[29978579,359,1],[29978897,79,0],[29979343,353,1],[29979649,139,0],[29980071,327,1],[29980401,88,0],[29980852,352,1],[29981181,158,0],[29981570,305,1],[29981911,87,0],[29982363,360,1],[29982705,153,0],[29983072,294,1],[29983414,78,0],[29983868,374,1],[29984207,137,0],[29984570,296,1],[29984908,65,0],[29985361,388,1],[29985695,118,0],[29986060,305,1],[29986395,50,0],[29986845,400,1],[29987175,100,0],[29987542,318,1],[29987876,35,0],[29988323,408,1],[29988650,86,0],[29989021,330,1],[29989353,21,0],[29989798,414,1],[29990122,75,0],[29990497,341,1],[29990827,10,0],[29991270,417,1],[29991591,67,0],[29991973,349,1],[29992300,3,0],[29992740,418,1],[29993060,61,0],[29993449,353,1],[29993773,0,0],[29994209,415,1],[29994530,56,0],[29994927,354,1],[29995247,4,0],[29995679,407,1],[29996001,51,0],[29996405,354,1],[29996724,17,0],[29997151,395,1],[29997475,48,0],[29997887,352,1],[29998203,38,0],[29998626,376,1],[29998952,49,0],[29999374,350,1],[29999687,69,0],[30000105,353,1],[30000436,53,0],[30000868,348,1],[30001180,105,0],[30001593,328,1],[30001929,60,0],[30002374,350,1],[30002694,137,0],[30003096,307,1],[30003439,63,0],[30003889,360,1],[30004235,147,0],[30004609,296,1],[30004961,52,0],[30005409,381,1],[30005763,127,0],[30006127,301,1],[30006475,26,0],[30006923,411,1],[30007267,96,0],[30007638,319,1],[30007979,-7,0],[30008426,443,1],[30008758,62,0],[30009140,345,1],[30009474,-40,0],[30009920,469,1],[30010243,33,0],[30010635,371,1],[30010963,-64,0],[30011409,484,1],[30011725,10,0],[30012126,392,1],[30012448,-75,0],[30012894,487,1],[30013205,-4,0],[30013615,406,1],[30013931,-68,0],[30014376,476,1],[30014683,-9,0],[30015102,412,1],[30015412,-44,0],[30015855,453,1],[30016161,-3,0],[30016588,407,1],[30016893,-4,0],[30017333,420,1],[30017639,12,0],[30018075,395,1],[30018375,45,0],[30018809,381,1],[30019119,34,0],[30019563,376,1],[30019860,99,0],[30020286,340,1],[30020602,61,0],[30021057,355,1],[30021357,149,0],[30021768,303,1],[30022096,88,0],[30022559,337,1],[30022899,181,0],[30023262,275,1]];   // [분(유닉스), 조위 cm, 1=고조/0=저조]
+const TIDE_Z0 = 220.95, TIDE_T0 = 1793000000;
+const TIDE_CONS = [[28.9841042,131.16,-82.14],[30.0,50.1,-49.91],[28.4397295,22.21,-144.96],[30.0821373,11.16,-138.61],[15.0410686,27.05,56.04],[13.9430356,26.35,-49.32],[14.9589314,9.99,-19.63],[13.3986609,8.3,-106.23],[57.9682084,11.08,-70.57],[58.9841042,6.1,-13.49],[57.4238337,4.57,-150.91],[86.9523127,4.34,-58.71],[87.9682084,2.5,-18.08],[27.8953548,5.87,135.44],[27.9682084,9.25,-77.15],[28.5125831,4.11,-31.53],[29.5284789,1.82,143.38],[44.0251729,1.45,147.92],[31.0158958,0.33,-98.69]];   // [각속도 °/시, 진폭 cm, 위상 °]
+function tideModel(sec) {
+  let h = TIDE_Z0; const dt = sec - TIDE_T0;
+  for (const [w, a, p] of TIDE_CONS) h += a * Math.cos(w * Math.PI / 180 / 3600 * dt - p * Math.PI / 180);
+  return h;
+}
+let tideCache = { at: -1e15 };
+function tideInfo(ms) {            // 지금 조위(cm), 들어오는 중인지, 다음 고조·저조
+  if (Math.abs(ms - tideCache.at) < 20000) return tideCache;
+  const min = ms / 60000, E = TIDE_EXT;
+  let r;
+  if (min >= E[0][0] && min < E[E.length - 1][0]) {
+    let lo = 0, hi = E.length - 1;
+    while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (E[mid][0] <= min) lo = mid; else hi = mid; }
+    const a = E[lo], b = E[hi], f = (min - a[0]) / (b[0] - a[0]);
+    r = { h: a[1] + (b[1] - a[1]) * (1 - Math.cos(Math.PI * f)) / 2, rising: b[1] > a[1], next: b[0] * 60000, nextHigh: !!b[2], approx: false };
+  } else {
+    const sec = ms / 1000, h = tideModel(sec), rising = tideModel(sec + 120) > h;
+    let t2 = sec, prev = h;
+    for (let i = 0; i < 200; i++) { t2 += 300; const v = tideModel(t2); if ((v > prev) !== rising) break; prev = v; }
+    r = { h, rising, next: (t2 - 300) * 1000, nextHigh: rising, approx: true };
+  }
+  r.L = clamp((r.h + 70) / 560, 0, 1); r.at = ms;
+  return (tideCache = r);
+}
+let tideL = 0.5;
+// 물때에 따라 물가가 오르내린다: 만조에는 모래사장 안쪽까지, 간조에는 멀리
+const edgeD = reach => -0.44 + 0.38 * tideL + reach * 0.36;
+const wobble = (wx, t) => 0.012 * Math.sin(wx * 0.004 + t * 0.0006) + 0.008 * Math.sin(wx * 0.011 - t * 0.0009);
+let wetD = -0.3;
+
+/* ───────── 하늘빛 ───────── */
+const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+const KEYS = [
+  // 시각, 하늘 위, 하늘 아래, 먼 바다, 가까운 바다, 모래, 어둠, 별
+  [0,    '#0b1030', '#1b2550', '#0e1c3c', '#1f4466', '#d9c9a3', 0.50, 1],
+  [5,    '#1a2350', '#4a4a78', '#17284a', '#2a5676', '#d9c9a3', 0.42, 0.6],
+  [6.5,  '#5a78b8', '#f6b58c', '#3a5d86', '#5fa0a8', '#e3d2aa', 0.16, 0],
+  [9,    '#4fa3e0', '#cfeaf7', '#3d83a2', '#6fb3a8', '#e6d5aa', 0, 0],
+  [15,   '#3f9be0', '#c9e8f8', '#3a7fa0', '#6cb2a8', '#e8d7ac', 0, 0],
+  [17,   '#5b7fc4', '#fbc98e', '#3c6a9c', '#74b5b3', '#ebd3a4', 0.07, 0],
+  [18.2, '#3a3f7a', '#f58f5e', '#33507f', '#b9826f', '#dfc199', 0.22, 0.1],
+  [19.6, '#141a44', '#3d3866', '#13234a', '#27506f', '#d9c9a3', 0.44, 0.7],
+  [24,   '#0b1030', '#1b2550', '#0e1c3c', '#1f4466', '#d9c9a3', 0.50, 1],
+].map(k => [k[0], hex(k[1]), hex(k[2]), hex(k[3]), hex(k[4]), hex(k[5]), k[6], k[7]]);
+const TIME_MODES = [['지금 시간', null], ['낮', 13], ['노을', 18.1], ['밤', 23]];
+let timeMode = 0;
+function hourNow() {
+  const fixed = TIME_MODES[timeMode][1];
+  if (fixed !== null) return fixed;
+  const ms = now(), k = kst(ms), h = k.h + k.m / 60 + k.s / 3600, { rise, set } = sunTimes(ms);
+  // 실제 해돋이·해넘이 시각을 그림의 해돋이(6.5)·해넘이(18.2) 자리에 맞춘다
+  if (h < rise) return h * 6.5 / rise;
+  if (h < set) return 6.5 + (h - rise) * 11.7 / (set - rise);
+  return 18.2 + (h - set) * 5.8 / (24 - set);
+}
+let sunCache = { day: -1 };
+function sunTimes(ms) {            // 목포(북위 34.81°, 동경 126.39°) 해돋이·해넘이, 한국 시각(시)
+  const kst = new Date(ms + 9 * 3600e3), day = Math.floor((ms + 9 * 3600e3) / 864e5);
+  if (sunCache.day === day) return sunCache;
+  const start = Date.UTC(kst.getUTCFullYear(), 0, 1), doy = Math.floor((kst - start) / 864e5) + 1;
+  const g = 2 * Math.PI / 365 * (doy - 1), lat = 34.81 * Math.PI / 180, lon = 126.39;
+  const eq = 229.18 * (0.000075 + 0.001868 * Math.cos(g) - 0.032077 * Math.sin(g) - 0.014615 * Math.cos(2 * g) - 0.040849 * Math.sin(2 * g));
+  const dec = 0.006918 - 0.399912 * Math.cos(g) + 0.070257 * Math.sin(g) - 0.006758 * Math.cos(2 * g) + 0.000907 * Math.sin(2 * g) - 0.002697 * Math.cos(3 * g) + 0.00148 * Math.sin(3 * g);
+  const ha = Math.acos(Math.cos(90.833 * Math.PI / 180) / (Math.cos(lat) * Math.cos(dec)) - Math.tan(lat) * Math.tan(dec)) * 180 / Math.PI;
+  const rise = (720 - 4 * (lon + ha) - eq + 540) / 60, set = (720 - 4 * (lon - ha) - eq + 540) / 60;
+  return (sunCache = { day, rise, set });
+}
+function moonPhase(ms) { return (((ms / 864e5 + 2440587.5 - 2451550.1) / 29.530588853) % 1 + 1) % 1; }   // 0 삭, 0.5 보름
+function palette(h) {
+  let i = 0; while (i < KEYS.length - 2 && h >= KEYS[i + 1][0]) i++;
+  const a = KEYS[i], b = KEYS[i + 1], t = clamp((h - a[0]) / (b[0] - a[0]), 0, 1);
+  const mix = k => [0, 1, 2].map(c => Math.round(lerp(a[k][c], b[k][c], t)));
+  return { skyTop: mix(1), skyBot: mix(2), seaFar: mix(3), seaNear: mix(4), sand: mix(5), shade: lerp(a[6], b[6], t), stars: lerp(a[7], b[7], t) };
+}
+const rgb = (c, a = 1) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+
+/* ───────── 사람들 ───────── */
+const me = { id: 'me', x: WORLD_W / 2 + (Math.random() - 0.5) * 700, d: 0.82, sit: false, color: 4, name: '', walk: 0, tx: null, td: null, seed: Math.random() * 1000 };
+me.vx = me.x; me.vd = me.d;
+const peers = new Map();   // id → {x,d,sit,color,name,vx,vd,walk,seed}
+const keys = new Set();
+let joined = false;
+
+function seedOf(id) { let s = 0; const str = String(id); for (let i = 0; i < str.length; i++) s = (s * 31 + str.charCodeAt(i)) % 9973; return s; }
+
+/* ───────── 그리기: 배경 ───────── */
+const stars = Array.from({ length: 90 }, (_, i) => [hash(i * 3.1), hash(i * 7.7), 0.6 + hash(i * 1.3) * 1.2, hash(i * 9.9) * 6.28]);
+const clouds = Array.from({ length: 6 }, (_, i) => ({ x: hash(i * 5.3), y: 0.08 + hash(i * 2.9) * 0.5, w: 0.12 + hash(i * 4.1) * 0.14, v: 0.000004 + hash(i * 8.3) * 0.000005 }));
+const decor = Array.from({ length: 46 }, (_, i) => ({ x: hash(i * 2.3 + 1) * WORLD_W, d: 0.12 + hash(i * 6.1 + 2) * 0.86, kind: Math.floor(hash(i * 3.7 + 3) * 2), rot: hash(i * 1.9) * 6.28 }));
+
+function drawSky(pal, t, h) {
+  const hy = horizonY();
+  const g = ctx.createLinearGradient(0, 0, 0, hy);
+  g.addColorStop(0, rgb(pal.skyTop)); g.addColorStop(1, rgb(pal.skyBot));
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, hy + 2);
+
+  if (pal.stars > 0.02) {
+    for (const s of stars) {
+      const tw = 0.6 + 0.4 * Math.sin(t * 0.0015 + s[3]);
+      ctx.fillStyle = `rgba(255,255,255,${pal.stars * tw * 0.9})`;
+      ctx.beginPath(); ctx.arc(s[0] * W, s[1] * hy * 0.92, s[2] * U, 0, 6.3); ctx.fill();
+    }
+  }
+  // 해 — 대반동은 서쪽을 보는 해변이라, 오후에 내려와 목포대교 쪽으로 진다
+  if (h > 11 && h < 18.6) {
+    const f = (h - 11) / 7.3, sx = W * (0.40 + 0.22 * f), sy = hy * (-0.15 + 1.13 * Math.pow(f, 1.3));
+    const low = Math.pow(f, 2.5);
+    const r = (24 + low * 16) * U;
+    const glow = ctx.createRadialGradient(sx, sy, 0, sx, sy, r * 5);
+    glow.addColorStop(0, `rgba(255,${Math.round(240 - low * 80)},${Math.round(200 - low * 120)},0.55)`);
+    glow.addColorStop(1, 'rgba(255,220,160,0)');
+    ctx.fillStyle = glow; ctx.fillRect(sx - r * 5, sy - r * 5, r * 10, r * 10);
+    ctx.fillStyle = `rgb(255,${Math.round(248 - low * 70)},${Math.round(225 - low * 125)})`;
+    ctx.beginPath(); ctx.arc(sx, sy, r, 0, 6.3); ctx.fill();
+  }
+  // 달
+  if (pal.stars > 0.3) {
+    const mx = W * 0.30, my = hy * 0.30, r = 20 * U;
+    const glow = ctx.createRadialGradient(mx, my, 0, mx, my, r * 5);
+    glow.addColorStop(0, `rgba(230,236,255,${0.35 * pal.stars})`); glow.addColorStop(1, 'rgba(230,236,255,0)');
+    ctx.fillStyle = glow; ctx.fillRect(mx - r * 5, my - r * 5, r * 10, r * 10);
+    // 실제 달의 모양 (어두운 쪽은 희미하게)
+    const ph = moonPhase(now()), k = Math.cos(ph * 2 * Math.PI);
+    ctx.fillStyle = `rgba(120,130,160,${0.25 * pal.stars})`;
+    ctx.beginPath(); ctx.arc(mx, my, r, 0, 6.3); ctx.fill();
+    ctx.save(); ctx.translate(mx, my); if (ph > 0.5) ctx.scale(-1, 1);
+    ctx.fillStyle = `rgba(246,243,226,${pal.stars})`;
+    ctx.beginPath(); ctx.arc(0, 0, r, -Math.PI / 2, Math.PI / 2, false);
+    ctx.ellipse(0, 0, Math.abs(k) * r, r, 0, Math.PI / 2, -Math.PI / 2, k > 0); ctx.fill();
+    ctx.restore();
+  }
+  // 구름
+  const ca = 0.75 - pal.shade * 1.1;
+  for (const c of clouds) {
+    const cx = ((c.x + t * c.v) % 1.3 - 0.15) * W, cy = c.y * hy, cw = c.w * Math.max(W, 700);
+    ctx.fillStyle = `rgba(255,255,255,${Math.max(0.08, ca) * 0.55})`;
+    for (let k = 0; k < 4; k++) {
+      ctx.beginPath(); ctx.ellipse(cx + (k - 1.5) * cw * 0.26, cy + (k % 2) * cw * 0.03, cw * 0.24, cw * 0.075, 0, 0, 6.3); ctx.fill();
+    }
+  }
+}
+
+/* ───────── 대반동에서 보이는 풍경: 고하도 · 목포대교 · 해상케이블카 · 스카이워크 ───────── */
+const nightF = pal => clamp((pal.shade - 0.12) / 0.26, 0, 1);
+function bridgeHue(t) {
+  // 목포대교 경관조명: 월~목은 계절 색이 은은하게, 금~일은 색이 역동적으로 바뀜 (구체적인 색은 임의로 정함)
+  const { wd, mo: m } = kst(t);
+  if (wd === 5 || wd === 6 || wd === 0) return (t / 110) % 360;
+  const base = (m === 11 || m < 2) ? 210 : m < 5 ? 325 : m < 8 ? 190 : 32;
+  return base + 18 * Math.sin(t / 9000);
+}
+function geo() {
+  const bw = Math.max(W, 560), hy = horizonY(), cx = W / 2 - (camX - WORLD_W / 2) * 0.07 * U;
+  return { bw, hy, cx, deckY: hy - 17 * U, topY: hy - 85 * U, p1: cx - 0.13 * bw, p2: cx + 0.15 * bw, span: 0.125 * bw };
+}
+function drawFar(pal, t, nf, G) {
+  const { bw, hy, cx, deckY, topY, span } = G;
+  const mixc = (a, b, k) => a.map((c, i) => Math.round(lerp(c, b[i], k)));
+  const dayLand = mixc([78, 112, 96], pal.skyBot, 0.38), land = mixc(dayLand, [12, 18, 36], nf * 0.92);
+  const farLand = mixc(mixc(pal.seaFar, pal.skyBot, 0.55), [16, 24, 46], nf * 0.8);
+
+  // 다리 너머 먼 섬들
+  ctx.fillStyle = rgb(farLand);
+  for (const [fx, fw, fh] of [[-0.04, 0.16, 9], [0.20, 0.12, 6], [0.02, 0.06, 4]]) {
+    ctx.beginPath(); ctx.moveTo(cx + fx * bw, hy + 1);
+    ctx.quadraticCurveTo(cx + (fx + fw * 0.4) * bw, hy - fh * 2 * U, cx + (fx + fw) * bw, hy + 1); ctx.fill();
+  }
+  // 고하도 (왼쪽, 용머리가 다리 쪽으로 뻗음)
+  ctx.fillStyle = rgb(land);
+  ctx.beginPath(); ctx.moveTo(cx - 0.9 * bw, hy + 1); ctx.lineTo(cx - 0.9 * bw, hy - 30 * U);
+  ctx.quadraticCurveTo(cx - 0.66 * bw, hy - 44 * U, cx - 0.52 * bw, hy - 27 * U);
+  ctx.quadraticCurveTo(cx - 0.43 * bw, hy - 35 * U, cx - 0.35 * bw, hy - 18 * U);
+  ctx.quadraticCurveTo(cx - 0.28 * bw, hy - 14 * U, cx - 0.22 * bw, hy - 5 * U);
+  ctx.lineTo(cx - 0.195 * bw, hy + 1); ctx.closePath(); ctx.fill();
+  // 오른쪽 육지 (북항·해양대 쪽)
+  ctx.beginPath(); ctx.moveTo(cx + 0.41 * bw, hy + 1);
+  ctx.quadraticCurveTo(cx + 0.48 * bw, hy - 20 * U, cx + 0.57 * bw, hy - 28 * U);
+  ctx.quadraticCurveTo(cx + 0.68 * bw, hy - 46 * U, cx + 0.95 * bw, hy - 50 * U);
+  ctx.lineTo(cx + 0.95 * bw, hy + 1); ctx.closePath(); ctx.fill();
+  if (nf > 0.05) {                 // 밤: 고하도 해안데크 불빛, 육지의 창문 불빛
+    ctx.fillStyle = `rgba(255,214,150,${0.85 * nf})`;
+    for (let x = -0.88; x < -0.22; x += 0.013) ctx.fillRect(cx + x * bw, hy - 2.2 * U, 1.6 * U, 1.6 * U);
+    for (let i = 0; i < 46; i++) {
+      const fx = 0.44 + hash(i * 3.3) * 0.5, up = hash(i * 7.1) * Math.min(1, (fx - 0.41) * 5) * 30 * U;
+      ctx.fillStyle = `rgba(255,${200 + Math.round(hash(i) * 40)},${140 + Math.round(hash(i * 2) * 80)},${(0.5 + 0.4 * hash(i * 5)) * nf})`;
+      ctx.fillRect(cx + fx * bw, hy - 2 * U - up, 1.8 * U, 1.8 * U);
+    }
+  }
+
+  // 여객선: 매 정각에 다도해 쪽으로 떠나 7분 동안 다리 아래를 지나간다
+  const dn = kst(t), fu = (dn.m * 60 + dn.s) / 420;
+  if (fu < 1) {
+    const bx = cx + (0.75 - 1.5 * fu) * bw;
+    ctx.fillStyle = nf > 0.5 ? 'rgb(40,48,70)' : 'rgb(246,246,244)';
+    ctx.fillRect(bx, hy - 3.4 * U, 20 * U, 3.6 * U); ctx.fillRect(bx + 5 * U, hy - 6.4 * U, 10 * U, 3 * U);
+    ctx.fillStyle = nf > 0.5 ? 'rgb(30,36,52)' : 'rgb(70,90,120)'; ctx.fillRect(bx + 8 * U, hy - 9 * U, 3 * U, 2.6 * U);
+    if (nf > 0.05) { ctx.fillStyle = `rgba(255,236,180,${nf})`; for (let k = 0; k < 6; k++) ctx.fillRect(bx + (2 + k * 3) * U, hy - 2.6 * U, 1.4 * U, 1.2 * U); }
+    ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 1 * U;            // 뒤로 남는 물자국
+    ctx.beginPath(); ctx.moveTo(bx + 20 * U, hy - 0.5 * U); ctx.lineTo(bx + 46 * U, hy + 0.5 * U); ctx.stroke();
+  }
+
+  // 목포대교
+  const hue = bridgeHue(t);
+  const col = nf > 0.05 ? `hsla(${hue},92%,${Math.round(lerp(88, 66, nf))}%,0.96)` : 'rgba(243,245,248,0.96)';
+  const x0 = cx - 0.40 * bw, x1 = cx + 0.47 * bw;
+  ctx.save();
+  if (nf > 0.05) { ctx.shadowColor = `hsla(${hue},95%,62%,${nf})`; ctx.shadowBlur = 12 * U * nf; }
+  ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineCap = 'butt';
+  ctx.lineWidth = 1.4 * U; ctx.beginPath();                     // 교각
+  for (let x = x0 + 0.02 * bw; x < x1; x += 0.036 * bw) {
+    if (Math.abs(x - G.p1) < span * 0.9 || Math.abs(x - G.p2) < span * 0.9) continue;
+    ctx.moveTo(x, deckY); ctx.lineTo(x, hy + 1);
+  }
+  ctx.stroke();
+  ctx.fillRect(x0, deckY - 1.3 * U, x1 - x0, 2.6 * U);          // 상판
+  for (const px of [G.p1, G.p2]) {
+    ctx.lineWidth = 2.6 * U; ctx.lineJoin = 'round'; ctx.beginPath();     // 주탑
+    ctx.moveTo(px - 3.2 * U, hy + 1); ctx.lineTo(px - 6.5 * U, deckY); ctx.lineTo(px, topY);
+    ctx.lineTo(px + 6.5 * U, deckY); ctx.lineTo(px + 3.2 * U, hy + 1); ctx.stroke();
+    ctx.lineWidth = 0.75 * U; ctx.beginPath();                    // 케이블
+    for (let i = 1; i <= 9; i++) for (const sgn of [-1, 1]) {
+      ctx.moveTo(px, topY + 3 * U + (9 - i) * 2.3 * U); ctx.lineTo(px + sgn * span * i / 9, deckY);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+  if (nf > 0.05) {
+    ctx.fillStyle = `rgba(255,240,205,${0.9 * nf})`;             // 상판 가로등
+    for (let x = x0; x < x1; x += 0.0125 * bw) ctx.fillRect(x, deckY - 3.2 * U, 1.3 * U, 1.3 * U);
+    const blink = (Math.sin(t / 520) > 0.2 ? 1 : 0.15) * nf;    // 주탑 꼭대기 표시등
+    ctx.fillStyle = `rgba(255,70,60,${blink})`;
+    for (const px of [G.p1, G.p2]) { ctx.beginPath(); ctx.arc(px, topY - 2 * U, 1.6 * U, 0, 6.3); ctx.fill(); }
+  }
+
+  // 해상케이블카 (유달산 → 고하도)
+  const ax = cx + 0.95 * bw, ay = hy - 175 * U, tx = cx - 0.60 * bw, ty = hy - 62 * U, mx = (ax + tx) / 2, my = (ay + ty) / 2 + 22 * U;
+  ctx.strokeStyle = nf > 0.5 ? 'rgba(150,165,200,.35)' : 'rgba(70,84,100,.5)'; ctx.lineWidth = 0.8 * U;
+  ctx.beginPath(); ctx.moveTo(ax, ay); ctx.quadraticCurveTo(mx, my, tx, ty); ctx.stroke();
+  ctx.lineWidth = 2 * U; ctx.strokeStyle = nf > 0.5 ? 'rgba(120,135,170,.6)' : 'rgba(236,238,240,.9)';
+  ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(tx - 1.5 * U, hy - 30 * U); ctx.stroke();
+  for (let k = 0; k < 7; k++) {
+    let u = (t / 140000 + k / 7) % 1; if (k % 2) u = 1 - u;
+    const gx = (1 - u) * (1 - u) * ax + 2 * (1 - u) * u * mx + u * u * tx, gy = (1 - u) * (1 - u) * ay + 2 * (1 - u) * u * my + u * u * ty;
+    ctx.strokeStyle = 'rgba(80,90,105,.7)'; ctx.lineWidth = 0.6 * U; ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(gx, gy + 3.5 * U); ctx.stroke();
+    ctx.fillStyle = nf > 0.5 ? 'rgb(60,70,96)' : (k % 3 ? 'rgb(250,250,250)' : 'rgb(228,84,70)');
+    ctx.fillRect(gx - 2.4 * U, gy + 3.5 * U, 4.8 * U, 4 * U);
+    if (nf > 0.05) { ctx.fillStyle = `rgba(255,230,170,${nf})`; ctx.fillRect(gx - 1.4 * U, gy + 4.5 * U, 2.8 * U, 1.6 * U); }
+  }
+}
+
+function drawSkywalk(pal, nf, G) {
+  // 바다 위로 뻗은 스카이워크 (해변 오른쪽)
+  const { bw, hy, cx } = G, yb = hy + (yOf(-0.24) - hy) * 0.45, dy = yb - 30 * U, xa = cx + 0.34 * bw, xb = cx + 0.95 * bw;
+  const body = nf > 0.5 ? 'rgb(112,126,160)' : 'rgb(236,239,243)';
+  ctx.strokeStyle = body; ctx.lineWidth = 2 * U; ctx.lineCap = 'butt'; ctx.beginPath();
+  for (let x = xa + 0.012 * bw; x < xb; x += 0.05 * bw) { ctx.moveTo(x, dy); ctx.lineTo(x - 2 * U, yb + 2 * U); ctx.moveTo(x + 5 * U, dy); ctx.lineTo(x + 7 * U, yb + 2 * U); }
+  ctx.stroke();
+  ctx.fillStyle = body; ctx.fillRect(xa, dy - 3.5 * U, xb - xa, 3.8 * U);
+  ctx.fillRect(xa - 6 * U, dy - 4.5 * U, 16 * U, 4.8 * U);                 // 끝의 전망 자리
+  ctx.lineWidth = 0.8 * U; ctx.beginPath(); ctx.moveTo(xa - 6 * U, dy - 10 * U); ctx.lineTo(xb, dy - 9 * U);
+  for (let x = xa - 6 * U; x < xb; x += 6 * U) { ctx.moveTo(x, dy - 10 * U); ctx.lineTo(x, dy - 4 * U); }
+  ctx.stroke();
+  if (nf > 0.05) {
+    ctx.save(); ctx.shadowColor = `rgba(120,220,255,${nf})`; ctx.shadowBlur = 8 * U;
+    ctx.fillStyle = `rgba(150,230,255,${0.9 * nf})`; ctx.fillRect(xa - 6 * U, dy + 0.2 * U, xb - xa + 6 * U, 1.3 * U); ctx.restore();
+    ctx.fillStyle = `rgba(150,230,255,${0.10 * nf})`; ctx.fillRect(xa - 6 * U, dy + 2 * U, xb - xa + 6 * U, yb - dy + 8 * U);
+  }
+}
+
+function showState(t) {          // 밤 9시부터 10분 동안 해변 미디어아트 큰 상영
+  const { h, m, s: ss } = kst(t), sec = m * 60 + ss;
+  if (h === 21 && m < 10) return { on: true, u: sec / 600 };
+  if (h === 20 && m >= 55) return { soon: true };
+  return {};
+}
+function drawWhale(u, t, nf) {
+  // 빛으로 그린 고래가 해변을 가로질러 헤엄친다
+  const s = 1.25 * U, x = W * (-0.3 + 1.6 * u), y = yOf(0.46) + Math.sin(t / 1800) * 8 * U;
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s * 0.5);
+  ctx.strokeStyle = `rgba(140,230,255,${0.75 * nf})`; ctx.shadowColor = 'rgba(80,200,255,1)'; ctx.shadowBlur = 18; ctx.lineWidth = 3.2;
+  const tail = Math.sin(t / 700) * 14;
+  ctx.beginPath();
+  ctx.moveTo(150, 0); ctx.bezierCurveTo(140, -48, 40, -70, -40, -50); ctx.bezierCurveTo(-110, -34, -150, -10, -190, -4 + tail * 0.3);
+  ctx.lineTo(-232, -30 + tail); ctx.moveTo(-190, -4 + tail * 0.3); ctx.lineTo(-236, 18 + tail);
+  ctx.moveTo(150, 0); ctx.bezierCurveTo(140, 34, 60, 46, -20, 38); ctx.bezierCurveTo(-90, 30, -150, 14, -190, -4 + tail * 0.3);
+  ctx.moveTo(40, 30); ctx.quadraticCurveTo(20, 70, -10, 62); ctx.stroke();
+  ctx.beginPath(); ctx.arc(105, -6, 4, 0, 6.3); ctx.stroke();
+  for (let k = 0; k < 5; k++) { ctx.beginPath(); ctx.moveTo(130 - k * 14, 14 + k * 3); ctx.lineTo(60 - k * 14, 26 + k * 3); ctx.stroke(); }
+  const sp = (t / 2600) % 1;                      // 물뿜기
+  if (sp < 0.5) for (let k = 0; k < 7; k++) {
+    const a = -Math.PI / 2 + (k - 3) * 0.22, r = 30 + sp * 140;
+    ctx.fillStyle = `rgba(190,240,255,${(0.5 - sp) * 1.4 * nf})`;
+    ctx.beginPath(); ctx.arc(70 + Math.cos(a) * r * 0.5, -60 + Math.sin(a) * r, 4, 0, 6.3); ctx.fill();
+  }
+  ctx.restore();
+}
+function drawProjections(t, nf) {
+  // 밤 해변의 미디어아트: 모래 위에 비치는 빛 (실제 영상 내용은 공개된 자료가 없어 물고기와 물결로 상상해 그림)
+  if (nf < 0.05) return;
+  const show = showState(t), schools = show.on ? 16 : 6;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  if (show.on) drawWhale(show.u, t, nf);
+  for (let k = 0; k < schools; k++) {          // 빛으로 그린 물고기 떼 (윤곽선만)
+    const dir = k % 2 ? 1 : -1, d0 = 0.26 + hash(k * 4.3) * 0.62;
+    const wx0 = (((k * 577 + t * 0.03 * dir) % WORLD_W) + WORLD_W) % WORLD_W;
+    ctx.strokeStyle = `hsla(${165 + k * 14},95%,70%,${0.55 * nf})`;
+    ctx.shadowColor = `hsla(${165 + k * 14},95%,60%,${nf})`;
+    for (let j = 0; j < 4; j++) {
+      const d = d0 + (j % 2 ? 0.035 : -0.02) + 0.015 * Math.sin(t / 1900 + k + j), wx = wx0 - dir * j * 46;
+      const s = sOf(d), x = xOf(wx, d), y = yOf(d);
+      if (x < -80 || x > W + 80) continue;
+      const wag = Math.sin(t / 240 + k + j * 1.7) * 5;
+      ctx.save(); ctx.translate(x, y); ctx.scale(s * dir, s * 0.42); ctx.lineWidth = 2.2; ctx.shadowBlur = 10 * s;
+      ctx.beginPath(); ctx.moveTo(17, 0); ctx.quadraticCurveTo(0, -11, -15, 0); ctx.lineTo(-25, -8 + wag);
+      ctx.moveTo(17, 0); ctx.quadraticCurveTo(0, 11, -15, 0); ctx.lineTo(-25, 8 + wag); ctx.stroke();
+      ctx.restore();
+    }
+  }
+  ctx.shadowBlur = 0;
+  for (let k = 0; k < 5; k++) {
+    const d = 0.3 + hash(k * 9.1) * 0.6, wx = hash(k * 2.7) * WORLD_W, s = sOf(d), x = xOf(wx, d), y = yOf(d);
+    if (x < -120 || x > W + 120) continue;
+    const ph = (t / 5200 + hash(k)) % 1;
+    ctx.strokeStyle = `hsla(${195 + k * 20},90%,72%,${0.30 * nf * (1 - ph)})`; ctx.lineWidth = 2.5 * s;
+    ctx.beginPath(); ctx.ellipse(x, y, (10 + ph * 80) * s, (10 + ph * 80) * s * 0.36, 0, 0, 6.3); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function edgePath(t, base, yShift = 0) {
+  // 물가 선을 따라가는 경로(왼쪽→오른쪽)
+  const s0 = sOf(0);
+  ctx.beginPath();
+  for (let sx = -20; sx <= W + 20; sx += 14) {
+    const wx = camX + (sx - W / 2) / s0;
+    const y = yOf(base + wobble(wx, t)) + yShift;
+    if (sx === -20) ctx.moveTo(sx, y); else ctx.lineTo(sx, y);
+  }
+}
+
+function drawBeach(pal, t, wv, nf, G) {
+  const hy = horizonY();
+  const dE = edgeD(wv.reach);
+  // 모래
+  const sg = ctx.createLinearGradient(0, yOf(-0.3), 0, H);
+  sg.addColorStop(0, rgb(pal.sand.map(c => Math.round(c * 0.9))));
+  sg.addColorStop(0.35, rgb(pal.sand));
+  sg.addColorStop(1, rgb(pal.sand.map(c => Math.min(255, Math.round(c * 1.04)))));
+  ctx.fillStyle = sg; ctx.fillRect(0, yOf(-0.3), W, H);
+
+  // 젖은 모래
+  if (wetD > dE + 0.004) {
+    edgePath(t, wetD);
+    ctx.lineTo(W + 20, yOf(-0.3)); ctx.lineTo(-20, yOf(-0.3)); ctx.closePath();
+    ctx.fillStyle = rgb(pal.sand.map(c => Math.round(c * 0.72)), 0.55); ctx.fill();
+    edgePath(t, wetD);
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)'; ctx.lineWidth = 2 * U; ctx.stroke();
+  }
+
+  // 바다
+  edgePath(t, dE);
+  ctx.lineTo(W + 20, hy); ctx.lineTo(-20, hy); ctx.closePath();
+  const yE = yOf(dE);
+  const g = ctx.createLinearGradient(0, hy, 0, yE + 8 * U);
+  g.addColorStop(0, rgb(pal.seaFar));
+  g.addColorStop(0.7, rgb(pal.seaNear, 0.96));
+  g.addColorStop(1, rgb(pal.seaNear.map(c => Math.min(255, c + 40)), 0.72));
+  ctx.fillStyle = g; ctx.fill();
+
+  // 밀려오는 너울 줄
+  ctx.save(); edgePath(t, dE); ctx.lineTo(W + 20, hy); ctx.lineTo(-20, hy); ctx.closePath(); ctx.clip();
+  for (let k = 0; k < 6; k++) {
+    const f = ((t / 15000 + k / 6) % 1);
+    const y = hy + (yE - hy) * Math.pow(f, 1.7);
+    const a = Math.sin(Math.PI * f) * 0.26;
+    ctx.strokeStyle = `rgba(255,255,255,${a})`; ctx.lineWidth = (1 + f * 4) * U;
+    ctx.beginPath();
+    for (let sx = -20; sx <= W + 20; sx += 22) {
+      const yy = y + Math.sin(sx * 0.012 / U + k * 2 + t * 0.0004) * (2 + f * 6) * U;
+      if (sx === -20) ctx.moveTo(sx, yy); else ctx.lineTo(sx, yy);
+    }
+    ctx.stroke();
+  }
+  // 윤슬
+  const glint = 1 - pal.shade * 1.6;
+  if (glint > 0.05) {
+    for (let i = 0; i < 70; i++) {
+      const bucket = Math.floor(t / 700 + hash(i) * 5);
+      const gx = hash(i * 13.7 + bucket) * W, gf = hash(i * 5.1 + bucket * 1.7);
+      const gy = hy + (yE - hy) * Math.pow(gf, 1.5) * 0.9;
+      const life = (t / 700 + hash(i) * 5) % 1;
+      ctx.fillStyle = `rgba(255,255,255,${Math.sin(Math.PI * life) * 0.55 * glint})`;
+      ctx.fillRect(gx, gy, (3 + gf * 9) * U, 1.4 * U);
+    }
+  }
+  // 달빛 길
+  if (pal.stars > 0.3) {
+    for (let i = 0; i < 26; i++) {
+      const f = i / 26, y = hy + (yE - hy) * f;
+      const wdt = (10 + f * 46) * U * (0.6 + 0.4 * Math.sin(t * 0.002 + i * 1.7));
+      ctx.fillStyle = `rgba(240,240,220,${0.16 * pal.stars * (1 - f * 0.5)})`;
+      ctx.fillRect(W * 0.30 - wdt / 2 + Math.sin(t * 0.001 + i) * 4 * U, y, wdt, 2.2 * U);
+    }
+  }
+  // 목포대교 조명이 바다에 비친 빛
+  if (nf > 0.05) {
+    const hue = bridgeHue(t);
+    for (const px of [G.p1, G.p2]) for (let i = 0; i < 20; i++) {
+      const y = hy + i * (yE - hy) / 20 * 0.85, wdt = (5 + i * 1.5) * U * (0.6 + 0.4 * Math.sin(t * 0.0021 + i * 1.3 + px));
+      ctx.fillStyle = `hsla(${hue},92%,70%,${0.24 * nf * (1 - i / 20)})`;
+      ctx.fillRect(px - wdt / 2 + Math.sin(t * 0.0012 + i) * 3 * U, y, wdt, 2.2 * U);
+    }
+    const band = ctx.createLinearGradient(0, hy, 0, hy + 16 * U);
+    band.addColorStop(0, `rgba(255,236,200,${0.22 * nf})`); band.addColorStop(1, 'rgba(255,236,200,0)');
+    ctx.fillStyle = band; ctx.fillRect(G.cx - 0.40 * G.bw, hy, 0.87 * G.bw, 16 * U);
+  }
+  ctx.restore();
+  drawSkywalk(pal, nf, G);
+
+  // 물러난 자리에 남는 거품 자국
+  if (!wv.rush) {
+    edgePath(t, edgeD(wv.amp) - 0.004);
+    ctx.setLineDash([10 * U, 9 * U, 3 * U, 12 * U]);
+    ctx.strokeStyle = `rgba(255,255,255,${0.38 * Math.pow(1 - wv.q, 1.5)})`; ctx.lineWidth = 2.4 * U; ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  // 물가의 거품
+  const fa = wv.rush ? 0.95 : 0.45 + 0.4 * (1 - wv.q);
+  edgePath(t, dE); ctx.strokeStyle = `rgba(255,255,255,${fa * 0.28})`; ctx.lineWidth = 16 * U; ctx.lineCap = 'round'; ctx.stroke();
+  edgePath(t, dE); ctx.strokeStyle = `rgba(255,255,255,${fa})`; ctx.lineWidth = 5 * U; ctx.stroke();
+  edgePath(t, dE, -9 * U); ctx.setLineDash([16 * U, 14 * U]);
+  ctx.strokeStyle = `rgba(255,255,255,${fa * 0.5})`; ctx.lineWidth = 2.5 * U; ctx.stroke(); ctx.setLineDash([]);
+}
+
+function drawWrack(pal) {
+  const s0 = sOf(0.30), base = 0.30;
+  ctx.fillStyle = rgb(pal.sand.map(c => Math.round(c * 0.62)), 0.55);
+  for (let sx = -10; sx < W + 10; sx += 5) {
+    const wx = camX + (sx - W / 2) / s0, j = hash(Math.floor(wx / 6));
+    if (j < 0.45) continue;
+    const y = yOf(base + 0.025 * Math.sin(wx * 0.003) + 0.01 * (j - 0.7));
+    ctx.fillRect(sx, y, (1.5 + j * 3) * U, 1.4 * U);
+  }
+}
+function drawDecor(pal) {
+  for (const o of decor) {
+    const s = sOf(o.d), x = xOf(o.x, o.d), y = yOf(o.d);
+    if (x < -30 || x > W + 30) continue;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(o.rot); ctx.scale(s, s * 0.6);
+    if (o.kind === 0) {            // 조개
+      ctx.fillStyle = '#f6ead8'; ctx.beginPath(); ctx.arc(0, 0, 7, Math.PI, 0); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(160,120,90,.5)'; ctx.lineWidth = 1;
+      for (let k = -2; k <= 2; k++) { ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(k * 2.6, -6.4); ctx.stroke(); }
+    } else if (o.kind === 1) {     // 조약돌
+      ctx.fillStyle = 'rgba(120,112,104,.55)'; ctx.beginPath(); ctx.ellipse(0, 0, 6, 4, 0, 0, 6.3); ctx.fill();
+    } else {                       // 불가사리
+      ctx.fillStyle = '#e59a6a'; ctx.beginPath();
+      for (let k = 0; k < 10; k++) { const r = k % 2 ? 3.4 : 9, a = k * Math.PI / 5; ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
+/* ───────── 그리기: 사람 ───────── */
+function canopy(cx, cy, rx, ry, color) {
+  ctx.save();
+  ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, Math.PI, 0); ctx.closePath(); ctx.clip();
+  ctx.fillStyle = color; ctx.fillRect(cx - rx, cy - ry, rx * 2, ry);
+  ctx.fillStyle = 'rgba(255,255,255,.92)';
+  for (let i = 0; i < 6; i += 2) {
+    const x0 = cx - rx + i * rx / 3, x1 = x0 + rx / 3;
+    ctx.beginPath(); ctx.moveTo(cx, cy - ry);
+    ctx.quadraticCurveTo(x0, cy - ry * 0.55, x0, cy); ctx.lineTo(x1, cy);
+    ctx.quadraticCurveTo(x1, cy - ry * 0.55, cx, cy - ry); ctx.fill();
+  }
+  ctx.restore();
+  ctx.fillStyle = 'rgba(0,0,0,.10)';
+  ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry * 0.16, 0, 0, Math.PI); ctx.fill();
+}
+
+function lanternGlow(lx, ly, r, a) {
+  const g = ctx.createRadialGradient(lx, ly, 0, lx, ly, r);
+  g.addColorStop(0, `rgba(255,206,130,${a})`); g.addColorStop(0.35, `rgba(255,180,100,${a * 0.35})`); g.addColorStop(1, 'rgba(255,180,100,0)');
+  ctx.fillStyle = g; ctx.fillRect(lx - r, ly - r, r * 2, r * 2);
+}
+function lantern(lx, ly, s, t, seed) {
+  const fl = 0.85 + 0.15 * Math.sin(t / 130 + seed) * Math.sin(t / 47 + seed * 3);
+  ctx.strokeStyle = '#2b2f36'; ctx.lineWidth = 1.4 * s;
+  ctx.beginPath(); ctx.arc(lx, ly - 9 * s, 4 * s, Math.PI, 0); ctx.stroke();
+  ctx.fillStyle = '#2b2f36'; ctx.fillRect(lx - 5 * s, ly - 9 * s, 10 * s, 2.5 * s); ctx.fillRect(lx - 5.5 * s, ly + 5 * s, 11 * s, 3 * s);
+  ctx.fillStyle = `rgba(255,${Math.round(214 * fl)},${Math.round(140 * fl)},1)`; ctx.fillRect(lx - 4 * s, ly - 6.5 * s, 8 * s, 11.5 * s);
+  ctx.fillStyle = 'rgba(255,255,240,.9)'; ctx.fillRect(lx - 1.2 * s, ly - 3 * s, 2.4 * s, 5 * s);
+  return fl;
+}
+function drawPerson(a, t, inWater, night) {
+  const s = sOf(a.vd), x = xOf(a.vx, a.vd);
+  if (x < -90 * s || x > W + 90 * s) return;
+  let y = yOf(a.vd);
+  const pc = PARASOLS[a.color % PARASOLS.length];
+  const shirt = SHIRTS[Math.floor(a.seed) % SHIRTS.length], hair = HAIRS[Math.floor(a.seed * 7) % HAIRS.length];
+
+  if (night && a.sit) {
+    // 밤: 돗자리에 앉아 담요를 두르고, 옆에 랜턴
+    const lx = x + 30 * s, ly = y - 6 * s;
+    lanternGlow(lx, ly, 120 * s, 0.48);
+    ctx.fillStyle = 'rgba(255,255,255,.35)';
+    ctx.beginPath(); ctx.ellipse(x + 4 * s, y + 2 * s, 34 * s, 9 * s, 0, 0, 6.3); ctx.fill();
+    const br = Math.sin(t * 0.0016 + a.seed) * 0.6 * s;
+    ctx.fillStyle = shirt;
+    ctx.beginPath(); ctx.ellipse(x, y - 15 * s - br, 13 * s, 17 * s, 0, 0, 6.3); ctx.fill();
+    ctx.fillStyle = pc;                       // 담요 (내 색)
+    ctx.beginPath(); ctx.moveTo(x - 15 * s, y - 2 * s); ctx.quadraticCurveTo(x - 17 * s, y - 30 * s - br, x - 7 * s, y - 31 * s - br);
+    ctx.quadraticCurveTo(x, y - 34 * s - br, x + 7 * s, y - 31 * s - br); ctx.quadraticCurveTo(x + 17 * s, y - 30 * s - br, x + 15 * s, y - 2 * s); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1.2 * s;
+    for (let k = -1; k <= 1; k++) { ctx.beginPath(); ctx.moveTo(x + k * 7 * s, y - 29 * s - br); ctx.lineTo(x + k * 8 * s, y - 3 * s); ctx.stroke(); }
+    ctx.fillStyle = hair;
+    ctx.beginPath(); ctx.arc(x, y - 39 * s - br, 10 * s, 0, 6.3); ctx.fill();
+    lantern(lx, ly, s * 1.1, t, a.seed);
+  } else if (a.sit) {
+    // 파라솔 그늘, 돗자리
+    ctx.fillStyle = 'rgba(40,30,20,.16)';
+    ctx.beginPath(); ctx.ellipse(x + 20 * s, y + 5 * s, 50 * s, 12 * s, 0, 0, 6.3); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.75)';
+    ctx.beginPath(); ctx.ellipse(x, y + 2 * s, 30 * s, 8 * s, 0, 0, 6.3); ctx.fill();
+    ctx.strokeStyle = pc; ctx.lineWidth = 1.6 * s; ctx.stroke();
+    // 기둥
+    ctx.strokeStyle = '#e9e4da'; ctx.lineWidth = 3 * s; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(x + 24 * s, y + 1 * s); ctx.lineTo(x + 15 * s, y - 80 * s); ctx.stroke();
+    // 뒷모습으로 앉은 사람 (숨 쉬듯 살짝 움직임)
+    const br = Math.sin(t * 0.0016 + a.seed) * 0.6 * s;
+    ctx.fillStyle = shirt;
+    ctx.beginPath(); ctx.ellipse(x, y - 15 * s - br, 13 * s, 17 * s, 0, 0, 6.3); ctx.fill();
+    ctx.fillStyle = hair;
+    ctx.beginPath(); ctx.arc(x, y - 39 * s - br, 10 * s, 0, 6.3); ctx.fill();
+    canopy(x + 15 * s, y - 78 * s, 46 * s, 22 * s, pc);
+  } else {
+    const moving = a.walk > 0.02;
+    const sw = moving ? Math.sin(t * 0.012 + a.seed) : 0;
+    y += moving ? -Math.abs(sw) * 2.5 * s : 0;
+    ctx.fillStyle = 'rgba(40,30,20,.18)';
+    ctx.beginPath(); ctx.ellipse(x, yOf(a.vd) + 2 * s, 15 * s, 5 * s, 0, 0, 6.3); ctx.fill();
+    // 다리
+    ctx.strokeStyle = '#5b6b7c'; ctx.lineWidth = 5.5 * s; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(x - 4 * s, y - 24 * s); ctx.lineTo(x - 4 * s + sw * 6 * s, y - 1 * s);
+    ctx.moveTo(x + 4 * s, y - 24 * s); ctx.lineTo(x + 4 * s - sw * 6 * s, y - 1 * s); ctx.stroke();
+    if (night) {
+      // 밤: 어깨에 접은 담요, 손에 랜턴
+      ctx.fillStyle = pc;
+      ctx.beginPath(); ctx.ellipse(x - 6 * s, y - 50 * s, 9 * s, 5 * s, -0.5, 0, 6.3); ctx.fill();
+    } else {
+    // 어깨에 멘 접은 파라솔
+    ctx.strokeStyle = '#e9e4da'; ctx.lineWidth = 2.6 * s;
+    ctx.beginPath(); ctx.moveTo(x + 12 * s, y - 20 * s); ctx.lineTo(x - 15 * s, y - 92 * s); ctx.stroke();
+    ctx.strokeStyle = pc; ctx.lineWidth = 7.5 * s;
+    ctx.beginPath(); ctx.moveTo(x + 1 * s, y - 50 * s); ctx.lineTo(x - 13 * s, y - 87 * s); ctx.stroke();
+    }
+    // 몸, 머리
+    ctx.fillStyle = shirt;
+    ctx.beginPath(); ctx.ellipse(x, y - 38 * s, 11 * s, 16 * s, 0, 0, 6.3); ctx.fill();
+    ctx.fillStyle = '#f1cfae';
+    ctx.beginPath(); ctx.arc(x, y - 62 * s, 10 * s, 0, 6.3); ctx.fill();
+    ctx.fillStyle = hair;
+    ctx.beginPath(); ctx.arc(x, y - 64 * s, 10.4 * s, Math.PI * 1.02, Math.PI * 1.98); ctx.closePath(); ctx.fill();
+    if (night) {               // 손에 든 랜턴이 걸음에 따라 흔들림
+      const lx = x + 15 * s + sw * 3 * s, ly = y - 22 * s + Math.abs(sw) * 1.5 * s;
+      ctx.strokeStyle = shirt; ctx.lineWidth = 4 * s;
+      ctx.beginPath(); ctx.moveTo(x + 8 * s, y - 46 * s); ctx.lineTo(lx, ly - 13 * s); ctx.stroke();
+      lanternGlow(lx, ly, 100 * s, 0.45);
+      lantern(lx, ly, s, t, a.seed);
+    }
+  }
+  if (a.waveUntil && performance.now() < a.waveUntil) {      // 손 흔들기
+    const wag = Math.sin(performance.now() / 110) * 5 * s;
+    const sx = x + (a.sit ? 9 : 9) * s, sy = y - (a.sit ? 26 : 48) * s, hx = sx + 11 * s + wag, hy2 = sy - 30 * s;
+    ctx.strokeStyle = shirt; ctx.lineWidth = 4.5 * s; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(hx, hy2); ctx.stroke();
+    ctx.fillStyle = '#f1cfae'; ctx.beginPath(); ctx.arc(hx, hy2 - 2 * s, 3.6 * s, 0, 6.3); ctx.fill();
+  }
+  if (inWater) {       // 발끝에 닿은 물
+    ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = 2 * s;
+    ctx.beginPath(); ctx.ellipse(x, yOf(a.vd) + 1 * s, (a.sit ? 34 : 17) * s, (a.sit ? 9 : 5) * s, 0, 0, 6.3); ctx.stroke();
+  }
+  if (a.name) {
+    const ly = y - (a.sit ? 110 : 104) * s;
+    ctx.font = `600 ${Math.max(11, 13 * s)}px system-ui, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(20,40,60,.45)'; ctx.strokeText(a.name, x, ly);
+    ctx.fillStyle = a === me ? '#fff' : 'rgba(255,255,255,.88)'; ctx.fillText(a.name, x, ly);
+  }
+}
+
+/* ───────── 손 흔들기 · 랜턴 불 나누기 ───────── */
+let myId = null;
+const gestures = [];                 // {from, to, t0}
+const entityOf = id => (id === myId ? me : peers.get(id));
+function screenOf(a, lift) { const s = sOf(a.vd); return [xOf(a.vx, a.vd), yOf(a.vd) - (a.sit ? lift * 0.55 : lift) * s, s]; }
+function onGesture(from, to) {
+  const a = entityOf(from), b = entityOf(to); if (!a || !b) return;
+  const pn = performance.now();
+  a.waveUntil = pn + 1800;
+  gestures.push({ from, to, t0: pn, color: PARASOLS[a.color % PARASOLS.length] });
+  if (to === myId) {
+    const who = a.name ? `${a.name}님이` : '누군가';
+    toast(lastNight ? `${who} 랜턴 불을 나눠 주었어요 · 눌러서 답할 수 있어요` : `${who} 손을 흔들었어요 · 눌러서 답할 수 있어요`);
+  }
+}
+function drawGestures(pn) {
+  for (let i = gestures.length - 1; i >= 0; i--) {
+    const g = gestures[i], a = entityOf(g.from), b = entityOf(g.to), k = Math.max(0, (pn - g.t0) / 1300);
+    if (!a || !b || k > 1) {
+      if (b && k > 1) { b.giftUntil = g.t0 + 1300 + 15000; b.giftColor = g.color; }
+      gestures.splice(i, 1); continue;
+    }
+    const [ax, ay] = screenOf(a, 60), [bx, by] = screenOf(b, 50), e = k * k * (3 - 2 * k);
+    const x = lerp(ax, bx, e), y = lerp(ay, by, e) - Math.sin(Math.PI * e) * 60 * U;
+    const gl = ctx.createRadialGradient(x, y, 0, x, y, 16 * U);
+    gl.addColorStop(0, 'rgba(255,248,220,.95)'); gl.addColorStop(0.3, g.color); gl.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(x, y, 16 * U, 0, 6.3); ctx.fill();
+  }
+}
+function drawGift(a, pn, night) {   // 받은 빛이 한동안 그 사람 곁에 머문다
+  if (!a.giftUntil || pn > a.giftUntil) return;
+  const left = (a.giftUntil - pn) / 15000, s = sOf(a.vd), x = xOf(a.vx, a.vd), y = yOf(a.vd);
+  if (night) {
+    const lx = a.sit ? x + 30 * s : x + 15 * s, ly = a.sit ? y - 6 * s : y - 22 * s;
+    const g = ctx.createRadialGradient(lx, ly, 0, lx, ly, 70 * s);
+    g.addColorStop(0, a.giftColor); g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.save(); ctx.globalAlpha = 0.55 * Math.min(1, left * 3); ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = g; ctx.fillRect(lx - 70 * s, ly - 70 * s, 140 * s, 140 * s); ctx.restore();
+  } else {
+    for (let k = 0; k < 6; k++) {
+      const ang = pn / 900 + k * Math.PI / 3, r = 22 * s;
+      ctx.fillStyle = `rgba(255,252,230,${0.85 * Math.min(1, left * 3)})`;
+      ctx.beginPath(); ctx.arc(x + Math.cos(ang) * r, y - (a.sit ? 48 : 70) * s + Math.sin(ang) * r * 0.4, 2.2 * s, 0, 6.3); ctx.fill();
+    }
+  }
+}
+function hitPeer(cx, cy) {
+  let best = null, bd = 1e9;
+  for (const [id, p] of peers) {
+    const [x, y, s] = screenOf(p, 45), dd = Math.hypot(cx - x, cy - y);
+    if (dd < 34 * s + 14 && dd < bd) { best = id; bd = dd; }
+  }
+  return best;
+}
+
+/* ───────── 유리병 편지 ───────── */
+let bottle = null, outgoing = [], nextBottleAt = 0, waitingBottle = false;
+const bottleBtn = document.getElementById('bottleBtn'), sendBtn = document.getElementById('sendBtn');
+const bottleSheet = document.getElementById('bottleSheet'), letterSheet = document.getElementById('letterSheet');
+const FAST = location.hash === '#fast';   // 시험용: 주소 끝에 #fast 를 붙이면 병이 몇 초 만에 온다
+function scheduleBottle(a, b) { nextBottleAt = Date.now() + (FAST ? 4e3 : (a + Math.random() * (b - a)) * 60e3); }
+function onBottle(m) {
+  waitingBottle = false;
+  if (!me.sit) return;
+  const x = clamp(me.x + (Math.random() < 0.5 ? -1 : 1) * (50 + Math.random() * 70), 60, WORLD_W - 60);
+  bottle = { id: m.id, text: m.text || '', x, d: -0.32, t0: performance.now(), state: 'drift', tilt: (Math.random() - 0.5) * 1.2 };
+}
+function bottleTick(pn, dE) {
+  if (me.sit && online && !bottle && !waitingBottle && nextBottleAt && Date.now() > nextBottleAt) {
+    waitingBottle = true; nextBottleAt = 0; ws.send(JSON.stringify({ t: 'bq' }));
+  }
+  if (bottle && bottle.state === 'drift') {
+    const k = (pn - bottle.t0) / 14000;
+    if (!bottle.land) bottle.land = Math.max(dE, -0.05) + 0.03;
+    bottle.d = lerp(-0.32, bottle.land, 1 - Math.pow(1 - Math.min(k, 1), 2.4));
+    if (k >= 1) { bottle.state = 'rest'; bottleBtn.classList.add('on'); wake(); }
+  }
+  sendBtn.classList.toggle('on', joined && me.sit && online);
+}
+function drawBottleAt(x, y, s, tilt, nf, alpha) {
+  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y); ctx.rotate(tilt);
+  if (nf > 0.2) { const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 26 * s); g.addColorStop(0, `rgba(170,255,220,${0.35 * nf})`); g.addColorStop(1, 'rgba(170,255,220,0)'); ctx.fillStyle = g; ctx.fillRect(-26 * s, -26 * s, 52 * s, 52 * s); }
+  ctx.fillStyle = 'rgba(150,215,190,.75)'; ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 1 * s;
+  ctx.beginPath(); ctx.ellipse(0, 0, 13 * s, 6 * s, 0, 0, 6.3); ctx.fill(); ctx.stroke();
+  ctx.fillRect(12 * s, -2.6 * s, 7 * s, 5.2 * s);
+  ctx.fillStyle = '#b08a62'; ctx.fillRect(18 * s, -2.4 * s, 3.5 * s, 4.8 * s);
+  ctx.fillStyle = 'rgba(250,244,226,.95)'; ctx.fillRect(-7 * s, -2.6 * s, 13 * s, 5.2 * s);
+  ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.fillRect(-9 * s, -4.2 * s, 10 * s, 1.2 * s);
+  ctx.restore();
+}
+function drawBottles(pn, t, dE, nf) {
+  if (bottle) {
+    const s = sOf(Math.max(bottle.d, 0)), bob = bottle.state === 'drift' ? Math.sin(pn / 500) * 3 * s : 0;
+    const x = xOf(bottle.x, Math.max(bottle.d, 0)), y = yOf(bottle.d) + bob;
+    if (bottle.state === 'rest' && Math.sin(pn / 260) > 0.6) {     // 반짝
+      ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.beginPath(); ctx.arc(x - 6 * s, y - 6 * s, 2 * s, 0, 6.3); ctx.fill();
+    }
+    drawBottleAt(x, y, s, bottle.tilt + (bottle.state === 'drift' ? Math.sin(pn / 700) * 0.25 : 0), nf, 1);
+  }
+  for (let i = outgoing.length - 1; i >= 0; i--) {                 // 내가 띄운 병이 멀어지는 모습
+    const o = outgoing[i], k = Math.max(0, (pn - o.t0) / 12000);
+    if (k > 1) { outgoing.splice(i, 1); continue; }
+    const d = lerp(o.d, -0.3, Math.pow(k, 0.8)), s = sOf(Math.max(d, 0));
+    drawBottleAt(xOf(o.x, Math.max(d, 0)), yOf(d) + Math.sin(pn / 500) * 3 * s, s, Math.sin(pn / 700) * 0.3, nf, 1 - k * k);
+  }
+}
+function openBottle() {
+  if (!bottle || bottle.state !== 'rest') return;
+  document.getElementById('bottleMsg').textContent = bottle.id ? `“${bottle.text}”` : '빈 병이에요. 이 바다엔 아직 누구의 편지도 없나 봐요. 첫 한 줄을 띄워 보면 어떨까요.';
+  document.getElementById('bottleReport').style.visibility = bottle.id ? 'visible' : 'hidden';
+  bottleBtn.classList.remove('on'); bottleSheet.classList.add('on'); wake();
+}
+function closeBottle() {
+  bottleSheet.classList.remove('on');
+  if (bottle) { outgoing.push({ x: bottle.x, d: bottle.d, t0: performance.now() }); bottle = null; }
+  if (me.sit) scheduleBottle(4, 8);
+}
+bottleBtn.addEventListener('click', openBottle);
+document.getElementById('bottleBack').addEventListener('click', closeBottle);
+document.getElementById('bottleReport').addEventListener('click', () => {
+  if (bottle && bottle.id && ws && online) ws.send(JSON.stringify({ t: 'rep', id: bottle.id }));
+  closeBottle(); toast('알려 주셔서 고마워요. 여러 사람이 알리면 이 병은 더 떠다니지 않아요.');
+});
+const letterText = document.getElementById('letterText'), letterNote = document.getElementById('letterNote');
+sendBtn.addEventListener('click', () => { letterNote.textContent = ''; letterSheet.classList.add('on'); setTimeout(() => letterText.focus(), 50); wake(); });
+document.getElementById('letterCancel').addEventListener('click', () => { letterSheet.classList.remove('on'); letterText.blur(); });
+letterText.addEventListener('input', () => { letterNote.textContent = `${letterText.value.length} / 80`; });
+document.getElementById('letterSend').addEventListener('click', () => {
+  const v = letterText.value.trim();
+  if (v.length < 2) { letterNote.textContent = '두 글자 이상 적어 주세요'; return; }
+  if (!ws || !online) { letterNote.textContent = '지금은 바다와 연결이 끊겨 있어요'; return; }
+  ws.send(JSON.stringify({ t: 'bs', text: v }));
+});
+function onSent(m) {
+  if (!m.ok) { letterNote.textContent = m.msg || '띄우지 못했어요'; return; }
+  letterSheet.classList.remove('on'); letterText.value = ''; letterText.blur();
+  outgoing.push({ x: me.x + 20, d: me.d, t0: performance.now() });
+  toast('병이 바다로 떠났어요. 언젠가 누군가에게 닿을 거예요.');
+}
+
+/* ───────── 알림 한 줄 · 물때 표시 ───────── */
+const toastEl = document.getElementById('toast'); let toastTimer = 0;
+function toast(msg) {
+  toastEl.textContent = msg; toastEl.classList.add('on'); hint.classList.add('gone');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => toastEl.classList.remove('on'), 5200);
+}
+const tideEl = document.getElementById('tideLine'), eventEl = document.getElementById('eventLine');
+let infoAt = 0;
+function hm(ms) { const k = kst(ms); return `${k.h}:${String(k.m).padStart(2, '0')}`; }
+function infoTick(t, tide) {
+  if (t - infoAt < 1000) return; infoAt = t;
+  const dir = tide.rising ? '물이 들어오는 중' : '물이 빠지는 중';
+  tideEl.textContent = `목포 ${dir} · ${tide.nextHigh ? '만조' : '간조'} ${hm(tide.next)}${tide.approx ? ' (어림)' : ''}`;
+  const sh = showState(t);
+  eventEl.textContent = sh.on ? '밤 9시, 해변에 빛이 지나가는 중' : sh.soon ? '곧 9시, 해변에 빛이 지나가요' : '';
+}
+
+/* ───────── 이음수산 노점 ─────────
+   해변 오른쪽 끝, 조금 앞쪽 모래 위. 가까이 가면 그 철 바다 이야기 한 줄이 뜬다.
+   (지금 가게에 있는 재고를 알리는 것이 아니라, 이맘때 바다 이야기) */
+const STALL = { x: WORLD_W - 95, d: 0.56 };   // 해변 맨 오른쪽 끝. 안내 없이 걷다가 우연히 만나는 자리
+// 이음수산 로고(동그라미 둘, ㅅ 둘)를 선으로 그린다. 원본 이미지 좌표 기준, 가운데 (442, 442)
+const LOGO_RINGS = [[307, 335], [584, 340]], LOGO_CHEV = [[157, 647, 289, 508, 418, 644], [467, 646, 598, 508, 729, 644]];
+function drawLogo(cx, cy, w, neon, t) {
+  const k = w / 611, X = v => cx + (v - 442) * k, Y = v => cy + (v - 442) * k;
+  const rings = () => { ctx.beginPath(); for (const [rx, ry] of LOGO_RINGS) { ctx.moveTo(X(rx) + 86.5 * k, Y(ry)); ctx.arc(X(rx), Y(ry), 86.5 * k, 0, 6.3); } };
+  const chev = () => { ctx.beginPath(); for (const c of LOGO_CHEV) { ctx.moveTo(X(c[0]), Y(c[1])); ctx.lineTo(X(c[2]), Y(c[3])); ctx.lineTo(X(c[4]), Y(c[5])); } };
+  ctx.save(); ctx.lineJoin = 'miter'; ctx.lineCap = 'butt';
+  if (!neon) {
+    ctx.lineWidth = 55 * k; ctx.strokeStyle = '#67a9dc'; rings(); ctx.stroke();
+    ctx.lineWidth = 56 * k; ctx.strokeStyle = '#22365a'; chev(); ctx.stroke();
+  } else {
+    // 네온관: 굵은 빛 번짐 → 색 관 → 하얀 심. 가끔 ㅅ 쪽이 깜빡인다
+    const flick = hash(Math.floor(t / 80)) > 0.985 ? 0.35 : 1;
+    const tube = (path, glow, core, a) => {
+      ctx.globalAlpha = a;
+      ctx.shadowColor = glow; ctx.shadowBlur = Math.max(10, 260 * k);
+      ctx.lineWidth = 46 * k; ctx.strokeStyle = glow; path(); ctx.stroke(); path(); ctx.stroke();
+      ctx.shadowBlur = Math.max(4, 90 * k); ctx.lineWidth = 28 * k; ctx.strokeStyle = core; path(); ctx.stroke();
+      ctx.shadowBlur = 0; ctx.lineWidth = 11 * k; ctx.strokeStyle = 'rgba(255,255,255,.95)'; path(); ctx.stroke();
+    };
+    tube(rings, '#3fa9ff', '#9fdcff', 1);
+    tube(chev, '#4d78ff', '#a9c0ff', flick);
+  }
+  ctx.restore();
+}
+const FISH = {
+  숭어: ['숭어가 뛰니 망둥어도 뛴다지요.', '숭어는 그냥 뛰고 싶어서 뛰었을지도 모릅니다. 따라 뛸지 말지는 망둥어 몫이고요.'],
+  삼치: ['겨울 삼치는 회로도 먹습니다.', '구이로만 알던 생선을 김에 싸서 양념장 한 점. 알던 생선이 낯설어지는 순간, 남도의 겨울이 시작됩니다.'],
+  참돔: ['바다의 붉은 손님, 참돔.', '잔칫상에 올라 남의 기쁜 날을 많이 봤을 생선. 오늘은 당신의 평범한 날에 오고 싶다네요.'],
+  준치: ['썩어도 준치라고들 하지요.', '그 말을 들은 준치는 좀 억울할 겁니다. 썩기 전에 먹어 주면 될 일인데.'],
+  밴댕이: ['밴댕이 소갈딱지, 들어 보셨죠.', '속이 좁다는 말인데, 작은 몸에 바다 한 철을 다 담았으니 좁을 수밖에요. 이건 꼭 먹어야 회.'],
+  웅어: ['봄에 강을 거슬러 오르는 웅어.', '바다에서 강으로, 다시 바다로. 돌아올 곳을 아는 생선은 길을 잃어도 조급하지 않습니다.'],
+  병어: ['납작한 몸으로 여름 바다를 건너는 병어.', '두께가 얇다고 이야기가 얇은 건 아니에요. 뼈째 썰면 고소함이 먼저 말을 겁니다.'],
+  민어: ['여름 보양의 이름, 민어.', '귀해서 아껴 먹던 생선이라죠. 아껴 먹는 마음까지 같이 먹으면 한 점이 길어집니다.'],
+  아나고: ['바다의 붕장어, 아나고.', '모래 속에 숨어 지내는 생선이라 꼬들꼬들 씹히는 맛에 비밀이 많습니다.'],
+  전어: ['집 나간 며느리도 돌아온다는 가을 전어.', '돌아오는 사람보다 돌아올 집이 있다는 게 먼저 부럽습니다. 굽는 냄새는 그 집 주소쯤 되겠지요.'],
+  자광: ['자연산 광어, 줄여서 자광.', '광어는 눈이 한쪽으로 몰려 있어요. 한쪽만 보며 살아도 바다는 여전히 넓다는 걸 아는 얼굴입니다.'],
+  홍어: ['목포 하면 홍어지요.', '처음엔 코가 놀라고, 두 번째엔 마음이 놀라고, 세 번째쯤엔 목포 사람이 됩니다.'],
+};
+// 대표생선 12종을 제철 순서대로. 카드는 지금 달의 생선부터 시작해 12종을 모두 돈다
+const ORDER = ['숭어', '삼치', '참돔', '준치', '밴댕이', '웅어', '병어', '민어', '아나고', '전어', '자광', '홍어'];
+const MONTH_START = [0, 0, 2, 2, 2, 6, 6, 6, 6, 9, 9, 0];   // 1월~12월에 처음 보여 줄 생선의 순번
+let stallIdx = MONTH_START[kst(Date.now()).mo], stallOpen = false, stallDismissed = false;
+const stallEl = document.getElementById('stall');
+function stallShow() {
+  const name = ORDER[stallIdx % ORDER.length], [a, b] = FISH[name];
+  document.getElementById('stallFish').textContent = a;
+  document.getElementById('stallLine').textContent = b;
+}
+document.getElementById('stallNext').addEventListener('click', e => { e.stopPropagation(); stallIdx++; stallShow(); wake(); });
+function stallCheck() {
+  const near = joined && Math.abs(me.vx - STALL.x) < 170 && Math.abs(me.vd - STALL.d) < 0.22;
+  if (!near) stallDismissed = false;
+  const want = near && !stallDismissed;
+  if (want && !stallOpen) { stallShow(); wake(); hint.classList.add('gone'); }
+  if (want !== stallOpen) { stallOpen = want; stallEl.classList.toggle('on', want); }
+}
+
+function drawStall(t, nf) {
+  const s = sOf(STALL.d), x = xOf(STALL.x, STALL.d), y = yOf(STALL.d);
+  if (x < -150 * s || x > W + 150 * s) return;
+  const dark = nf > 0.5;
+  // 등불 빛이 모래에 번짐
+  if (nf > 0.05) {
+    const g = ctx.createRadialGradient(x, y - 20 * s, 0, x, y - 20 * s, 150 * s);
+    g.addColorStop(0, `rgba(255,190,110,${0.38 * nf})`); g.addColorStop(1, 'rgba(255,190,110,0)');
+    ctx.fillStyle = g; ctx.fillRect(x - 150 * s, y - 170 * s, 300 * s, 260 * s);
+  }
+  ctx.fillStyle = 'rgba(40,30,20,.18)';
+  ctx.beginPath(); ctx.ellipse(x + 8 * s, y + 3 * s, 78 * s, 13 * s, 0, 0, 6.3); ctx.fill();
+  // 기둥
+  ctx.strokeStyle = dark ? '#6d5643' : '#8a6a4f'; ctx.lineWidth = 4 * s; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(x - 58 * s, y); ctx.lineTo(x - 58 * s, y - 112 * s); ctx.moveTo(x + 58 * s, y); ctx.lineTo(x + 58 * s, y - 112 * s); ctx.stroke();
+  // 좌판
+  ctx.fillStyle = dark ? '#7a5f48' : '#a7825f'; ctx.fillRect(x - 64 * s, y - 46 * s, 128 * s, 46 * s);
+  ctx.fillStyle = dark ? '#8d6f55' : '#bf9871'; ctx.fillRect(x - 68 * s, y - 50 * s, 136 * s, 7 * s);
+  ctx.strokeStyle = 'rgba(0,0,0,.12)'; ctx.lineWidth = 1 * s;
+  for (let k = 1; k < 4; k++) { ctx.beginPath(); ctx.moveTo(x - 64 * s, y - 46 * s + k * 11.5 * s); ctx.lineTo(x + 64 * s, y - 46 * s + k * 11.5 * s); ctx.stroke(); }
+  // 얼음 상자와 생선
+  ctx.fillStyle = dark ? '#9fb6c6' : '#dff1fb'; ctx.fillRect(x - 46 * s, y - 60 * s, 62 * s, 11 * s);
+  ctx.fillStyle = dark ? '#7d93a7' : '#8fb3c9';
+  for (let k = 0; k < 3; k++) {
+    const fx = x - 36 * s + k * 20 * s, fy = y - 62 * s;
+    ctx.beginPath(); ctx.ellipse(fx, fy, 8 * s, 3 * s, 0, 0, 6.3); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(fx + 7 * s, fy); ctx.lineTo(fx + 12 * s, fy - 3 * s); ctx.lineTo(fx + 12 * s, fy + 3 * s); ctx.closePath(); ctx.fill();
+  }
+  // 치즈 고양이 (꼬리를 살랑)
+  const cx = x + 38 * s, cy = y - 50 * s, tail = Math.sin(t / 700) * 6 * s;
+  ctx.fillStyle = '#f0b55a';
+  ctx.beginPath(); ctx.ellipse(cx, cy - 8 * s, 9 * s, 8 * s, 0, 0, 6.3); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx - 6 * s, cy - 18 * s, 6 * s, 0, 6.3); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(cx - 11 * s, cy - 21 * s); ctx.lineTo(cx - 10 * s, cy - 27 * s); ctx.lineTo(cx - 6 * s, cy - 23 * s); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(cx - 4 * s, cy - 23 * s); ctx.lineTo(cx - 1 * s, cy - 27 * s); ctx.lineTo(cx, cy - 21 * s); ctx.fill();
+  ctx.strokeStyle = '#f0b55a'; ctx.lineWidth = 3 * s;
+  ctx.beginPath(); ctx.moveTo(cx + 8 * s, cy - 4 * s); ctx.quadraticCurveTo(cx + 18 * s, cy - 6 * s + tail, cx + 16 * s, cy - 18 * s + tail); ctx.stroke();
+  // 차양
+  const ay = y - 112 * s;
+  for (let k = 0; k < 8; k++) {
+    ctx.fillStyle = k % 2 ? (dark ? '#c9c4b8' : '#fbf7ee') : (dark ? '#2f6a86' : '#3f9bd8');
+    const ax = x - 72 * s + k * 18 * s;
+    ctx.beginPath(); ctx.moveTo(ax, ay - 14 * s); ctx.lineTo(ax + 18 * s, ay - 14 * s); ctx.lineTo(ax + 18 * s, ay + 4 * s);
+    ctx.quadraticCurveTo(ax + 9 * s, ay + 12 * s, ax, ay + 4 * s); ctx.closePath(); ctx.fill();
+  }
+  // 간판: 로고만. 저녁에는 네온사인
+  const bw = 70 * s, bh = 52 * s, by = ay - 18 * s - bh;
+  ctx.strokeStyle = dark ? '#4a3b30' : '#8a6a4f'; ctx.lineWidth = 2 * s;
+  ctx.beginPath(); ctx.moveTo(x - 24 * s, by + bh); ctx.lineTo(x - 24 * s, ay - 10 * s); ctx.moveTo(x + 24 * s, by + bh); ctx.lineTo(x + 24 * s, ay - 10 * s); ctx.stroke();
+  ctx.fillStyle = nf > 0.3 ? '#161b28' : '#fbf7ee';
+  ctx.fillRect(x - bw / 2, by, bw, bh);
+  if (nf > 0.3) {
+    const g = ctx.createRadialGradient(x, by + bh / 2, 0, x, by + bh / 2, 110 * s);
+    g.addColorStop(0, `rgba(80,150,255,${0.45 * nf})`); g.addColorStop(1, 'rgba(90,150,255,0)');
+    ctx.fillStyle = g; ctx.fillRect(x - 110 * s, by + bh / 2 - 110 * s, 220 * s, 220 * s);
+  }
+  drawLogo(x, by + bh / 2, bw * 0.82, nf > 0.3, t);
+  // 등불
+  const lx = x + 50 * s, ly = ay + 18 * s, sw = Math.sin(t / 1300) * 2 * s;
+  ctx.strokeStyle = 'rgba(60,50,40,.7)'; ctx.lineWidth = 1 * s;
+  ctx.beginPath(); ctx.moveTo(lx, ay + 4 * s); ctx.lineTo(lx + sw, ly - 6 * s); ctx.stroke();
+  if (nf > 0.05) {
+    const g = ctx.createRadialGradient(lx + sw, ly, 0, lx + sw, ly, 26 * s);
+    g.addColorStop(0, `rgba(255,214,140,${0.9 * nf})`); g.addColorStop(1, 'rgba(255,214,140,0)');
+    ctx.fillStyle = g; ctx.fillRect(lx + sw - 26 * s, ly - 26 * s, 52 * s, 52 * s);
+  }
+  ctx.fillStyle = nf > 0.05 ? '#ffcf7a' : '#e8574a';
+  ctx.beginPath(); ctx.ellipse(lx + sw, ly, 6 * s, 8 * s, 0, 0, 6.3); ctx.fill();
+}
+
+/* ───────── 움직임 ───────── */
+const SPEED_X = 190, SPEED_D = 0.30;
+function stepMe(dt) {
+  if (!joined || me.sit) { me.walk = 0; return; }
+  let dx = 0, dd = 0;
+  if (keys.has('ArrowLeft') || keys.has('a')) dx -= 1;
+  if (keys.has('ArrowRight') || keys.has('d')) dx += 1;
+  if (keys.has('ArrowUp') || keys.has('w')) dd -= 1;
+  if (keys.has('ArrowDown') || keys.has('s')) dd += 1;
+  if (dx || dd) { me.tx = me.td = null; }
+  else if (me.tx !== null) {
+    const ex = (me.tx - me.x) / SPEED_X, ed = (me.td - me.d) / SPEED_D, len = Math.hypot(ex, ed);
+    if (len < dt) { me.x = me.tx; me.d = me.td; me.tx = me.td = null; }
+    else { dx = ex / len; dd = ed / len; }
+  }
+  if (dx || dd) {
+    const n = Math.hypot(dx, dd) || 1;
+    me.x = clamp(me.x + dx / n * SPEED_X * dt, 40, WORLD_W - 40);
+    me.d = clamp(me.d + dd / n * SPEED_D * dt, D_MIN, D_MAX);
+    me.walk = 1;
+  } else me.walk = 0;
+  me.vx = me.x; me.vd = me.d;
+}
+function stepPeers(dt) {
+  const k = 1 - Math.pow(0.001, dt);
+  for (const p of peers.values()) {
+    const ox = p.vx, od = p.vd;
+    p.vx += (p.x - p.vx) * k; p.vd += (p.d - p.vd) * k;
+    p.walk = (Math.abs(p.vx - ox) + Math.abs(p.vd - od) * 600) / Math.max(dt, 0.001) > 12 ? 1 : 0;
+  }
+}
+
+/* ───────── 메인 루프 ───────── */
+let last = performance.now();
+function frame(pn) {
+  const dt = Math.min(0.05, (pn - last) / 1000); last = pn;
+  const t = now(), tide = tideInfo(t);
+  tideL += (tide.L - tideL) * Math.min(1, dt * 0.5);
+  const wv = waveAt(t), dE = edgeD(wv.reach);
+  wetD = Math.max(wetD - dt * 0.011, dE);
+
+  stepMe(dt); stepPeers(dt);
+  camX += (me.vx - camX) * (1 - Math.pow(0.02, dt));
+
+  const pal = palette(hourNow());
+  ctx.clearRect(0, 0, W, H);
+  const nf = nightF(pal), G = geo();
+  drawSky(pal, t, hourNow());
+  drawFar(pal, t, nf, G);
+  drawBeach(pal, t, wv, nf, G);
+  drawWrack(pal);
+  drawDecor(pal);
+  drawProjections(t, nf);
+  drawBottles(pn, t, dE, nf);
+
+  const all = [...peers.values()]; if (joined) all.push(me);
+  all.push({ stall: true, vd: STALL.d });
+  all.sort((a, b) => a.vd - b.vd);
+  const night = nf > 0.5;
+  for (const a of all) {
+    if (a.stall) { drawStall(t, nf); continue; }
+    drawPerson(a, t, a.vd < dE + wobble(a.vx, t) + 0.012, night);
+    drawGift(a, pn, night);
+  }
+  drawGestures(pn);
+  bottleTick(pn, dE);
+  infoTick(t, tide);
+  if (night !== lastNight) { lastNight = night; actLabel(); }
+  stallCheck();
+
+  if (pal.shade > 0.01) {       // 저녁·밤의 어스름
+    const sh = ctx.createLinearGradient(0, horizonY(), 0, H);
+    sh.addColorStop(0, `rgba(8,14,44,${pal.shade * 0.25})`); sh.addColorStop(1, `rgba(8,14,44,${pal.shade})`);
+    ctx.fillStyle = sh; ctx.fillRect(0, horizonY(), W, H);
+  }
+  if (nf > 0.05) {              // 뒤쪽 산책로 조명이 모래에 드리우는 따뜻한 빛
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    const lg = ctx.createLinearGradient(0, H, 0, H * 0.62);
+    lg.addColorStop(0, `rgba(255,186,110,${0.20 * nf})`); lg.addColorStop(1, 'rgba(255,186,110,0)');
+    ctx.fillStyle = lg; ctx.fillRect(0, H * 0.62, W, H * 0.38); ctx.restore();
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+/* ───────── 파도 소리 (녹음 파일 없이 합성) ─────────
+   잔잔한 물가 소리: 낮게 깔리는 웅웅거림 없이, 부드러운 '쏴아' 두 겹이 번갈아 오가고
+   물이 빠질 때 잔거품 소리가 살짝 얹힌다. */
+let AC = null, master, bedG, fizzG, layA, layB, soundOn = true, recMode = false;
+function pinkBuffer(sec) {
+  const len = Math.floor(AC.sampleRate * sec), buf = AC.createBuffer(2, len, AC.sampleRate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = buf.getChannelData(ch);
+    let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0, sum = 0;
+    for (let i = 0; i < len; i++) {           // 핑크 노이즈: 흰 소음보다 귀에 부드러움
+      const w = Math.random() * 2 - 1;
+      b0 = 0.99886 * b0 + w * 0.0555179; b1 = 0.99332 * b1 + w * 0.0750759; b2 = 0.96900 * b2 + w * 0.1538520;
+      b3 = 0.86650 * b3 + w * 0.3104856; b4 = 0.55000 * b4 + w * 0.5329522; b5 = -0.7616 * b5 - w * 0.0168980;
+      d[i] = b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362; b6 = w * 0.115926; sum += d[i] * d[i];
+    }
+    const k = 0.22 / Math.sqrt(sum / len);
+    for (let i = 0; i < len; i++) d[i] *= k;
+    const fade = Math.floor(AC.sampleRate * 0.05);   // 이어 붙는 자리의 '틱' 소리 방지
+    for (let i = 0; i < fade; i++) { d[i] *= i / fade; d[len - 1 - i] *= i / fade; }
+  }
+  return buf;
+}
+function makeLayer(buf, offset) {
+  const src = AC.createBufferSource(); src.buffer = buf; src.loop = true;
+  const hp = AC.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 320; hp.Q.value = 0.5;   // 낮은 웅웅거림 제거
+  const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1200; lp.Q.value = 0.3;
+  const g = AC.createGain(); g.gain.value = 0;
+  src.connect(hp); hp.connect(lp); lp.connect(g);
+  let pan = null;
+  if (AC.createStereoPanner) { pan = AC.createStereoPanner(); g.connect(pan); pan.connect(master); } else g.connect(master);
+  src.start(0, offset);
+  return { lp, g, pan };
+}
+function startAudio() {
+  if (AC) return;
+  try {
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    master = AC.createGain(); master.gain.value = 0; master.connect(AC.destination);
+    loadRecording().then(ok => { if (!ok) buildSynth(); });
+    setInterval(tickAudio, 80);
+  } catch (e) { AC = null; }
+}
+/* 녹음 파일(public/wave.mp3)이 있으면 그것을 끊김 없이 반복 재생하고, 없으면 합성음을 쓴다 */
+async function loadRecording() {
+  try {
+    const r = await fetch('wave.mp3'); if (!r.ok) return false;
+    const buf = await AC.decodeAudioData(await r.arrayBuffer());
+    if (!buf || buf.duration < 8) return false;
+    recMode = true; document.getElementById('sndCredit').style.display = 'inline';
+    const X = Math.min(4, buf.duration / 4);       // 앞뒤를 겹쳐 이어 붙이는 길이(초)
+    const play = at => {
+      const src = AC.createBufferSource(), g = AC.createGain(); src.buffer = buf; src.connect(g); g.connect(master);
+      g.gain.setValueAtTime(0, at); g.gain.linearRampToValueAtTime(1, at + X);
+      g.gain.setValueAtTime(1, at + buf.duration - X); g.gain.linearRampToValueAtTime(0, at + buf.duration);
+      src.start(at); const next = at + buf.duration - X;
+      setTimeout(() => play(next), Math.max(0, (next - AC.currentTime - 1.5) * 1000));
+    };
+    play(AC.currentTime + 0.05);
+    return true;
+  } catch (e) { return false; }
+}
+function buildSynth() {
+  try {
+    const buf = pinkBuffer(11);
+    layA = makeLayer(buf, 0); layB = makeLayer(buf, 5.3);
+
+    // 멀리서 늘 들리는 아주 옅은 바다 소리
+    const bs = AC.createBufferSource(); bs.buffer = buf; bs.loop = true;
+    const bf = AC.createBiquadFilter(); bf.type = 'bandpass'; bf.frequency.value = 900; bf.Q.value = 0.4;
+    bedG = AC.createGain(); bedG.gain.value = 0.10; bs.connect(bf); bf.connect(bedG); bedG.connect(master); bs.start(0, 2.1);
+
+    // 물 빠질 때의 잔거품
+    const fs = AC.createBufferSource(); fs.buffer = buf; fs.loop = true;
+    const ff = AC.createBiquadFilter(); ff.type = 'highpass'; ff.frequency.value = 3800;
+    const fl = AC.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = 9000;
+    fizzG = AC.createGain(); fizzG.gain.value = 0; fs.connect(ff); ff.connect(fl); fl.connect(fizzG); fizzG.connect(master); fs.start(0, 7.7);
+  } catch (e) {}
+}
+function washEnv(wv) {      // 밀려올 때 서서히 커지고, 빠질 때 길게 잦아듦
+  return (wv.rush ? Math.pow(Math.sin(Math.PI / 2 * wv.q), 1.6) : Math.pow(1 - wv.q, 2.4)) * Math.min(wv.amp, 1);
+}
+function tickAudio() {
+  if (!AC) return;
+  const t = now(), c = AC.currentTime;
+  if (recMode) { master.gain.setTargetAtTime(soundOn ? 0.9 * (1 - 0.3 * clamp(me.d, 0, 1)) : 0, c, 1.2); return; }
+  if (!fizzG) return;
+  const w1 = waveAt(t), w2 = waveAt(t + WAVE_T * 0.47);     // 눈에 보이는 파도 + 그 사이를 메우는 작은 물결
+  const e1 = washEnv(w1), e2 = washEnv(w2) * 0.45;
+  layA.g.gain.setTargetAtTime(0.05 + 0.50 * e1, c, 0.35);
+  layA.lp.frequency.setTargetAtTime(1000 + 1500 * e1, c, 0.35);
+  layB.g.gain.setTargetAtTime(0.04 + 0.50 * e2, c, 0.35);
+  layB.lp.frequency.setTargetAtTime(900 + 1300 * e2, c, 0.35);
+  if (layA.pan) {           // 파도가 해변을 따라 비스듬히 닿는 느낌
+    layA.pan.pan.setTargetAtTime(-0.3 + 0.6 * (w1.rush ? w1.q * 0.4 : 0.4 + w1.q * 0.6), c, 0.4);
+    layB.pan.pan.setTargetAtTime(0.3 - 0.6 * (w2.rush ? w2.q * 0.4 : 0.4 + w2.q * 0.6), c, 0.4);
+  }
+  const fizz = w1.rush ? 0 : Math.pow(1 - w1.q, 1.5) * Math.min(1, w1.q * 6) * Math.min(w1.amp, 1);
+  fizzG.gain.setTargetAtTime(0.10 * fizz * (0.75 + 0.25 * Math.random()), c, 0.12);
+  bedG.gain.setTargetAtTime(0.10 + 0.02 * Math.sin(c * 0.23), c, 0.8);
+  const near = 1 - 0.35 * clamp(me.d, 0, 1);      // 물가에 가까울수록 조금 크게
+  master.gain.setTargetAtTime(soundOn ? 0.8 * near : 0, c, 1.2);   // 처음엔 천천히 커짐
+}
+
+/* ───────── 함께 보기 (서버 연결) ───────── */
+const countEl = document.getElementById('count');
+let ws = null, online = false, retry = 2000, lastSent = '', lastSentAt = 0;
+function showCount() {
+  if (!joined) return;
+  const n = peers.size + 1;
+  countEl.textContent = online ? (n > 1 ? `지금 ${n}명이 파도를 보고 있어요` : '지금은 혼자 보는 바다예요') : '혼자 보는 바다 (연결 없음)';
+}
+function addPeer(a) {
+  const [id, x, d, sit, color, name] = a;
+  peers.set(id, { x, d, vx: x, vd: d, sit: !!sit, color: color | 0, name: String(name || '').slice(0, 10), walk: 0, seed: seedOf(id) });
+}
+function connect() {
+  if (!location.host) { showCount(); return; }
+  try { ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws'); }
+  catch (e) { ws = null; showCount(); return; }
+  ws.onopen = () => {
+    retry = 2000;
+    ws.send(JSON.stringify({ t: 'join', name: me.name, color: me.color, x: Math.round(me.x), d: +me.d.toFixed(3), sit: me.sit ? 1 : 0 }));
+  };
+  ws.onmessage = ev => {
+    let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+    if (m.t === 'hi') {
+      online = true; clockOffset = m.now - Date.now(); myId = m.id;
+      peers.clear(); for (const a of m.p || []) addPeer(a);
+    } else if (m.t === 'in') addPeer(m.p);
+    else if (m.t === 'out') peers.delete(m.id);
+    else if (m.t === 'g') onGesture(m.from, m.to);
+    else if (m.t === 'b') onBottle(m);
+    else if (m.t === 'bs') onSent(m);
+    else if (m.t === 'm') {
+      for (const [id, x, d, sit] of m.p) { const p = peers.get(id); if (p) { p.x = x; p.d = d; p.sit = !!sit; } }
+    }
+    showCount();
+  };
+  ws.onclose = () => {
+    online = false; peers.clear(); showCount(); ws = null; waitingBottle = false;
+    setTimeout(connect, retry); retry = Math.min(retry * 1.8, 60000);
+  };
+  ws.onerror = () => {};
+}
+setInterval(() => {      // 내 위치 알리기
+  if (!ws || ws.readyState !== 1 || !online) return;
+  const s = `${Math.round(me.x)},${me.d.toFixed(3)},${me.sit ? 1 : 0}`, t = Date.now();
+  if (s === lastSent && t - lastSentAt < 15000) return;
+  lastSent = s; lastSentAt = t;
+  ws.send(JSON.stringify({ t: 's', x: Math.round(me.x), d: +me.d.toFixed(3), sit: me.sit ? 1 : 0 }));
+}, 130);
+
+/* ───────── 조작 ───────── */
+const act = document.getElementById('act'), hint = document.getElementById('hint');
+let lastNight = false;
+function actLabel() { act.textContent = me.sit ? '일어나기' : (lastNight ? '랜턴 켜고 앉기' : '파라솔 펴고 앉기'); }
+function setSit(v) {
+  me.sit = v; me.tx = me.td = null;
+  actLabel();
+  if (v) { if (!bottle && !nextBottleAt) scheduleBottle(2, 5); }
+  else { nextBottleAt = 0; letterSheet.classList.remove('on'); }
+  hint.classList.add('gone'); wake();
+}
+act.addEventListener('click', () => setSit(!me.sit));
+
+cv.addEventListener('pointerdown', e => {
+  wake();
+  if (stallOpen) { stallDismissed = true; stallOpen = false; stallEl.classList.remove('on'); }
+  if (!joined) return;
+  const who = hitPeer(e.clientX, e.clientY);
+  if (who !== null) { if (ws && online) ws.send(JSON.stringify({ t: 'g', to: who })); hint.classList.add('gone'); return; }
+  if (bottle && bottle.state === 'rest') {
+    const s = sOf(Math.max(bottle.d, 0));
+    if (Math.hypot(e.clientX - xOf(bottle.x, Math.max(bottle.d, 0)), e.clientY - yOf(bottle.d)) < 30 * s + 14) { openBottle(); return; }
+  }
+  if (me.sit) return;
+  const d = clamp((e.clientY / H - 0.56) / 0.40, D_MIN, D_MAX);
+  me.tx = clamp(camX + (e.clientX - W / 2) / sOf(d), 40, WORLD_W - 40); me.td = d;
+  hint.classList.add('gone');
+});
+window.addEventListener('keydown', e => {
+  if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+  const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  if (k === ' ' && joined) { e.preventDefault(); setSit(!me.sit); return; }
+  keys.add(k); wake();
+});
+window.addEventListener('keyup', e => keys.delete(e.key.length === 1 ? e.key.toLowerCase() : e.key));
+window.addEventListener('blur', () => keys.clear());
+
+// 앉아서 가만히 있으면 화면의 글자와 단추가 사라짐
+let quietTimer = 0;
+function wake() {
+  document.body.classList.remove('quiet');
+  clearTimeout(quietTimer);
+  quietTimer = setTimeout(() => { if (joined && me.sit) document.body.classList.add('quiet'); }, 4500);
+}
+window.addEventListener('pointermove', wake);
+
+const sndBtn = document.getElementById('sndBtn'), timeBtn = document.getElementById('timeBtn');
+sndBtn.addEventListener('click', () => { soundOn = !soundOn; sndBtn.textContent = soundOn ? '소리 켜짐' : '소리 꺼짐'; startAudio(); if (AC && AC.state === 'suspended') AC.resume(); });
+timeBtn.addEventListener('click', () => { timeMode = (timeMode + 1) % TIME_MODES.length; timeBtn.textContent = TIME_MODES[timeMode][0]; });
+
+/* ───────── 입장 ───────── */
+const sw = document.getElementById('swatches'), nick = document.getElementById('nick');
+function load(k, f) { try { const v = localStorage.getItem(k); return v === null ? f : v; } catch (e) { return f; } }
+function save(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+me.color = clamp(parseInt(load('pm_color', Math.floor(Math.random() * PARASOLS.length)), 10) || 0, 0, PARASOLS.length - 1);
+nick.value = load('pm_name', '');
+PARASOLS.forEach((c, i) => {
+  const b = document.createElement('button'); b.style.background = c; b.setAttribute('aria-label', '내 색 ' + (i + 1));
+  if (i === me.color) b.classList.add('on');
+  b.addEventListener('click', () => { me.color = i; [...sw.children].forEach((x, j) => x.classList.toggle('on', j === i)); });
+  sw.appendChild(b);
+});
+function enter() {
+  if (joined) return;
+  me.name = nick.value.replace(/\s+/g, ' ').trim().slice(0, 10);
+  save('pm_name', me.name); save('pm_color', me.color);
+  joined = true; me.tx = me.x; me.td = 0.5;       // 들어오면 바다 쪽으로 몇 걸음
+  document.getElementById('gate').classList.add('gone'); nick.blur();
+  startAudio(); if (AC && AC.state === 'suspended') AC.resume();
+  showCount(); connect(); wake();
+  setTimeout(() => hint.classList.add('gone'), 9000);
+}
+document.getElementById('go').addEventListener('click', enter);
+nick.addEventListener('keydown', e => { if (e.key === 'Enter') enter(); });
+})();
+</script>
+</body>
+</html>

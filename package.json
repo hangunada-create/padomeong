@@ -1,0 +1,10 @@
+{
+  "name": "padomeong",
+  "version": "1.0.0",
+  "description": "파도멍 — 파라솔 하나 들고 앉아 파도를 함께 보는 바닷가",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" },
+  "dependencies": { "ws": "^8.18.0" },
+  "license": "MIT"
+}
