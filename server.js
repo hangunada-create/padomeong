@@ -185,7 +185,7 @@ const server = http.createServer((req, res) => {
     if (p === '/stats') return json(res, 200, statsView());
     if (p === '/admin/ntfy-test') {
       if (!NTFY_TOPIC) return json(res, 200, { 안내: 'NTFY_TOPIC 환경변수가 비어 있어요' });
-      notifyOwner('파도멍 서버에서 보낸 시험 알림이에요', null).then(r => json(res, 200, { 주제: NTFY_TOPIC.slice(0, 10) + '…(' + NTFY_TOPIC.length + '글자)', ntfy응답: r }));
+      notifyOwner('파도멍 서버에서 보낸 시험 알림이에요', null).then(r => json(res, 200, { 주제: NTFY_TOPIC.slice(0, 10) + '…(' + NTFY_TOPIC.length + '글자)', 토큰: NTFY_TOKEN ? (NTFY_TOKEN.startsWith('tk_') ? 'tk_로 시작, ' : 'tk_로 시작하지 않음, ') + NTFY_TOKEN.length + '글자' : '없음', ntfy응답: r }));
       return;
     }
     if (p === '/admin/bottles') return json(res, 200, bottles.list.slice().reverse().map(b => ({ id: b.id, 글: b.text, 날짜: new Date(b.ts).toISOString(), 신고: b.reports.length, 숨김: !!b.hidden })));
