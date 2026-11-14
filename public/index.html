@@ -2899,7 +2899,7 @@ document.getElementById('mapClose').addEventListener('click', () => mapSheet.cla
 /* ───────── 옛 그림 병: 하루에 한 번, 짙은 갈색 병에 빛바랜 그림 한 장 ───────── */
 const OLD = [
   ['1897년 개항 무렵의 목포항', 'port'], ['삼학도, 학 세 마리가 내려앉았다는 세 섬', 'samhak'], ['유달산 바위 능선', 'yudal'],
-  ['고하도의 목화밭', 'cotton'], ['호남선 기차가 닿던 목포역', 'train'], ['붉은 벽돌의 옛 영사관', 'consul'], ['삿갓 쓴 두 바위, 갓바위', 'gat'],
+  ['고하도의 목화밭', 'cotton'], ['호남선 기차가 닿던 목포역', 'train'], ['1900년에 지은 붉은 벽돌 옛 일본영사관, 지금은 목포근대역사관', 'consul', 'img/old/consul.jpg', '사진: 한국교육방송공사 「한국기행_목포_건축물09」(2017), CC BY · 공유마당 · 색을 바래게 고침'], ['삿갓 쓴 두 바위, 갓바위', 'gat'],
 ];
 let photoHave = loadSet('pm_photos'), oldBottle = null, oldBottleAt = performance.now() + (FAST ? 5000 : 180000 + Math.random() * 300000);
 const photoSheet = document.getElementById('photoSheet'), photoCanvas = document.getElementById('photoCanvas'), photoNote = document.getElementById('photoNote');
@@ -2925,14 +2925,32 @@ function openOldBottle() {
   oldBottle = null; save('pm_oldday', String(dayIdx(now())));
   const left = OLD.map((o, i) => i).filter(i => !photoHave.has(OLD[i][1])), i = left.length ? left[Math.floor(Math.random() * left.length)] : Math.floor(Math.random() * OLD.length);
   photoHave.add(OLD[i][1]); saveSet('pm_photos', photoHave);
-  drawOldPicture(OLD[i][1]);
-  photoNote.textContent = `${OLD[i][0]} · 옛 그림 ${photoHave.size}/7 (옛 목포를 떠올려 그린 그림이에요)`;
+  drawOldPicture(OLD[i][1], OLD[i][2]);
+  photoSheet.querySelector('.k').textContent = `짙은 갈색 병 속에 빛바랜 ${OLD[i][2] ? '사진' : '그림'} 한 장이 말려 있었어요`;
+  photoNote.textContent = OLD[i][2] ? `${OLD[i][0]} · 옛 그림 ${photoHave.size}/7 · ${OLD[i][3]}` : `${OLD[i][0]} · 옛 그림 ${photoHave.size}/7 (옛 목포를 떠올려 그린 그림이에요)`;
   photoSheet.classList.add('on'); wake();
   if (!dex.oldphoto) setTimeout(() => addItem('oldphoto', '병 속에 빛바랜 그림이 들어 있었어요 · 도감에 담았어요'), 800);
 }
 document.getElementById('photoClose').addEventListener('click', () => photoSheet.classList.remove('on'));
-function drawOldPicture(kind) {
+const oldImgs = {};
+function agePhoto(g, w, h) {                       // 빛바랜 사진처럼: 잡티와 가장자리 그늘
+  for (let i = 0; i < 900; i++) { g.fillStyle = `rgba(80,60,30,${Math.random() * 0.08})`; g.fillRect(Math.random() * w, Math.random() * h, 1.5, 1.5); }
+  const v = g.createRadialGradient(w / 2, h / 2, h * 0.3, w / 2, h / 2, w * 0.7); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(70,45,20,.45)'); g.fillStyle = v; g.fillRect(0, 0, w, h);
+}
+function drawOldPicture(kind, src) {
   const c = photoCanvas, g = c.getContext('2d'), w = c.width, h = c.height, ink = '#5b4630', mid = '#9b8160', hi = '#d8c39d';
+  if (src) {                                         // 실제 사진이 있으면 그것을 빛바래게 보여 준다
+    const paint = img => {
+      const r = Math.max(w / img.width, h / img.height), iw = img.width * r, ih = img.height * r;
+      g.save(); g.filter = 'sepia(0.75) saturate(0.8) contrast(0.92) brightness(1.04)';
+      g.drawImage(img, (w - iw) / 2, (h - ih) / 2, iw, ih); g.restore();
+      g.fillStyle = 'rgba(232,214,176,.18)'; g.fillRect(0, 0, w, h); agePhoto(g, w, h);
+    };
+    g.fillStyle = '#e8d6b0'; g.fillRect(0, 0, w, h);
+    if (oldImgs[src] && oldImgs[src].complete) { paint(oldImgs[src]); return; }
+    const img = oldImgs[src] = new Image(); img.onload = () => paint(img); img.src = src;
+    return;
+  }
   g.fillStyle = '#e8d6b0'; g.fillRect(0, 0, w, h);
   const sky = g.createLinearGradient(0, 0, 0, h * 0.6); sky.addColorStop(0, '#efe0bd'); sky.addColorStop(1, '#dcc59b'); g.fillStyle = sky; g.fillRect(0, 0, w, h * 0.6);
   const hz = h * 0.6; g.fillStyle = '#c2a87e'; g.fillRect(0, hz, w, h - hz);
