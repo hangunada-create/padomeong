@@ -13,6 +13,8 @@ const PORT = process.env.PORT || 3000;
 const PUBLIC = path.join(__dirname, 'public');
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const ADMIN_KEY = process.env.ADMIN_KEY || '';          // 통계·유리병 관리 주소를 여는 열쇠
+const METAMOA_VERIFY = (process.env.METAMOA_VERIFY || '').replace(/[^A-Za-z0-9_\-]/g, '');   // 메타모아 소유자 확인 코드
+const METAMOA_WEBHOOK_SECRET = process.env.METAMOA_WEBHOOK_SECRET || '';
 const WORLD_W = 3200, D_MIN = 0.03, D_MAX = 1;
 const MAX_PEOPLE = 500;        // 한 바닷가에 동시에 있을 수 있는 사람 수
 const MAX_PER_IP = 8;
@@ -88,6 +90,15 @@ function statsView() {
   return { 지금접속: people.size, 날짜별: out };
 }
 
+/* ───────── 지금 접속자 수 (메타모아에 알리는 숫자) ─────────
+   지금 바닷가에 들어와 있고, 최근 3분 안에 신호가 있었고, 자동 프로그램(봇·헤드리스 브라우저)이 아닌 사람만 센다. */
+const BOT_UA = /bot|crawl|spider|slurp|headless|phantom|puppeteer|playwright|selenium|python|curl|wget|node-fetch|axios|go-http/i;
+function liveCount() {
+  const t = Date.now(); let n = 0;
+  for (const p of people.values()) if (!p.bot && t - p.ws.alive < 180e3) n++;
+  return n;
+}
+
 /* ───────── HTTP ───────── */
 function json(res, code, obj) { res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }); res.end(JSON.stringify(obj, null, 1)); }
 function isAdmin(u) { return ADMIN_KEY && u.searchParams.get('key') === ADMIN_KEY; }
@@ -96,6 +107,38 @@ const server = http.createServer((req, res) => {
   let u, p;
   try { u = new URL(req.url, 'http://x'); p = decodeURIComponent(u.pathname); } catch (e) { res.writeHead(400); return res.end(); }
   if (p === '/healthz') { res.writeHead(200, { 'content-type': 'text/plain' }); return res.end('ok ' + people.size); }
+
+  // 메타모아 「접속자 수 API」: 지금 접속자 수를 숫자 하나로 돌려준다 (?format=json 이면 {"count": n})
+  if (p === '/live') {
+    const n = liveCount(), asJson = u.searchParams.get('format') === 'json';
+    res.writeHead(200, { 'content-type': asJson ? 'application/json; charset=utf-8' : 'text/plain; charset=utf-8',
+                         'cache-control': 'no-store', 'access-control-allow-origin': '*' });
+    return res.end(asJson ? JSON.stringify({ count: n }) : String(n));
+  }
+
+  // 메타모아 소유자 확인 파일: /metamoa-{코드}.html
+  if (METAMOA_VERIFY && p === `/metamoa-${METAMOA_VERIFY}.html`) {
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+    return res.end(`metamoa-site-verification: ${METAMOA_VERIFY}`);
+  }
+
+  // 메타모아 알림(웹훅): 심사 결과 등. 서명을 확인하고 서버 기록에 남긴다
+  if (p === '/metamoa/webhook' && req.method === 'POST') {
+    let body = '';
+    req.on('data', c => { body += c; if (body.length > 64e3) req.destroy(); });
+    req.on('end', () => {
+      if (METAMOA_WEBHOOK_SECRET) {
+        const ts = String(req.headers['x-metamoa-timestamp'] || ''), sig = String(req.headers['x-metamoa-signature'] || '');
+        const want = 'sha256=' + crypto.createHmac('sha256', METAMOA_WEBHOOK_SECRET).update(`${ts}.${body}`).digest('hex');
+        const ok = sig.length === want.length && crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(want));
+        if (!ok) { res.writeHead(401); return res.end(); }
+      }
+      let ev = ''; try { const j = JSON.parse(body); ev = j.event || j.type || ''; } catch (e) {}
+      console.log(`[메타모아 알림] ${ev || '(이름 없음)'} ${body.slice(0, 500)}`);
+      res.writeHead(204); res.end();
+    });
+    return;
+  }
 
   // 관리용: ADMIN_KEY 환경변수를 정해 두었을 때만 열림
   if (p === '/stats' || p.startsWith('/admin/')) {
@@ -117,6 +160,8 @@ const server = http.createServer((req, res) => {
   if (!file.startsWith(PUBLIC + path.sep)) { res.writeHead(403); return res.end(); }
   fs.readFile(file, (err, data) => {
     if (err) { res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' }); return res.end('없는 주소예요'); }
+    if (METAMOA_VERIFY && file.endsWith('index.html'))
+      data = Buffer.from(data.toString('utf8').replace('<head>', `<head>\n<meta name="metamoa-site-verification" content="${METAMOA_VERIFY}">`));
     res.writeHead(200, { 'content-type': TYPES[path.extname(file)] || 'application/octet-stream',
                          'cache-control': file.endsWith('.html') ? 'no-cache' : 'public, max-age=3600' });
     res.end(data);
@@ -143,6 +188,7 @@ const send = (ws, obj) => { if (ws.readyState === 1) ws.send(JSON.stringify(obj)
 wss.on('connection', (ws, req) => {
   const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
   const tag = ipTag(ip);
+  const isBot = BOT_UA.test(String(req.headers['user-agent'] || '')) || !req.headers['user-agent'];
   const ipCount = (perIp.get(ip) || 0) + 1;
   if (people.size >= MAX_PEOPLE || ipCount > MAX_PER_IP) return ws.close(1013, 'full');
   perIp.set(ip, ipCount);
@@ -163,7 +209,7 @@ wss.on('connection', (ws, req) => {
     if (m.t === 'join' && id === null) {
       id = nextId++;
       const me = { ws, x: clamp(num(m.x, WORLD_W / 2), 40, WORLD_W - 40), d: clamp(num(m.d, 0.8), D_MIN, D_MAX),
-                   sit: m.sit ? 1 : 0, color: clamp(Math.floor(num(m.color, 0)), 0, 7), name: cleanName(m.name) };
+                   sit: m.sit ? 1 : 0, color: clamp(Math.floor(num(m.color, 0)), 0, 7), name: cleanName(m.name), bot: isBot };
       const list = [];
       for (const [pid, p] of people) list.push([pid, p.x, p.d, p.sit, p.color, p.name]);
       people.set(id, me);
@@ -266,13 +312,13 @@ if (METAMOA_SPACE_ID && METAMOA_KEY) {
       const r = await fetch(`https://metamoa.com/api/live/${encodeURIComponent(METAMOA_SPACE_ID)}`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${METAMOA_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ count: clamp(people.size, 0, 100000) }),
+        body: JSON.stringify({ count: clamp(liveCount(), 0, 100000) }),
       });
-      if (r.status !== 204) console.log('[메타모아] 접속자 수 전송 응답:', r.status);
+      if (r.status !== 204) console.log('[메타모아] 접속자 수 전송 응답:', r.status, (await r.text()).slice(0, 200));
     } catch (e) { console.log('[메타모아] 접속자 수 전송 실패:', e.message); }
   };
   setInterval(report, 10 * 60 * 1000);
-  setTimeout(report, 30 * 1000);
+  setTimeout(report, 60 * 1000);
 }
 
 server.listen(PORT, () => console.log(`파도멍 서버가 열렸어요 → http://localhost:${PORT}`));
