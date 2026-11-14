@@ -16,11 +16,11 @@
   html, body { margin: 0; height: 100%; overflow: hidden; background: #0e1c3c; }
   body { font-family: "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
          color: #fff; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
-  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  #sea { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
 
   .hud { position: fixed; z-index: 2; transition: opacity 1.2s ease; }
   body.quiet .hud { opacity: 0; pointer-events: none; }
-  body.quiet canvas { cursor: none; }
+  body.quiet #sea { cursor: none; }
 
   #top { top: max(14px, env(safe-area-inset-top)); left: 16px; text-shadow: 0 1px 6px rgba(0,0,0,.35); }
   #top b { font-size: 17px; letter-spacing: .08em; font-weight: 600; }
@@ -68,6 +68,15 @@
   #sendBtn { display: none; }
   #sendBtn.on { display: inline-block; }
   #todayLine { font-size: 12px; opacity: .75; margin-top: 2px; }
+  #wxLine { font-size: 12.5px; opacity: .88; margin-top: 2px; }
+  #wxLine:empty { display: none; }
+  .sheet { max-height: 86vh; overflow-y: auto; }
+  #dexGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
+  #dexGrid .cell { border: 0; border-radius: 12px; background: #efe7d6; padding: 6px 2px 7px; display: flex; flex-direction: column; align-items: center; gap: 2px;
+                   font: inherit; font-size: 10.5px; color: #5c4d38; cursor: pointer; min-height: 70px; }
+  #dexGrid .cell.no { background: #f3eee3; cursor: default; }
+  #dexGrid canvas { width: 44px; height: 44px; }
+  #cardImg { width: 100%; border-radius: 8px; margin-top: 10px; display: block; box-shadow: 0 4px 14px rgba(0,0,0,.15); }
   @media (max-width: 600px) {
     #credit { left: auto; right: 14px; bottom: auto; top: calc(max(14px, env(safe-area-inset-top)) + 46px); max-width: 38vw; text-align: right; font-size: 10px; line-height: 1.35; }
   }
@@ -114,7 +123,7 @@
 <body>
 <canvas id="sea"></canvas>
 
-<div id="top" class="hud"><b>파도멍 · 대반동</b><div id="count">바닷가에 들어가는 중…</div><div id="tideLine"></div><div id="eventLine"></div><div id="todayLine"></div></div>
+<div id="top" class="hud"><b>파도멍 · 대반동</b><div id="count">바닷가에 들어가는 중…</div><div id="wxLine"></div><div id="tideLine"></div><div id="eventLine"></div><div id="todayLine"></div></div>
 <div id="tools" class="hud">
   <button id="timeBtn" class="chip">지금 시간</button>
   <button id="sndBtn" class="chip">소리 켜짐</button>
@@ -125,9 +134,16 @@
 <button id="bottleBtn" class="hud">유리병이 밀려왔어요 · 열어 보기</button>
 <div id="acts" class="hud">
   <button id="breathBtn" class="chip">숨 고르기</button>
-  <button id="sandBtn" class="chip">모래에 쓰기</button>
+  <button id="sandBtn" class="chip">모래 쓰기</button>
   <button id="sendBtn" class="chip">병 띄우기</button>
+  <button id="dexBtn" class="chip">도감</button>
+  <button id="cardBtn" class="chip">엽서</button>
 </div>
+<div id="dexSheet" class="sheet"><div class="k">물이 빠지면 무언가 드러나요</div><div id="dexGrid"></div><div class="note" id="dexNote"></div>
+<div class="row"><span></span><button class="main" id="dexClose">닫기</button></div></div>
+<div id="cardSheet" class="sheet"><div class="k">지금 이 바다를 엽서 한 장으로</div><img id="cardImg" alt="파도멍 엽서">
+<div class="note">휴대폰은 사진을 길게 눌러 저장할 수도 있어요</div>
+<div class="row"><button class="sub" id="cardClose">닫기</button><button class="main" id="cardSave">저장·공유하기</button></div></div>
 <div id="sandSheet" class="sheet"><div class="k">모래에 몇 글자 써 두면, 파도가 닿을 때 지워져요. 물가 가까이 쓸수록 빨리 지워집니다.</div>
 <textarea id="sandText" maxlength="12" placeholder="12자까지" style="height:56px"></textarea>
 <div class="note" id="sandNote"></div>
@@ -195,9 +211,10 @@ const kst = ms => { const d = new Date(ms + 9 * 3600e3); return { h: d.getUTCHou
 const now = () => Date.now() + clockOffset;
 
 /* ───────── 파도 ───────── */
+let WIND_F = 1;                        // 바람이 세면 파도가 커진다
 function waveAt(t) {
   const n = Math.floor(t / WAVE_T), p = t / WAVE_T - n;
-  const amp = 0.45 + 0.4 * hash(n) + (hash(n + 0.5) > 0.88 ? 0.3 : 0);   // 가끔 큰 파도
+  const amp = (0.45 + 0.4 * hash(n) + (hash(n + 0.5) > 0.88 ? 0.3 : 0)) * WIND_F;   // 가끔 큰 파도
   let shape, q;
   if (p < 0.32) { q = p / 0.32; shape = 1 - Math.pow(1 - q, 2.2); }        // 빠르게 밀려옴
   else { q = (p - 0.32) / 0.68; shape = Math.pow(0.5 + 0.5 * Math.cos(Math.PI * q), 1.3); } // 천천히 빠져나감
@@ -299,6 +316,7 @@ const clouds = Array.from({ length: 6 }, (_, i) => ({ x: hash(i * 5.3), y: 0.08 
 const decor = Array.from({ length: 46 }, (_, i) => ({ x: hash(i * 2.3 + 1) * WORLD_W, d: 0.12 + hash(i * 6.1 + 2) * 0.86, kind: Math.floor(hash(i * 3.7 + 3) * 2), rot: hash(i * 1.9) * 6.28 }));
 
 function drawSky(pal, t, h) {
+  const vis = 1 - 0.9 * WXF.cloud - 0.5 * WXF.rain; pal = { ...pal, stars: pal.stars * Math.max(0, vis) };
   const hy = horizonY();
   const g = ctx.createLinearGradient(0, 0, 0, hy);
   g.addColorStop(0, rgb(pal.skyTop)); g.addColorStop(1, rgb(pal.skyBot));
@@ -311,6 +329,7 @@ function drawSky(pal, t, h) {
       ctx.beginPath(); ctx.arc(s[0] * W, s[1] * hy * 0.92, s[2] * U, 0, 6.3); ctx.fill();
     }
   }
+  ctx.globalAlpha = Math.max(0, vis);
   // 해 — 대반동은 서쪽을 보는 해변이라, 오후에 내려와 목포대교 쪽으로 진다
   if (h > 11 && h < 18.6) {
     const f = (h - 11) / 7.3, sx = W * (0.40 + 0.22 * f), sy = hy * (-0.15 + 1.13 * Math.pow(f, 1.3));
@@ -323,6 +342,7 @@ function drawSky(pal, t, h) {
     ctx.fillStyle = `rgb(255,${Math.round(248 - low * 70)},${Math.round(225 - low * 125)})`;
     ctx.beginPath(); ctx.arc(sx, sy, r, 0, 6.3); ctx.fill();
   }
+  ctx.globalAlpha = 1;
   // 달
   if (pal.stars > 0.3) {
     const mx = W * 0.30, my = hy * 0.30, r = 20 * U;
@@ -340,10 +360,15 @@ function drawSky(pal, t, h) {
     ctx.restore();
   }
   // 구름
-  const ca = 0.75 - pal.shade * 1.1;
+  const ca = 0.75 - pal.shade * 1.1, cl = WXF.cloud, gv = Math.round(255 - 95 * cl - 30 * WXF.rain);
+  if (cl > 0.5) {                     // 흐린 날: 하늘 위쪽을 덮는 구름층
+    const ov = ctx.createLinearGradient(0, 0, 0, hy);
+    ov.addColorStop(0, `rgba(${gv},${gv + 4},${gv + 10},${(cl - 0.5) * 1.2})`); ov.addColorStop(1, `rgba(${gv},${gv + 4},${gv + 10},0)`);
+    ctx.fillStyle = ov; ctx.fillRect(0, 0, W, hy);
+  }
   for (const c of clouds) {
-    const cx = ((c.x + t * c.v) % 1.3 - 0.15) * W, cy = c.y * hy, cw = c.w * Math.max(W, 700);
-    ctx.fillStyle = `rgba(255,255,255,${Math.max(0.08, ca) * 0.55})`;
+    const cx = ((c.x + t * c.v * (1 + WXF.wind / 5)) % 1.3 - 0.15) * W, cy = c.y * hy, cw = c.w * Math.max(W, 700) * (1 + cl * 0.7);
+    ctx.fillStyle = `rgba(${gv},${gv + 3},${gv + 8},${Math.min(0.9, Math.max(0.08, ca) * 0.55 * (1 + cl * 0.9))})`;
     for (let k = 0; k < 4; k++) {
       ctx.beginPath(); ctx.ellipse(cx + (k - 1.5) * cw * 0.26, cy + (k % 2) * cw * 0.03, cw * 0.24, cw * 0.075, 0, 0, 6.3); ctx.fill();
     }
@@ -935,6 +960,7 @@ document.getElementById('letterSend').addEventListener('click', () => {
 });
 function onSent(m) {
   if (!m.ok) { letterNote.textContent = m.msg || '띄우지 못했어요'; return; }
+  rememberBottle(m.id);
   letterSheet.classList.remove('on'); letterText.value = ''; letterText.blur();
   outgoing.push({ x: me.x + 20, d: me.d, t0: performance.now() });
   toast('병이 바다로 떠났어요. 언젠가 누군가에게 닿을 거예요.');
@@ -982,6 +1008,7 @@ document.getElementById('sandCancel').addEventListener('click', () => { sandShee
 document.getElementById('sandSend').addEventListener('click', () => {
   const v = sandText.value.replace(/\s+/g, ' ').trim();
   if (!v) { sandNote.textContent = '한 글자 이상 써 주세요'; return; }
+  checkBeaconWord(v);
   const d = clamp(me.d - 0.06, -0.3, 1);
   if (ws && online) ws.send(JSON.stringify({ t: 'w', text: v, x: Math.round(me.x), d: +d.toFixed(3) }));
   else { addWriting([-Date.now(), me.x, d, v, now(), me.color]); closeSand(); }
@@ -1006,21 +1033,429 @@ function drawWritings(pn, t, pal) {
   }
 }
 
+/* ───────── 목포 날씨 ─────────
+   서버가 15분마다 받아 둔 목포 날씨(Open-Meteo)를 화면에 옮긴다: 구름, 안개, 비, 눈, 천둥, 바람에 따른 파도 크기 */
+let WX = null, WXF = { cloud: 0, rain: 0, snow: 0, fog: 0, thunder: 0, wind: 0 };
+function setWX(w) {
+  if (!w) return; WX = w;
+  const c = w.code | 0, p = +w.p || 0;
+  const rainBy = { 51: .25, 53: .35, 55: .45, 56: .3, 57: .45, 61: .45, 63: .7, 65: 1, 66: .5, 67: .8, 80: .5, 81: .8, 82: 1, 95: .9, 96: .9, 99: 1 };
+  const snowBy = { 71: .4, 73: .7, 75: 1, 77: .3, 85: .5, 86: .9 };
+  WXF = {
+    cloud: clamp(((+w.cc || 0) - 30) / 70, 0, 1),
+    rain: rainBy[c] ? Math.max(rainBy[c], Math.min(1, p / 4)) : 0,
+    snow: snowBy[c] || 0,
+    fog: c === 45 || c === 48 ? 1 : 0,
+    thunder: c >= 95 ? 1 : 0,
+    wind: +w.ws || 0,
+  };
+  WIND_F = clamp(0.85 + WXF.wind / 14, 0.85, 1.35);
+}
+function wxDesc(c) {
+  if (c === 0) return '맑음'; if (c === 1) return '대체로 맑음'; if (c === 2) return '구름 조금'; if (c === 3) return '흐림';
+  if (c === 45 || c === 48) return '안개'; if (c >= 51 && c <= 57) return '이슬비'; if (c >= 61 && c <= 67) return '비';
+  if (c >= 71 && c <= 77) return '눈'; if (c >= 80 && c <= 82) return '소나기'; if (c === 85 || c === 86) return '눈발'; if (c >= 95) return '천둥 번개';
+  return '';
+}
+function weatherPal(pal) {            // 흐리고 비 오는 날은 하늘과 바다가 잿빛으로
+  const k = clamp(WXF.cloud * 0.45 + WXF.rain * 0.3 + WXF.fog * 0.35 + WXF.snow * 0.2, 0, 0.75);
+  if (k <= 0) return pal;
+  const grey = c => { const g = (c[0] + c[1] + c[2]) / 3; return c.map((v, i) => Math.round(lerp(v, g * (i === 2 ? 1.04 : 0.98), k))); };
+  return { ...pal, skyTop: grey(pal.skyTop), skyBot: grey(pal.skyBot), seaFar: grey(pal.seaFar), seaNear: grey(pal.seaNear) };
+}
+function drawFog(G) {
+  if (!WXF.fog) return;
+  const hy = G.hy, g = ctx.createLinearGradient(0, hy - 160 * U, 0, hy + 70 * U);
+  g.addColorStop(0, 'rgba(225,230,235,0)'); g.addColorStop(0.6, 'rgba(225,230,235,.82)'); g.addColorStop(1, 'rgba(225,230,235,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, hy - 160 * U, W, 230 * U);
+}
+const drops = Array.from({ length: 260 }, (_, i) => ({ x: hash(i * 1.7), y: hash(i * 2.3), v: 0.6 + hash(i * 3.1) * 0.6, z: hash(i * 4.9) }));
+let flashAt = 0;
+function drawPrecip(pn, t) {
+  if (WXF.rain > 0) {
+    const n = Math.floor(drops.length * WXF.rain), slant = clamp(WXF.wind / 10, 0.05, 0.6);
+    ctx.strokeStyle = 'rgba(210,225,240,.45)'; ctx.lineWidth = 1.1;
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      const d = drops[i], len = (14 + d.z * 18) * U, y = ((d.y + pn * 0.0009 * d.v) % 1) * (H + len) - len;
+      const x = ((d.x + y / H * slant * 0.3) % 1) * W;
+      ctx.moveTo(x, y); ctx.lineTo(x - len * slant, y + len);
+    }
+    ctx.stroke();
+    ctx.fillStyle = `rgba(40,55,75,${0.12 * WXF.rain})`; ctx.fillRect(0, 0, W, H);
+  }
+  if (WXF.snow > 0) {
+    const n = Math.floor(drops.length * 0.6 * WXF.snow);
+    ctx.fillStyle = 'rgba(255,255,255,.85)';
+    for (let i = 0; i < n; i++) {
+      const d = drops[i], y = ((d.y + pn * 0.00006 * d.v) % 1) * H, x = ((d.x + Math.sin(pn / 1500 + i) * 0.01 + pn * 0.000012 * WXF.wind) % 1) * W;
+      ctx.beginPath(); ctx.arc(x, y, (1 + d.z * 2) * U, 0, 6.3); ctx.fill();
+    }
+  }
+  if (WXF.thunder) {
+    if (pn > flashAt + 9000 && Math.random() < 0.004) flashAt = pn;
+    const k = pn - flashAt;
+    if (k < 380) { ctx.fillStyle = `rgba(235,240,255,${(k < 80 || (k > 160 && k < 230)) ? 0.55 : 0.12})`; ctx.fillRect(0, 0, W, H); }
+  }
+}
+
+/* ───────── 하늘의 일: 유성우 ─────────
+   해마다 같은 무렵에 오는 유성우. 정점 앞뒤 하루 동안, 밤에, 구름이 적을수록 별똥별이 자주 떨어진다. */
+const SHOWERS = [[0, 3, '사분의자리'], [3, 22, '거문고자리'], [4, 6, '물병자리 에타'], [7, 12, '페르세우스자리'], [9, 21, '오리온자리'], [10, 17, '사자자리'], [11, 14, '쌍둥이자리']];
+function showerToday(ms) {
+  const d = new Date(ms + 9 * 3600e3), y = d.getUTCFullYear(), today = Date.UTC(y, d.getUTCMonth(), d.getUTCDate());
+  for (const [mo, day, name] of SHOWERS) for (const yy of [y - 1, y, y + 1]) {
+    const diff = Math.round((today - Date.UTC(yy, mo, day)) / 864e5);
+    if (Math.abs(diff) <= 1) return { name, peak: diff === 0 };
+  }
+  return null;
+}
+const meteors = []; let nextMeteor = 0;
+function drawMeteors(pn, t, pal) {
+  if (pal.stars < 0.4) return;
+  const sh = showerToday(t), every = sh ? (sh.peak ? 4500 : 9000) : 120000;
+  if (pn > nextMeteor) {
+    nextMeteor = pn + every * (0.5 + Math.random()) / Math.max(0.15, 1 - WXF.cloud);
+    if (nextMeteor - pn < 600000) meteors.push({ x: 0.2 + Math.random() * 0.75, y: 0.05 + Math.random() * 0.4, t0: pn, len: 0.08 + Math.random() * 0.12 });
+  }
+  const hy = horizonY();
+  for (let i = meteors.length - 1; i >= 0; i--) {
+    const m = meteors[i], k = (pn - m.t0) / 900;
+    if (k > 1) { meteors.splice(i, 1); continue; }
+    const x0 = m.x * W, y0 = m.y * hy, dx = -m.len * W * 0.8, dy = m.len * W * 0.35;
+    const hx = x0 + dx * k, hy2 = y0 + dy * k, tx = x0 + dx * Math.max(0, k - 0.35), ty = y0 + dy * Math.max(0, k - 0.35);
+    const g = ctx.createLinearGradient(tx, ty, hx, hy2);
+    g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(1, `rgba(255,255,240,${0.9 * Math.sin(Math.PI * k) * pal.stars})`);
+    ctx.strokeStyle = g; ctx.lineWidth = 1.8 * U; ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(hx, hy2); ctx.stroke();
+  }
+}
+
+/* ───────── 고하도 등대: 밤마다 모스부호로 한 낱말을 깜빡인다 ─────────
+   알아챈 사람이 그 낱말을 모래에 쓰면, 등대가 답한다. 설명은 하지 않는다. */
+const MORSE = { A: '.-', B: '-...', C: '-.-.', D: '-..', E: '.', F: '..-.', G: '--.', H: '....', I: '..', J: '.---', K: '-.-', L: '.-..', M: '--', N: '-.', O: '---', P: '.--.', Q: '--.-', R: '.-.', S: '...', T: '-', U: '..-', V: '...-', W: '.--', X: '-..-', Y: '-.--', Z: '--..' };
+const BEACON_WORDS = [['PADO', '파도'], ['BADA', '바다'], ['BYEOL', '별'], ['DALBIT', '달빛'], ['MOKPO', '목포'], ['YUDAL', '유달'], ['SORA', '소라'], ['YUNSEUL', '윤슬']];
+function beaconWord(ms) { const day = Math.floor((ms + 9 * 3600e3) / 864e5); return BEACON_WORDS[((day % BEACON_WORDS.length) + BEACON_WORDS.length) % BEACON_WORDS.length]; }
+let beaconCache = { word: '', seq: [], total: 0 };
+function beaconOn(t) {
+  const [word] = beaconWord(t);
+  if (beaconCache.word !== word) {
+    const seq = [];
+    for (const ch of word) { for (const s of MORSE[ch]) { seq.push([1, s === '.' ? 1 : 3], [0, 1]); } seq[seq.length - 1][1] = 3; }
+    seq[seq.length - 1][1] = 12;                        // 낱말 끝: 긴 쉼
+    beaconCache = { word, seq, total: seq.reduce((a, b) => a + b[1], 0) };
+  }
+  const UNIT = 420; let k = (t / UNIT) % beaconCache.total;
+  for (const [on, len] of beaconCache.seq) { if (k < len) return !!on; k -= len; }
+  return false;
+}
+let beaconReply = 0;
+function drawLighthouse(G, nf, t, pn) {
+  const x = G.cx - 0.205 * G.bw, base = G.hy - 4 * U, h = 26 * U, w = 5 * U;
+  ctx.fillStyle = nf > 0.5 ? 'rgb(150,155,170)' : 'rgb(246,244,238)';
+  ctx.beginPath(); ctx.moveTo(x - w, base); ctx.lineTo(x - w * 0.6, base - h); ctx.lineTo(x + w * 0.6, base - h); ctx.lineTo(x + w, base); ctx.fill();
+  ctx.fillStyle = nf > 0.5 ? 'rgb(120,60,60)' : 'rgb(214,72,62)';
+  ctx.fillRect(x - w * 0.8, base - h - 5 * U, w * 1.6, 5 * U);
+  if (nf < 0.3) return;
+  const replying = pn - beaconReply < 6000;
+  const on = replying ? Math.sin(pn / 90) > 0 : beaconOn(t);
+  if (on) {
+    const ly = base - h - 2.5 * U, g = ctx.createRadialGradient(x, ly, 0, x, ly, (replying ? 70 : 34) * U);
+    g.addColorStop(0, `rgba(255,248,215,${nf})`); g.addColorStop(1, 'rgba(255,240,200,0)');
+    ctx.fillStyle = g; ctx.fillRect(x - 70 * U, ly - 70 * U, 140 * U, 140 * U);
+    ctx.fillStyle = 'rgba(255,252,235,1)'; ctx.beginPath(); ctx.arc(x, ly, 2.4 * U, 0, 6.3); ctx.fill();
+  }
+}
+function checkBeaconWord(text) {
+  const [rom, ko] = beaconWord(now()), v = text.replace(/\s/g, '').toUpperCase();
+  if (v === rom || v === ko) {
+    beaconReply = performance.now();
+    setTimeout(() => addItem('beacon', '고하도 등대가 답했어요 · 등대의 말을 도감에 담았어요'), 1200);
+  }
+}
+
+/* ───────── 간조 때 드러나는 것들과 도감 ─────────
+   물이 빠진 젖은 모래에 조개·유리 같은 것이 드러난다. 사리(보름·그믐 무렵) 간조에만 나오는 것도 있다. */
+const ITEMS = [
+  ['oyster', '굴 껍데기', 0, '바위에 붙어 살던 집. 안쪽이 아직 반짝인다.'],
+  ['clam', '바지락 껍데기', 0, '두 짝 중 한 짝. 나머지 한 짝은 어디로 갔을까.'],
+  ['pebble', '동글한 조약돌', 0, '수없이 많은 파도가 모서리를 가져갔다.'],
+  ['kelp', '미역 한 줄기', 0, '물이 빠지면 모래 위에 길게 눕는다.'],
+  ['crab', '작은 게 껍데기', 0, '자라느라 벗어 둔 옷.'],
+  ['conch', '소라 껍데기', 1, '귀에 대면 바다 소리가 난다고들 한다.'],
+  ['star', '불가사리', 1, '다섯 팔로 천천히 걷는다.'],
+  ['glassG', '초록 바다 유리', 1, '언젠가 병이었던 것. 파도가 오래 갈아 둥글어졌다.'],
+  ['feather', '갈매기 깃털', 1, '바람이 센 날 더 자주 보인다.'],
+  ['glassB', '파란 바다 유리', 2, '달이 꽉 차거나 텅 빈 무렵, 물이 가장 멀리 빠진 날에 주웠다.'],
+  ['whelk', '나선 고둥', 2, '사리 간조에만 드러나는 깊은 자리에서.'],
+  ['pearl', '작은 진주', 2, '아주 드물게, 물이 가장 많이 빠진 날.'],
+  ['rain', '빗방울 조약돌', 3, '비 오는 날 젖은 모래에서만.'],
+  ['snow', '눈 맞은 조개', 3, '눈 오는 날 바닷가에서.'],
+  ['meteor', '별똥별 조각', 3, '유성우가 오는 날 밤, 물이 빠진 자리에서.'],
+  ['flag', '모래성 깃발', 3, '여럿이 높이 쌓은 모래성이 파도에 무너진 뒤 남은 것.'],
+  ['beacon', '등대의 말', 3, '고하도 등대가 깜빡인 낱말을 모래에 써서 받은 답.'],
+];
+const ITEM = Object.fromEntries(ITEMS.map(([id, name, tier, desc]) => [id, { id, name, tier, desc }]));
+let dex = {}; try { dex = JSON.parse(load('pm_dex', '{}')) || {}; } catch (e) { dex = {}; }
+const dexBtn = document.getElementById('dexBtn');
+function dexLabel() { dexBtn.textContent = `도감 ${Object.keys(dex).filter(k => ITEM[k]).length}/${ITEMS.length}`; }
+dexLabel();
+const eul = w => { const c = w.charCodeAt(w.length - 1) - 0xAC00; return w + (c >= 0 && c < 11172 && c % 28 ? '을' : '를'); };
+function addItem(id, msg) {
+  const first = !dex[id]; dex[id] = (dex[id] || 0) + 1; save('pm_dex', JSON.stringify(dex)); dexLabel();
+  toast(msg || (first ? `${eul(ITEM[id].name)} 주웠어요 · 도감에 담았어요` : `${eul(ITEM[id].name)} 또 주웠어요`));
+}
+function drawItemShape(g, id, x, y, s) {
+  g.save(); g.translate(x, y); g.scale(s, s);
+  const blob = (c, rx, ry) => { g.fillStyle = c; g.beginPath(); g.ellipse(0, 0, rx, ry, 0, 0, 6.3); g.fill(); };
+  switch (id) {
+    case 'oyster': blob('#cfc8bb', 9, 6); g.fillStyle = '#eae6dc'; g.beginPath(); g.ellipse(-1, -1, 5, 3, 0.3, 0, 6.3); g.fill(); break;
+    case 'clam': g.fillStyle = '#d9b98c'; g.beginPath(); g.arc(0, 3, 8, Math.PI, 0); g.closePath(); g.fill(); g.strokeStyle = 'rgba(120,80,40,.5)'; g.lineWidth = 1; for (let k = -2; k <= 2; k++) { g.beginPath(); g.moveTo(0, 3); g.lineTo(k * 3.2, -4.5); g.stroke(); } break;
+    case 'pebble': blob('#9a948c', 7, 5); g.fillStyle = 'rgba(255,255,255,.35)'; g.beginPath(); g.ellipse(-2, -2, 2.5, 1.2, 0, 0, 6.3); g.fill(); break;
+    case 'kelp': g.strokeStyle = '#3f5a2e'; g.lineWidth = 3; g.beginPath(); g.moveTo(-10, 2); g.bezierCurveTo(-4, -6, 2, 6, 10, -2); g.stroke(); break;
+    case 'crab': g.fillStyle = '#d0603e'; g.beginPath(); g.arc(0, 2, 7, Math.PI, 0); g.closePath(); g.fill(); g.strokeStyle = '#d0603e'; g.lineWidth = 1.4; for (const sx of [-1, 1]) for (let k = 0; k < 3; k++) { g.beginPath(); g.moveTo(sx * 5, 1); g.lineTo(sx * (9 + k), 3 + k * 2); g.stroke(); } break;
+    case 'conch': g.fillStyle = '#e2c49b'; g.beginPath(); g.moveTo(-9, 3); g.lineTo(8, -4); g.lineTo(8, 5); g.closePath(); g.fill(); g.strokeStyle = 'rgba(140,90,50,.6)'; g.lineWidth = 1; for (let k = 0; k < 3; k++) { g.beginPath(); g.moveTo(-4 + k * 4, 1); g.lineTo(-2 + k * 4, 4); g.stroke(); } break;
+    case 'star': g.fillStyle = '#e8894f'; g.beginPath(); for (let k = 0; k < 10; k++) { const r = k % 2 ? 3.4 : 9, a = k * Math.PI / 5 - Math.PI / 2; g.lineTo(Math.cos(a) * r, Math.sin(a) * r); } g.closePath(); g.fill(); break;
+    case 'glassG': case 'glassB': g.fillStyle = id === 'glassG' ? 'rgba(90,170,120,.85)' : 'rgba(80,140,220,.85)'; g.beginPath(); g.moveTo(-7, -3); g.quadraticCurveTo(0, -8, 7, -2); g.quadraticCurveTo(8, 5, 0, 5); g.quadraticCurveTo(-8, 5, -7, -3); g.fill(); g.fillStyle = 'rgba(255,255,255,.55)'; g.beginPath(); g.ellipse(-2, -2, 2.5, 1, -0.4, 0, 6.3); g.fill(); break;
+    case 'feather': g.strokeStyle = '#8e8a84'; g.lineWidth = 1; g.beginPath(); g.moveTo(-10, 5); g.quadraticCurveTo(0, -2, 10, -6); g.stroke(); g.fillStyle = 'rgba(250,250,250,.95)'; g.beginPath(); g.moveTo(-7, 3); g.quadraticCurveTo(0, -9, 10, -6); g.quadraticCurveTo(2, 2, -7, 3); g.fill(); break;
+    case 'whelk': g.fillStyle = '#c9a77e'; g.beginPath(); g.ellipse(0, 1, 6, 7, 0, 0, 6.3); g.fill(); g.strokeStyle = 'rgba(110,70,40,.7)'; g.lineWidth = 1.2; g.beginPath(); for (let a = 0; a < 12; a += 0.3) { const r = a * 0.5; g.lineTo(Math.cos(a) * r, 1 + Math.sin(a) * r); } g.stroke(); break;
+    case 'pearl': g.fillStyle = '#d9b98c'; g.beginPath(); g.arc(0, 4, 8, Math.PI, 0); g.closePath(); g.fill(); g.fillStyle = '#fbf8f2'; g.beginPath(); g.arc(0, 1, 3.6, 0, 6.3); g.fill(); g.fillStyle = 'rgba(200,210,255,.7)'; g.beginPath(); g.arc(-1, 0, 1.2, 0, 6.3); g.fill(); break;
+    case 'rain': g.fillStyle = '#7f8fa3'; g.beginPath(); g.moveTo(0, -8); g.quadraticCurveTo(7, 2, 0, 6); g.quadraticCurveTo(-7, 2, 0, -8); g.fill(); g.fillStyle = 'rgba(255,255,255,.5)'; g.beginPath(); g.ellipse(-1.5, 0, 1.4, 2.4, 0, 0, 6.3); g.fill(); break;
+    case 'snow': g.fillStyle = '#d9b98c'; g.beginPath(); g.arc(0, 3, 8, Math.PI, 0); g.closePath(); g.fill(); g.fillStyle = '#fff'; for (let k = 0; k < 5; k++) { g.beginPath(); g.arc(-5 + k * 2.6, -1 - (k % 2) * 2, 1.3, 0, 6.3); g.fill(); } break;
+    case 'meteor': blob('#4a4652', 7, 5); g.fillStyle = '#fff5c8'; for (const [a, b] of [[-2, -1], [2, 1], [0, -3]]) { g.beginPath(); g.arc(a, b, 0.9, 0, 6.3); g.fill(); } break;
+    case 'flag': g.strokeStyle = '#8a6a4f'; g.lineWidth = 1.4; g.beginPath(); g.moveTo(-3, 8); g.lineTo(-3, -9); g.stroke(); g.fillStyle = '#e8574a'; g.beginPath(); g.moveTo(-3, -9); g.lineTo(8, -6); g.lineTo(-3, -3); g.fill(); break;
+    case 'beacon': g.fillStyle = '#f6f1e2'; g.fillRect(-9, -6, 18, 12); g.fillStyle = '#2a3a48'; for (const [a, w2] of [[-6, 1.5], [-3, 4], [2, 1.5], [5, 1.5]]) g.fillRect(a, -1, w2, 1.8); break;
+  }
+  g.restore();
+}
+let items = [], itemEpoch = -1, pendingPick = null;
+function spawnItems(t, wv) {
+  const ep = Math.floor(t / 300000);
+  if (ep === itemEpoch || !joined) return;
+  itemEpoch = ep;
+  if (tideL > 0.42) return;                                       // 물이 어느 정도 빠졌을 때만
+  const low = edgeD(1.25 * WIND_F) + 0.03, high = 0.22;
+  if (high - low < 0.04) return;
+  const ph = moonPhase(t), spring = Math.min(ph, Math.abs(ph - 0.5), 1 - ph) < 0.08;
+  const night = palette(hourNow()).stars > 0.4, shower = showerToday(t);
+  const n = 4 + Math.floor(Math.random() * 3);
+  for (let i = 0; i < n && items.length < 14; i++) {
+    let id;
+    const r = Math.random();
+    if (WXF.rain && r < 0.15) id = 'rain';
+    else if (WXF.snow && r < 0.15) id = 'snow';
+    else if (shower && night && r < 0.12) id = 'meteor';
+    else {
+      const q = Math.random(), rare = spring ? 0.14 : 0.012;
+      const pool = q < rare ? ['glassB', 'whelk', spring && Math.random() < 0.3 ? 'pearl' : 'glassB'] : q < rare + 0.27 ? ['conch', 'star', 'glassG', WXF.wind > 6 ? 'feather' : 'conch', 'feather'] : ['oyster', 'clam', 'pebble', 'kelp', 'crab'];
+      id = pool[Math.floor(Math.random() * pool.length)];
+    }
+    items.push({ id, x: clamp(me.x + (Math.random() - 0.5) * 2000, 80, WORLD_W - 260), d: lerp(low, high, Math.random()), wash: 0, tilt: (Math.random() - 0.5) * 1.4 });
+  }
+}
+function drawItems(pn, t, wv) {
+  for (let i = items.length - 1; i >= 0; i--) {
+    const it = items[i];
+    if (!it.wash && edgeD(wv.reach) + wobble(it.x, t) >= it.d) it.wash = pn;
+    const fade = it.wash ? 1 - (pn - it.wash) / 900 : 1;
+    if (fade <= 0) { items.splice(i, 1); if (pendingPick === it) pendingPick = null; continue; }
+    const s = sOf(it.d), x = xOf(it.x, it.d), y = yOf(it.d);
+    if (x < -40 || x > W + 40) continue;
+    ctx.save(); ctx.globalAlpha = fade; ctx.translate(x, y); ctx.rotate(it.tilt * 0.3); ctx.scale(1, 0.75);
+    drawItemShape(ctx, it.id, 0, 0, s * 1.35);
+    ctx.restore();
+    if (Math.sin(pn / 260 + it.x) > 0.7) { ctx.fillStyle = 'rgba(255,255,255,.95)'; ctx.beginPath(); ctx.arc(x + 7 * s, y - 6 * s, 2.2 * s, 0, 6.3); ctx.fill(); }
+  }
+}
+function hitItem(cx, cy) {
+  for (const it of items) { const s = sOf(it.d); if (!it.wash && Math.hypot(cx - xOf(it.x, it.d), cy - yOf(it.d)) < 18 * s + 12) return it; }
+  return null;
+}
+function pickTick() {
+  const it = pendingPick; if (!it) return;
+  if (it.wash || !items.includes(it)) { pendingPick = null; return; }
+  if (Math.abs(me.x - it.x) < 45 && Math.abs(me.d - it.d) < 0.07) {
+    items.splice(items.indexOf(it), 1); pendingPick = null; addItem(it.id);
+  }
+}
+const dexSheet = document.getElementById('dexSheet'), dexGrid = document.getElementById('dexGrid'), dexNote = document.getElementById('dexNote');
+function openDex() {
+  dexGrid.innerHTML = ''; dexNote.textContent = '';
+  for (const [id, name] of ITEMS) {
+    const cell = document.createElement('button'), got = !!dex[id];
+    cell.className = 'cell' + (got ? '' : ' no');
+    const c = document.createElement('canvas'); c.width = 88; c.height = 88;
+    const g = c.getContext('2d');
+    if (got) drawItemShape(g, id, 44, 46, 2.6);
+    else { g.fillStyle = '#d8cfbd'; g.font = '700 36px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('?', 44, 46); }
+    cell.appendChild(c);
+    const lab = document.createElement('span'); lab.textContent = got ? name : '';
+    cell.appendChild(lab);
+    if (got) cell.addEventListener('click', () => { dexNote.textContent = `${name} · ${dex[id]}번 · ${ITEM[id].desc}`; });
+    dexGrid.appendChild(cell);
+  }
+  dexSheet.classList.add('on'); wake();
+}
+dexBtn.addEventListener('click', openDex);
+document.getElementById('dexClose').addEventListener('click', () => dexSheet.classList.remove('on'));
+
+/* ───────── 함께 쌓는 모래성 ─────────
+   누구나 눌러 모래를 보탠다. 높아질수록 탑과 깃발이 생기고, 물이 차올라 파도가 닿으면 무너진다. */
+const CASTLE = { x: 1380, d: 0.2 };       // 만조 무렵에만 파도가 닿는 높이
+let castle = { lvl: 0, gen: 1, fellAt: 0, fellLvl: 0, ccSent: 0, mine: {} }, lastBuildLocal = 0, castleHinted = false;
+function onCastle(m) {
+  const prevGen = castle.gen;
+  if (m.fell) {
+    castle.fellAt = performance.now(); castle.fellLvl = m.fell;
+    if ((castle.mine[prevGen] || 0) >= 3 && m.fell >= 15) setTimeout(() => addItem('flag'), 1500);
+    if (Math.abs(me.x - CASTLE.x) < 900) toast('파도가 모래성을 데려갔어요');
+  }
+  castle.lvl = m.lvl; castle.gen = m.gen;
+}
+function buildCastle() {
+  const pn = performance.now();
+  if (pn - lastBuildLocal < 2500) return;
+  lastBuildLocal = pn; castle.mine[castle.gen] = (castle.mine[castle.gen] || 0) + 1;
+  if (!castleHinted) { castleHinted = true; toast('모래를 한 줌 보탰어요'); }
+  if (ws && online) ws.send(JSON.stringify({ t: 'cb' }));
+  else castle.lvl = Math.min(30, castle.lvl + 1);
+}
+function castleTick(t, wv) {
+  if (castle.lvl > 0 && edgeD(wv.reach) + wobble(CASTLE.x, t) >= CASTLE.d - 0.005 && castle.ccSent !== castle.gen) {
+    castle.ccSent = castle.gen;
+    if (ws && online) ws.send(JSON.stringify({ t: 'cc', gen: castle.gen }));
+    else onCastle({ lvl: 0, gen: castle.gen + 1, fell: castle.lvl });
+  }
+}
+function drawCastle(pn) {
+  const s = sOf(CASTLE.d), x = xOf(CASTLE.x, CASTLE.d), y = yOf(CASTLE.d);
+  if (x < -150 * s || x > W + 150 * s) return;
+  const sandC = '#d9c18f', dark = '#b89c68';
+  const fall = castle.fellAt ? clamp(1 - (pn - castle.fellAt) / 3000, 0, 1) : 0;
+  if (fall > 0) {                                      // 무너진 자리
+    ctx.fillStyle = dark; ctx.beginPath(); ctx.ellipse(x, y, (20 + castle.fellLvl * 2) * s, (5 + castle.fellLvl * 0.4) * s * fall + 2 * s, 0, Math.PI, 0); ctx.fill();
+    return;
+  }
+  const L = castle.lvl;
+  ctx.fillStyle = 'rgba(60,45,25,.15)'; ctx.beginPath(); ctx.ellipse(x, y + 2 * s, (26 + L * 1.6) * s, 6 * s, 0, 0, 6.3); ctx.fill();
+  ctx.fillStyle = dark; ctx.beginPath(); ctx.ellipse(x, y, (14 + Math.min(L, 8) * 2.4) * s, (4 + Math.min(L, 8) * 0.9) * s, 0, Math.PI, 0); ctx.fill();
+  const tower = (tx, w, h, col) => {
+    ctx.fillStyle = col; ctx.fillRect(tx - w / 2, y - h, w, h);
+    for (let k = 0; k < 3; k++) ctx.fillRect(tx - w / 2 + k * w / 2.5, y - h - 3 * s, w / 5, 3 * s);
+  };
+  if (L >= 6) tower(x, 12 * s, (8 + Math.min(L - 6, 8) * 2.2) * s, sandC);
+  if (L >= 13) { ctx.fillStyle = sandC; ctx.fillRect(x - 26 * s, y - 9 * s, 52 * s, 9 * s); tower(x - 24 * s, 9 * s, (12 + Math.min(L - 13, 7)) * s, sandC); tower(x + 24 * s, 9 * s, (12 + Math.min(L - 13, 7)) * s, sandC); }
+  if (L >= 21) {
+    tower(x, 14 * s, (28 + (L - 21) * 1.5) * s, '#e2cb9a');
+    const top = y - (28 + (L - 21) * 1.5) * s - 3 * s;
+    ctx.strokeStyle = '#8a6a4f'; ctx.lineWidth = 1.2 * s; ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, top - 14 * s); ctx.stroke();
+    ctx.fillStyle = '#e8574a'; ctx.beginPath(); ctx.moveTo(x, top - 14 * s); ctx.lineTo(x + (9 + Math.sin(pn / 300) * 1.5) * s, top - 11 * s); ctx.lineTo(x, top - 8 * s); ctx.fill();
+    ctx.fillStyle = '#f2ead8'; for (const dx of [-14, -6, 6, 14]) { ctx.beginPath(); ctx.arc(x + dx * s, y - 3 * s, 1.6 * s, 0, 6.3); ctx.fill(); }
+  }
+}
+function hitCastle(cx, cy) {
+  const s = sOf(CASTLE.d);
+  return Math.abs(cx - xOf(CASTLE.x, CASTLE.d)) < (30 + castle.lvl) * s + 10 && cy < yOf(CASTLE.d) + 10 * s && cy > yOf(CASTLE.d) - (50 + castle.lvl * 2) * s;
+}
+
+/* ───────── 모닥불: 밤에, 앉은 사람이 많을수록 커진다 ───────── */
+const FIRE = { x: 1760, d: 0.42 };
+const sparks = [];
+function drawFire(pn, nf) {
+  if (nf < 0.5) return;
+  const s = sOf(FIRE.d), x = xOf(FIRE.x, FIRE.d), y = yOf(FIRE.d);
+  if (x < -200 * s || x > W + 200 * s) return;
+  let n = me.sit ? 1 : 0; for (const p of peers.values()) if (p.sit) n++;
+  const size = clamp(0.9 + n * 0.4, 0.9, 4.5);
+  const g = ctx.createRadialGradient(x, y - 10 * s, 0, x, y - 10 * s, (80 + 40 * size) * s);
+  g.addColorStop(0, `rgba(255,170,80,${0.35 * nf})`); g.addColorStop(1, 'rgba(255,150,60,0)');
+  ctx.fillStyle = g; ctx.fillRect(x - 220 * s, y - 220 * s, 440 * s, 300 * s);
+  ctx.fillStyle = '#5b5550'; for (let k = 0; k < 8; k++) { const a = k / 8 * 6.28; ctx.beginPath(); ctx.ellipse(x + Math.cos(a) * 18 * s, y + Math.sin(a) * 5 * s, 4 * s, 2.6 * s, 0, 0, 6.3); ctx.fill(); }
+  ctx.strokeStyle = '#4a3324'; ctx.lineWidth = 3.5 * s; ctx.beginPath(); ctx.moveTo(x - 12 * s, y + 1 * s); ctx.lineTo(x + 12 * s, y - 3 * s); ctx.moveTo(x - 11 * s, y - 3 * s); ctx.lineTo(x + 11 * s, y + 1 * s); ctx.stroke();
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  const flames = 3 + Math.round(size * 2);
+  for (let k = 0; k < flames; k++) {
+    const fx = x + (k - (flames - 1) / 2) * 4 * s, fh = (14 + 10 * size) * s * (0.7 + 0.3 * Math.sin(pn / 110 + k * 1.7) * Math.sin(pn / 63 + k)), fw = (5 + size) * s;
+    ctx.fillStyle = k % 2 ? 'rgba(255,190,90,.55)' : 'rgba(255,120,50,.5)';
+    ctx.beginPath(); ctx.moveTo(fx - fw, y - 2 * s);
+    ctx.quadraticCurveTo(fx - fw * 0.6, y - fh * 0.6, fx + Math.sin(pn / 140 + k) * 3 * s, y - fh);
+    ctx.quadraticCurveTo(fx + fw * 0.6, y - fh * 0.6, fx + fw, y - 2 * s); ctx.fill();
+  }
+  if (Math.random() < 0.15 * size) sparks.push({ x: FIRE.x + (Math.random() - 0.5) * 20, h: 10, v: 20 + Math.random() * 30, t0: pn, dx: (Math.random() - 0.5) * 10 });
+  for (let i = sparks.length - 1; i >= 0; i--) {
+    const sp = sparks[i], k = (pn - sp.t0) / 1800;
+    if (k > 1) { sparks.splice(i, 1); continue; }
+    ctx.fillStyle = `rgba(255,200,120,${1 - k})`;
+    ctx.beginPath(); ctx.arc(xOf(sp.x, FIRE.d) + sp.dx * k * s, y - (sp.h + sp.v * k * 3) * s, 1.3 * s, 0, 6.3); ctx.fill();
+  }
+  ctx.restore();
+}
+
+/* ───────── 내가 띄운 병의 소식 ───────── */
+let myBottles = []; try { myBottles = JSON.parse(load('pm_mybottles', '[]')) || []; } catch (e) { myBottles = []; }
+function rememberBottle(id) { if (id) { myBottles.push([id, 0]); myBottles = myBottles.slice(-30); save('pm_mybottles', JSON.stringify(myBottles)); } }
+function askBottleNews() { if (myBottles.length && ws && online) ws.send(JSON.stringify({ t: 'mine', ids: myBottles.map(b => b[0]) })); }
+function onBottleNews(r) {
+  let gained = 0;
+  for (const b of myBottles) { const n = r[b[0]]; if (typeof n === 'number' && n > b[1]) { gained += n - b[1]; b[1] = n; } }
+  save('pm_mybottles', JSON.stringify(myBottles));
+  if (gained > 0) setTimeout(() => toast(`당신이 띄운 병이 ${gained}명에게 닿았어요`), 3500);
+}
+
+/* ───────── 엽서 한 장 ───────── */
+const cardSheet = document.getElementById('cardSheet'), cardImg = document.getElementById('cardImg');
+let cardBlob = null;
+function makePostcard() {
+  const dpr = cv.width / W, pad = Math.round(22 * dpr), band = Math.round(104 * dpr);
+  const c = document.createElement('canvas'); c.width = cv.width + pad * 2; c.height = cv.height + pad * 2 + band;
+  const g = c.getContext('2d');
+  g.fillStyle = '#fbf7ee'; g.fillRect(0, 0, c.width, c.height);
+  g.drawImage(cv, pad, pad);
+  const t = now(), k = kst(t), d = new Date(t + 9 * 3600e3), tide = tideInfo(t);
+  const date = `${d.getUTCFullYear()}. ${d.getUTCMonth() + 1}. ${d.getUTCDate()} · ${k.h}:${String(k.m).padStart(2, '0')}`;
+  const bits = [tide.rising ? '물이 들어오는 중' : '물이 빠지는 중'];
+  if (WX) bits.push(`${Math.round(WX.t)}° ${wxDesc(WX.code | 0)}`);
+  const y0 = cv.height + pad;
+  g.fillStyle = '#2a3a48'; g.textBaseline = 'top';
+  g.font = `700 ${22 * dpr}px "Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif`; g.fillText('파도멍 · 목포 대반동', pad, y0 + 16 * dpr);
+  g.font = `500 ${14 * dpr}px "Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif`; g.fillStyle = '#5c6a76';
+  g.fillText(`${date} · ${bits.join(' · ')}`, pad, y0 + 50 * dpr);
+  g.fillText(`${me.name || ''}`, pad, y0 + 72 * dpr);
+  g.textAlign = 'right'; g.fillStyle = '#8a8f94'; g.fillText('padomeong.onrender.com', c.width - pad, y0 + 72 * dpr);
+  return c;
+}
+document.getElementById('cardBtn').addEventListener('click', () => {
+  const c = makePostcard();
+  cardImg.src = c.toDataURL('image/jpeg', 0.9);
+  c.toBlob(b => { cardBlob = b; }, 'image/jpeg', 0.9);
+  cardSheet.classList.add('on'); wake();
+});
+document.getElementById('cardClose').addEventListener('click', () => cardSheet.classList.remove('on'));
+document.getElementById('cardSave').addEventListener('click', async () => {
+  const name = `padomeong-${Date.now()}.jpg`;
+  try {
+    const file = cardBlob && new File([cardBlob], name, { type: 'image/jpeg' });
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: '파도멍' }); return; }
+  } catch (e) { if (e && e.name === 'AbortError') return; }
+  const a = document.createElement('a'); a.href = cardImg.src; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+});
+
 /* ───────── 알림 한 줄 · 물때 표시 ───────── */
 const toastEl = document.getElementById('toast'); let toastTimer = 0;
 function toast(msg) {
   toastEl.textContent = msg; toastEl.classList.add('on'); hint.classList.add('gone');
   clearTimeout(toastTimer); toastTimer = setTimeout(() => toastEl.classList.remove('on'), 5200);
 }
-const tideEl = document.getElementById('tideLine'), eventEl = document.getElementById('eventLine');
+const tideEl = document.getElementById('tideLine'), eventEl = document.getElementById('eventLine'), wxEl = document.getElementById('wxLine');
 let infoAt = 0;
 function hm(ms) { const k = kst(ms); return `${k.h}:${String(k.m).padStart(2, '0')}`; }
 function infoTick(t, tide) {
   if (t - infoAt < 1000) return; infoAt = t;
   const dir = tide.rising ? '물이 들어오는 중' : '물이 빠지는 중';
   tideEl.textContent = `목포 ${dir} · ${tide.nextHigh ? '만조' : '간조'} ${hm(tide.next)}${tide.approx ? ' (어림)' : ''}`;
-  const sh = showState(t);
-  eventEl.textContent = sh.on ? '밤 9시, 해변에 빛이 지나가는 중' : sh.soon ? '곧 9시, 해변에 빛이 지나가요' : '';
+  const sh = showState(t), ms = showerToday(t), isNight = palette(hourNow()).stars > 0.4;
+  eventEl.textContent = sh.on ? '밤 9시, 해변에 빛이 지나가는 중' : sh.soon ? '곧 9시, 해변에 빛이 지나가요'
+    : ms && isNight ? `오늘 밤 ${ms.name} 유성우` : ms ? `오늘 밤 ${ms.name} 유성우가 와요` : '';
+  wxEl.textContent = WX && WX.t !== null ? `목포 ${Math.round(WX.t)}° · ${wxDesc(WX.code | 0)} · 바람 ${Math.round(WX.ws)}m/s` : '';
 }
 
 /* ───────── 이음수산 노점 ─────────
@@ -1199,30 +1634,37 @@ function frame(pn) {
   stepMe(dt); stepPeers(dt);
   camX += (me.vx - camX) * (1 - Math.pow(0.02, dt));
 
-  const pal = palette(hourNow());
+  const pal = weatherPal(palette(hourNow()));
   ctx.clearRect(0, 0, W, H);
   const nf = nightF(pal), G = geo();
   drawSky(pal, t, hourNow());
+  drawMeteors(pn, t, pal);
   drawFar(pal, t, nf, G);
+  drawLighthouse(G, nf, t, pn);
+  drawFog(G);
   drawBeach(pal, t, wv, nf, G);
   drawWrack(pal);
   drawWritings(pn, t, pal);
   drawDecor(pal);
+  spawnItems(t, wv); drawItems(pn, t, wv);
   drawProjections(t, nf);
   drawBottles(pn, t, dE, nf);
 
   const all = [...peers.values()]; if (joined) all.push(me);
-  all.push({ stall: true, vd: STALL.d });
+  all.push({ stall: true, vd: STALL.d }, { castle: true, vd: CASTLE.d }, { fire: true, vd: FIRE.d });
   all.sort((a, b) => a.vd - b.vd);
   const night = nf > 0.5;
   for (const a of all) {
     if (a.stall) { drawStall(t, nf); continue; }
+    if (a.castle) { drawCastle(pn); continue; }
+    if (a.fire) { drawFire(pn, nf); continue; }
     drawPerson(a, t, a.vd < dE + wobble(a.vx, t) + 0.012, night);
     drawGift(a, pn, night);
   }
   drawGestures(pn);
   drawBreath(t);
   bottleTick(pn, dE);
+  castleTick(t, wv); pickTick();
   infoTick(t, tide);
   if (night !== lastNight) { lastNight = night; actLabel(); }
   stallCheck();
@@ -1238,6 +1680,7 @@ function frame(pn) {
     lg.addColorStop(0, `rgba(255,186,110,${0.20 * nf})`); lg.addColorStop(1, 'rgba(255,186,110,0)');
     ctx.fillStyle = lg; ctx.fillRect(0, H * 0.62, W, H * 0.38); ctx.restore();
   }
+  drawPrecip(pn, t);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
@@ -1373,6 +1816,9 @@ function connect() {
       peers.clear(); for (const a of m.p || []) addPeer(a);
       writings.length = 0; for (const w of m.w || []) addWriting(w);
       if (m.today) setToday(m.today);
+      if (m.wx) setWX(m.wx);
+      if (m.castle) onCastle({ lvl: m.castle[0], gen: m.castle[1] });
+      askBottleNews();
     } else if (m.t === 'in') addPeer(m.p);
     else if (m.t === 'out') peers.delete(m.id);
     else if (m.t === 'g') onGesture(m.from, m.to);
@@ -1380,7 +1826,10 @@ function connect() {
     else if (m.t === 'bs') onSent(m);
     else if (m.t === 'w') addWriting(m.w);
     else if (m.t === 'wr') onSandResult(m);
-    else if (m.t === 'today') { setToday(m.today); roomCount = m.rooms || roomCount; }
+    else if (m.t === 'today') { setToday(m.today); roomCount = m.rooms || roomCount; if (m.wx) setWX(m.wx); }
+    else if (m.t === 'wx') setWX(m.wx);
+    else if (m.t === 'cs') onCastle(m);
+    else if (m.t === 'mineR') onBottleNews(m.r || {});
     else if (m.t === 'm') {
       for (const [id, x, d, sit] of m.p) { const p = peers.get(id); if (p) { p.x = x; p.d = d; p.sit = !!sit; } }
     }
@@ -1415,11 +1864,17 @@ act.addEventListener('click', () => setSit(!me.sit));
 
 cv.addEventListener('pointerdown', e => {
   wake();
-  if (sandSheet.classList.contains('on') || letterSheet.classList.contains('on') || bottleSheet.classList.contains('on')) return;
+  if (document.querySelector('.sheet.on')) return;
   if (stallOpen) { stallDismissed = true; stallOpen = false; stallEl.classList.remove('on'); }
   if (!joined) return;
   const who = hitPeer(e.clientX, e.clientY);
   if (who !== null) { if (ws && online) ws.send(JSON.stringify({ t: 'g', to: who })); hint.classList.add('gone'); return; }
+  if (hitCastle(e.clientX, e.clientY)) { buildCastle(); return; }
+  const it = hitItem(e.clientX, e.clientY);
+  if (it) {
+    if (me.sit) { toast('일어나서 주우러 가요'); return; }
+    pendingPick = it; me.tx = it.x; me.td = clamp(it.d + 0.02, D_MIN, D_MAX); return;
+  }
   if (bottle && bottle.state === 'rest') {
     const s = sOf(Math.max(bottle.d, 0));
     if (Math.hypot(e.clientX - xOf(bottle.x, Math.max(bottle.d, 0)), e.clientY - yOf(bottle.d)) < 30 * s + 14) { openBottle(); return; }
@@ -1478,6 +1933,7 @@ function enter() {
   setTimeout(() => hint.classList.add('gone'), 9000);
 }
 document.getElementById('go').addEventListener('click', enter);
+if (FAST) window.__pm = { me, castle: () => castle, items: () => items, setWX, buildCastle, addItem, spawnReset: () => { itemEpoch = -1; }, beaconWord };   // 시험용
 nick.addEventListener('keydown', e => { if (e.key === 'Enter') enter(); });
 })();
 </script>

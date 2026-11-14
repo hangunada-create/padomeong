@@ -168,6 +168,24 @@ const server = http.createServer((req, res) => {
   });
 });
 
+/* ───────── 목포 날씨 (Open-Meteo, 열쇠 없이 쓰는 무료 날씨 자료) ─────────
+   15분마다 한 번 받아 두고, 들어오는 사람들에게 나눠 준다. 실패하면 이전 값을 그대로 쓴다. */
+let weather = null;
+async function fetchWeather() {
+  try {
+    const u = 'https://api.open-meteo.com/v1/forecast?latitude=34.79&longitude=126.38'
+      + '&current=temperature_2m,weather_code,precipitation,cloud_cover,wind_speed_10m&wind_speed_unit=ms&timezone=Asia%2FSeoul';
+    const r = await fetch(u, { signal: AbortSignal.timeout(8000) });
+    if (!r.ok) throw new Error('응답 ' + r.status);
+    const c = (await r.json()).current || {};
+    weather = { t: num(c.temperature_2m, null), code: num(c.weather_code, 0), p: num(c.precipitation, 0),
+                cc: num(c.cloud_cover, 0), ws: num(c.wind_speed_10m, 0), at: Date.now() };
+    if (people.size) sendAll({ t: 'wx', wx: weather });
+  } catch (e) { console.log('[날씨] 받지 못함:', e.message); }
+}
+if (process.env.WX_FAKE) weather = JSON.parse(process.env.WX_FAKE);   // 시험용
+else { setTimeout(fetchWeather, 2000); setInterval(fetchWeather, 15 * 60e3); }
+
 /* ───────── 실시간 연결 ─────────
    사람이 많아지면 해변을 여러 개로 나눈다(1번 해변, 2번 해변…). 같은 해변 사람끼리만 서로 보인다.
    유리병은 모든 해변이 함께 쓰는 바다에 떠다닌다. */
@@ -175,6 +193,8 @@ const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 2048 });
 const people = new Map();      // id → {ws, room, x, d, sit, color, name, bot}
 const rooms = new Map();       // 해변 번호 → Set(id)
 const writings = new Map();    // 해변 번호 → [[id, x, d, text, ts, color]]  (모래 글씨, 저장하지 않음)
+const castles = new Map();     // 해변 번호 → {lvl, gen}  (함께 쌓는 모래성, 파도가 닿으면 무너짐)
+const castleOf = room => { if (!castles.has(room)) castles.set(room, { lvl: 0, gen: 1 }); return castles.get(room); };
 const ROOM_CAP = Number(process.env.ROOM_CAP) || 80;           // 해변 하나에 들어가는 사람 수
 const perIp = new Map();
 const dirty = new Set();
@@ -223,7 +243,7 @@ wss.on('connection', (ws, req) => {
   if (people.size >= MAX_PEOPLE || ipCount > MAX_PER_IP) return ws.close(1013, 'full');
   perIp.set(ip, ipCount);
 
-  let id = null, msgs = 0, windowStart = Date.now(), lastGesture = 0, lastSand = 0;
+  let id = null, msgs = 0, windowStart = Date.now(), lastGesture = 0, lastSand = 0, lastBuild = 0;
   const joinedAt = Date.now(); let sitSince = 0, sitTotal = 0;
   const mine = new Set(), seen = new Set();          // 이 연결이 띄운 병, 이미 받은 병
   ws.alive = Date.now();
@@ -247,7 +267,8 @@ wss.on('connection', (ws, req) => {
       rooms.get(room).add(id); people.set(id, me);
       const d = day(); d.최대동시접속 = Math.max(d.최대동시접속, people.size);
       if (!isBot) bump('입장');
-      send(ws, { t: 'hi', id, now: Date.now(), room, rooms: rooms.size, p: list, w: writings.get(room) || [], today: todayView() });
+      const cs = castleOf(room);
+      send(ws, { t: 'hi', id, now: Date.now(), room, rooms: rooms.size, p: list, w: writings.get(room) || [], today: todayView(), wx: weather, castle: [cs.lvl, cs.gen] });
       sendRoom(room, { t: 'in', p: [id, me.x, me.d, me.sit, me.color, me.name] }, id);
       roomsChanged();
       return;
@@ -270,6 +291,23 @@ wss.on('connection', (ws, req) => {
       lastGesture = t; bump('손흔들기');
       sendRoom(me.room, { t: 'g', from: id, to });
 
+    } else if (m.t === 'cb') {                    // 모래성에 모래 한 줌 보태기
+      if (t - lastBuild < 2500) return;
+      lastBuild = t;
+      const c = castleOf(me.room); if (c.lvl >= 30) return;
+      c.lvl++; sendRoom(me.room, { t: 'cs', lvl: c.lvl, gen: c.gen, by: id });
+
+    } else if (m.t === 'cc') {                    // 파도가 모래성에 닿았다는 알림 (누가 보내든 한 번만)
+      const c = castleOf(me.room);
+      if (Number(m.gen) !== c.gen || c.lvl === 0) return;
+      const was = c.lvl; c.lvl = 0; c.gen++;
+      sendRoom(me.room, { t: 'cs', lvl: 0, gen: c.gen, fell: was });
+
+    } else if (m.t === 'mine' && Array.isArray(m.ids)) {   // 내가 띄운 병이 몇 명에게 닿았는지
+      const r = {};
+      for (const bid of m.ids.slice(0, 30)) { const b = bottles.list.find(b => b.id === Number(bid)); if (b) r[b.id] = b.reads || 0; }
+      send(ws, { t: 'mineR', r });
+
     } else if (m.t === 'w') {                     // 모래에 글씨 쓰기 (파도가 지울 때까지만 남음)
       if (t - lastSand < 20000) return send(ws, { t: 'wr', ok: false, msg: '조금 있다가 다시 써요' });
       const text = checkSand(m.text);
@@ -286,7 +324,7 @@ wss.on('connection', (ws, req) => {
       if (!pool.length) { bump('빈병'); return send(ws, { t: 'b', id: null }); }
       // 최근 병이 조금 더 자주 오되, 오래된 병도 계속 떠다니게
       const b = pool[Math.floor(Math.pow(Math.random(), 0.7) * pool.length)];
-      seen.add(b.id); bump('받은병');
+      seen.add(b.id); bump('받은병'); b.reads = (b.reads || 0) + 1; save('bottles.json', bottles);
       send(ws, { t: 'b', id: b.id, text: b.text });
 
     } else if (m.t === 'bs') {                    // 유리병 띄우기
@@ -298,7 +336,7 @@ wss.on('connection', (ws, req) => {
       bottles.list.push(b); while (bottles.list.length > MAX_BOTTLES) bottles.list.shift();
       mine.add(b.id); lastBottleBy.set(tag, t);
       save('bottles.json', bottles); bump('띄운병');
-      send(ws, { t: 'bs', ok: true });
+      send(ws, { t: 'bs', ok: true, id: b.id });
 
     } else if (m.t === 'rep') {                   // 신고: 서로 다른 사람 셋이 신고하면 숨김
       const b = bottles.list.find(b => b.id === Number(m.id));
@@ -345,7 +383,7 @@ setInterval(() => {
 
 // 30초마다 오늘 숫자를 모두에게, 15분 넘은 모래 글씨는 정리
 setInterval(() => {
-  if (people.size) sendAll({ t: 'today', today: todayView(), rooms: rooms.size });
+  if (people.size) sendAll({ t: 'today', today: todayView(), rooms: rooms.size, wx: weather });
   const t = Date.now();
   for (const [room, list] of writings) writings.set(room, list.filter(w => t - w[4] < 15 * 60e3));
 }, 30000);
