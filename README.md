@@ -188,4 +188,5 @@ Node.js 서버를 그대로 돌려 주는 곳이면 어디든 됩니다. 예:
 
 - `public/img/old/consul.jpg`: 한국교육방송공사의 「한국기행_목포_건축물09」(2017)은 CC BY 라이선스로 제공됩니다. 공유마당(https://gongu.copyright.or.kr/gongu/wrt/wrt/view.do?wrtSn=13063017&menuNo=200018). 방송 글자가 없도록 잘라 내고 색을 바래게 고쳤습니다.
 - `public/img/old/samhak.jpg`: 본 저작물은 '한국정책방송원'에서 1970년 작성하여 공공누리 제1유형으로 개방한 '목포시 전경(작성자: 한국정책방송원)'을 이용하였으며, 해당 저작물은 공유마당(https://gongu.copyright.or.kr/gongu/wrt/wrt/view.do?wrtSn=13071610&menuNo=200018)에서 무료로 내려받을 수 있습니다. 색을 바래게 고쳤습니다.
+- `public/img/old/port.jpg`: 본 저작물은 '국립민속박물관'이 공공누리 제1유형으로 개방한 '목포항'(1906~7년, 독일인 헤르만 산더가 일본인 사진가를 고용해 촬영, 산더 기증 자료)을 이용하였으며, 공유마당(https://gongu.copyright.or.kr/gongu/wrt/wrt/view.do?wrtSn=12632290&menuNo=200018)과 국립민속박물관(https://www.nfm.go.kr)에서 내려받을 수 있습니다. 필름 테두리와 번호를 잘라 내고 색을 바래게 고쳤습니다.
 - `public/img/old/yudal.jpg`: 한국저작권위원회의 "1910년대 목포 유달산 아래 서양식 군산부청, 18은행"은 CC BY 라이선스로 제공됩니다. 공유마당(https://gongu.copyright.or.kr/gongu/wrt/wrt/view.do?wrtSn=13159652&menuNo=200018), 부경근대사료연구소 제공 엽서. 크기를 줄였습니다.
