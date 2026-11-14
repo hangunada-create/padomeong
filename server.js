@@ -241,6 +241,7 @@ const lanterns = { key: '', list: [], by: new Set() };
 const nightKey = () => { const d = new Date(Date.now() + 9 * 3600e3 - 12 * 3600e3); return d.toISOString().slice(0, 10); };
 function lanternList() { const k = nightKey(); if (lanterns.key !== k) { lanterns.key = k; lanterns.list = []; lanterns.by.clear(); } return lanterns.list; }
 let nextL = 1;
+const shotsBy = { key: '', n: new Map() };
 const castleOf = room => { if (!castles.has(room)) castles.set(room, { lvl: 0, gen: 1 }); return castles.get(room); };
 const ROOM_CAP = Number(process.env.ROOM_CAP) || 80;           // 해변 하나에 들어가는 사람 수
 const perIp = new Map();
@@ -307,16 +308,16 @@ wss.on('connection', (ws, req) => {
       id = nextId++;
       const room = pickRoom();
       const me = { ws, room, x: clamp(num(m.x, WORLD_W / 2), 40, WORLD_W - 40), d: clamp(num(m.d, 0.8), D_MIN, D_MAX),
-                   sit: m.sit ? 1 : 0, k: m.k ? 1 : 0, color: clamp(Math.floor(num(m.color, 0)), 0, 7), name: cleanName(m.name), bot: isBot };
+                   sit: m.sit ? 1 : 0, k: m.k ? 1 : 0, g: m.g === 'f' ? 'f' : 'm', color: clamp(Math.floor(num(m.color, 0)), 0, 7), name: cleanName(m.name), bot: isBot };
       if (!rooms.has(room)) rooms.set(room, new Set());
       const list = [];
-      for (const pid of rooms.get(room)) { const p = people.get(pid); if (p) list.push([pid, p.x, p.d, p.sit, p.color, p.name, p.k]); }
+      for (const pid of rooms.get(room)) { const p = people.get(pid); if (p) list.push([pid, p.x, p.d, p.sit, p.color, p.name, p.k, p.g]); }
       rooms.get(room).add(id); people.set(id, me);
       const d = day(); d.최대동시접속 = Math.max(d.최대동시접속, people.size);
       if (!isBot) bump('입장');
       const cs = castleOf(room);
       send(ws, { t: 'hi', id, now: Date.now(), room, rooms: rooms.size, p: list, w: writings.get(room) || [], today: todayView(), wx: weather, castle: [cs.lvl, cs.gen], ln: lanternList() });
-      sendRoom(room, { t: 'in', p: [id, me.x, me.d, me.sit, me.color, me.name, me.k] }, id);
+      sendRoom(room, { t: 'in', p: [id, me.x, me.d, me.sit, me.color, me.name, me.k, me.g] }, id);
       roomsChanged();
       return;
     }
@@ -366,6 +367,15 @@ wss.on('connection', (ws, req) => {
       w[3] = w[3] + ' ' + word;
       send(ws, { t: 'wr', ok: true });
       sendRoom(me.room, { t: 'wu', id: w[0], text: w[3] });
+
+    } else if (m.t === 'pf') {                    // 저녁 불꽃 한 발 (한 연결에 한 발, 한 집에 하룻밤 네 발까지)
+      const k = nightKey();
+      if (shotsBy.key !== k) { shotsBy.key = k; shotsBy.n.clear(); }
+      const used = shotsBy.n.get(tag) || 0;
+      if (me.shot === k || used >= 4) return;
+      me.shot = k; shotsBy.n.set(tag, used + 1); bump('불꽃');
+      const ax = clamp(num(m.ax, 0), -300, 300), ay = clamp(num(m.ay, -100), -300, 0);
+      sendRoom(me.room, { t: 'pf', id, ax, ay }, id);
 
     } else if (m.t === 'ln') {                    // 보름달 밤 등 띄우기 (하룻밤에 한 사람 하나)
       const list = lanternList();
