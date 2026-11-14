@@ -145,13 +145,6 @@ const server = http.createServer((req, res) => {
     if (!ADMIN_KEY) return json(res, 403, { 안내: 'ADMIN_KEY 환경변수를 정하면 열려요' });
     if (!isAdmin(u)) return json(res, 403, { 안내: '열쇠가 맞지 않아요' });
     if (p === '/stats') return json(res, 200, statsView());
-    if (p === '/admin/stories') {
-      let rows = [];
-      try { rows = fs.readFileSync(path.join(DATA_DIR, 'stories.jsonl'), 'utf8').trim().split('\n').filter(Boolean).map(l => JSON.parse(l)).reverse(); } catch (e) {}
-      const esc = v => String(v || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
-      return res.end(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>사연 한 점</title><body style="font-family:system-ui;max-width:720px;margin:24px auto;padding:0 16px;line-height:1.6"><h2>사연 한 점 (${rows.length})</h2><p style="color:#888">서버를 새로 올리면 이 목록이 지워져요. 고른 사연은 따로 옮겨 두세요.</p>${rows.map(r => `<div style="border-top:1px solid #ddd;padding:12px 0"><b>${esc(r.name)}</b> ${r.ig ? '· @' + esc(r.ig) : ''} <span style="color:#999">${esc(r.at)}</span><div style="white-space:pre-wrap">${esc(r.text)}</div></div>`).join('')}</body>`);
-    }
     if (p === '/admin/bottles') return json(res, 200, bottles.list.slice().reverse().map(b => ({ id: b.id, 글: b.text, 날짜: new Date(b.ts).toISOString(), 신고: b.reports.length, 숨김: !!b.hidden })));
     if (p === '/admin/hide' || p === '/admin/show') {
       const b = bottles.list.find(b => b.id === Number(u.searchParams.get('id')));
@@ -273,8 +266,7 @@ function omokWin(b, i) {
   }
   return false;
 }
-// 사연 한 점: data 폴더의 stories.jsonl 에 한 줄씩 (새로 올리면 지워지니 /admin/stories 로 자주 확인)
-const storyBy = { key: '', n: new Map() };
+
 // 노을 십 분을 함께 본 사람, 오늘의 질문에 달린 답 (한국 날짜가 바뀌면 비움, 저장하지 않음)
 const dayKeyNow = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
 const sunsetSeen = { key: '', ids: new Set() };
@@ -442,19 +434,6 @@ wss.on('connection', (ws, req) => {
     } else if (m.t === 'or') {                    // 새 판 (끝났거나, 오래 멈췄거나, 앉아 있던 사람이 원할 때)
       const o = omokOf(me.room);
       if (o.win || t - o.last > 300000 || o.p.some(x => x && x.id === id)) { omoks.delete(me.room); sendRoom(me.room, omokView(omokOf(me.room))); }
-
-    } else if (m.t === 'story') {                 // 사연 한 점 (한 사람 하루 세 번까지)
-      const k = new Date(t + 9 * 3600e3).toISOString().slice(0, 10);
-      if (storyBy.key !== k) { storyBy.key = k; storyBy.n.clear(); }
-      const used = storyBy.n.get(tag) || 0;
-      if (used >= 3) return send(ws, { t: 'sr', ok: false, msg: '오늘은 사연을 충분히 남겼어요' });
-      let text = typeof m.text === 'string' ? m.text.replace(/[\u0000-\u0008\u000b-\u001f\u007f<>]/g, '').trim().slice(0, 500) : '';
-      if (text.length < 10) return send(ws, { t: 'sr', ok: false, msg: '열 글자 이상 적어 주세요' });
-      text = text.replace(/(\d[\d\s.-]{7,}\d)/g, '[번호 지움]');          // 전화번호처럼 보이면 지운다
-      const ig = typeof m.ig === 'string' ? m.ig.replace(/[^A-Za-z0-9._@]/g, '').slice(0, 40) : '';
-      storyBy.n.set(tag, used + 1); bump('사연');
-      fs.appendFile(path.join(DATA_DIR, 'stories.jsonl'), JSON.stringify({ at: new Date(t).toISOString(), name: me.name, ig, text }) + '\n', () => {});
-      send(ws, { t: 'sr', ok: true });
 
     } else if (m.t === 'sn') {                    // 노을 십 분 동안 바닷가에 있었음
       sunsetCount(); if (sunsetSeen.ids.has(id)) return;

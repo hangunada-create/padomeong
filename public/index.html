@@ -73,7 +73,6 @@
   #omokGrid button.k::after, #omokGrid button.w::after { content: ''; position: absolute; inset: 12%; border-radius: 50%; background: #2b2b2e; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
   #omokGrid button.w::after { background: #f8f6f0; }
   .sheet canvas.pic { width: 100%; border-radius: 8px; margin-top: 10px; display: block; box-shadow: 0 4px 14px rgba(0,0,0,.15); }
-  #storyIg { width: 100%; box-sizing: border-box; margin-top: 8px; padding: 9px 10px; border-radius: 10px; border: 1px solid rgba(0,0,0,.15); font: inherit; font-size: 14px; }
   #dexExtra { margin-top: 6px; font-size: 12.5px; color: #6a7884; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   #dexExtra button { border: 0; background: #eadfc8; border-radius: 999px; padding: 5px 12px; font: inherit; font-size: 12.5px; cursor: pointer; }
   #todayLine { font-size: 12px; opacity: .75; margin-top: 2px; }
@@ -172,12 +171,11 @@
 <div id="omokSheet" class="sheet"><div class="k">모래 오목 · 다섯 알을 먼저 잇는 쪽이 이겨요. 같은 해변 사람들과 함께 둬요.</div><div id="omokGrid"></div><div class="note" id="omokNote"></div><div class="row"><button class="sub" id="omokNew">새 판</button><button class="main" id="omokClose">닫기</button></div></div>
 <div id="mapSheet" class="sheet"><div class="k">낡은 지도</div><canvas id="mapCanvas" class="pic" width="560" height="360"></canvas><div class="note" id="mapNote"></div><div class="row"><button class="main" id="mapClose">닫기</button></div></div>
 <div id="photoSheet" class="sheet"><div class="k">짙은 갈색 병 속에 빛바랜 그림 한 장이 말려 있었어요</div><canvas id="photoCanvas" class="pic" width="560" height="380"></canvas><div class="note" id="photoNote"></div><div class="row"><button class="main" id="photoClose">닫기</button></div></div>
-<div id="storySheet" class="sheet"><div class="k">사연 한 점 · 바다에 얽힌 이야기, 생선 한 점에 담긴 기억을 노점 주인에게 남겨 주세요. 매달 사연 하나를 골라 이음수산 생선을 보내 드려요. 고른 사연은 인스타그램 @ieumfish에서 알려 드려요. 전화번호·주소는 여기 적지 마세요.</div><textarea id="storyText" maxlength="500" placeholder="500자까지" style="height:110px"></textarea><input id="storyIg" maxlength="40" placeholder="인스타그램 아이디 (선택 · 당첨되면 연락드릴 곳)"><div class="note" id="storyNote"></div><div class="row"><button class="sub" id="storyCancel">그만두기</button><button class="main" id="storySend">사연 보내기</button></div></div>
 <div id="stall" class="hud" aria-live="polite">
   <svg id="stallLogo" class="k" viewBox="130 205 626 470" aria-label="이음수산 로고"><g fill="none"><circle cx="307" cy="335" r="86.5" stroke="#67a9dc" stroke-width="55"/><circle cx="584" cy="340" r="86.5" stroke="#67a9dc" stroke-width="55"/><polyline points="157,647 289,508 418,644" stroke="#22365a" stroke-width="56" stroke-linejoin="miter"/><polyline points="467,646 598,508 729,644" stroke="#22365a" stroke-width="56" stroke-linejoin="miter"/></g></svg>
   <div class="f" id="stallFish"></div>
   <div class="l" id="stallLine"></div>
-  <div class="b"><button id="stallNext">다른 이야기</button><button id="stallFeed">멸치 한 줌</button><button id="stallStory">사연 남기기</button><a href="https://ieumfish.co.kr" target="_blank" rel="noopener">가게 구경하기 · ieumfish.co.kr</a></div>
+  <div class="b"><button id="stallNext">다른 이야기</button><button id="stallFeed">멸치 한 줌</button><a href="https://ieumfish.co.kr" target="_blank" rel="noopener">가게 구경하기 · ieumfish.co.kr</a></div>
 </div>
 <button id="act" class="hud">파라솔 펴고 앉기</button>
 
@@ -2920,22 +2918,7 @@ function drawOldPicture(kind) {
   const v = g.createRadialGradient(w / 2, h / 2, h * 0.3, w / 2, h / 2, w * 0.7); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(70,45,20,.45)'); g.fillStyle = v; g.fillRect(0, 0, w, h);
 }
 
-/* ───────── 사연 한 점: 노점에 사연을 남기면 매달 하나를 골라 이음수산 생선을 보낸다 ───────── */
-const storySheet = document.getElementById('storySheet'), storyText = document.getElementById('storyText'), storyIg = document.getElementById('storyIg'), storyNote = document.getElementById('storyNote');
-document.getElementById('stallStory').addEventListener('click', () => { storyNote.textContent = ''; storySheet.classList.add('on'); setTimeout(() => storyText.focus(), 50); wake(); });
 document.getElementById('stallFeed').addEventListener('click', giveAnchovy);
-document.getElementById('storyCancel').addEventListener('click', () => { storySheet.classList.remove('on'); storyText.blur(); });
-document.getElementById('storySend').addEventListener('click', () => {
-  const v = storyText.value.trim();
-  if (v.length < 10) { storyNote.textContent = '열 글자 이상 적어 주세요'; return; }
-  if (ws && online) ws.send(JSON.stringify({ t: 'story', text: v, ig: storyIg.value.trim(), name: me.name }));
-  else onStoryResult({ ok: true });
-});
-function onStoryResult(m) {
-  if (!m.ok) { storyNote.textContent = m.msg || '보내지 못했어요'; return; }
-  storySheet.classList.remove('on'); storyText.value = ''; storyIg.value = ''; storyText.blur();
-  toast('사연이 노점 주인에게 닿았어요');
-}
 
 /* ───────── 알림 한 줄 · 물때 표시 ───────── */
 const toastEl = document.getElementById('toast'); let toastTimer = 0;
@@ -3365,7 +3348,6 @@ function connect() {
     else if (m.t === 'snc') sunsetN = m.n | 0;
     else if (m.t === 'ball') onBall(m.b);
     else if (m.t === 'ob') onOmok(m);
-    else if (m.t === 'sr') onStoryResult(m);
     else if (m.t === 'qa') addAnswer(m.a);
     else if (m.t === 'lr') onLanternResult(m);
     else if (m.t === 'wr') onSandResult(m);
