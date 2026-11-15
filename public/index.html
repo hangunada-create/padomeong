@@ -1555,11 +1555,20 @@ document.getElementById('moveCopy').addEventListener('click', async () => {
   try { await navigator.clipboard.writeText(t.value); moveNote.textContent = '복사했어요'; }
   catch (e) { t.focus(); t.select(); try { document.execCommand('copy'); moveNote.textContent = '복사했어요'; } catch (e2) { moveNote.textContent = '글자를 길게 눌러 모두 선택한 뒤 복사해 주세요'; } }
 });
+function deepMerge(a, b) {
+  const r = { ...a };
+  for (const x in b) {
+    if (typeof b[x] === 'number' && (typeof r[x] === 'number' || r[x] === undefined)) r[x] = Math.max(r[x] || 0, b[x]);
+    else if (b[x] && typeof b[x] === 'object' && !Array.isArray(b[x]) && r[x] && typeof r[x] === 'object') r[x] = deepMerge(r[x], b[x]);
+    else if (r[x] === undefined) r[x] = b[x];
+  }
+  return r;
+}
 function mergeVal(k, mine, theirs) {
   if (mine === null || mine === undefined) return theirs;
   let a, b; try { a = JSON.parse(mine); b = JSON.parse(theirs); } catch (e) { return mine; }
   if (Array.isArray(a) && Array.isArray(b)) return JSON.stringify([...new Set([...a, ...b])]);
-  if (a && b && typeof a === 'object' && typeof b === 'object') { const r = { ...a }; for (const x in b) r[x] = typeof b[x] === 'number' ? Math.max(r[x] || 0, b[x]) : (r[x] ?? b[x]); return JSON.stringify(r); }
+  if (a && b && typeof a === 'object' && typeof b === 'object') return JSON.stringify(deepMerge(a, b));
   if (typeof a === 'number' && typeof b === 'number') return String(k === 'pm_first' ? Math.min(a, b) : Math.max(a, b));
   return mine;
 }
@@ -1598,7 +1607,7 @@ const HINTS = {
   gullflock: '노점에서 멸치를 얻어 갈매기에게 던져 보세요', seaglass: '물 빠진 모래에서 일곱 빛깔 바다 유리를 모아 보세요', omok: '모래 위 오목판에서 한 판을 끝까지',
   horn: '아침 7시 50분, 목포항 쪽에 귀를 기울여 보세요', mapdone: '하루에 한 조각씩, 모래 속 지도 조각을 일곱 날 모아 보세요', oldphoto: '물가에 밀려온 짙은 갈색 병을 찾아보세요',
   wish: '밤하늘에 별똥별이 지나가면 그 자리를 눌러 보세요', walker: '아침 7시, 낮 12시 반, 저녁 6시에 해변을 걷는 사람이 있어요', sunset: '해 지는 시각에 십 분 동안 머물러 보세요',
-  myfire: '저녁 바다에서 불꽃 단추를 당겨 쏘아 보세요', sentence: '등대가 일주일 동안 깜빡인 낱말을 이어, 노점 앞 모래에 써 보세요',
+  myfire: '저녁 바다에서 불꽃 단추를 당겨 쏘아 보세요', sentence: '등대가 밤마다 한 낱말씩 깜빡여요(월~일, 일곱 낱말이 한 문장). 같은 문장은 4주마다 돌아오니 천천히 모아도 돼요. 다 모이면 그 문장이 돌아온 주에 노점 앞 모래에 써 보세요',
 };
 function dexHint(id) {
   const t = now(), day = 864e5, md = ms => { const d = new Date(ms + 9 * 3600e3); return `${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일`; };
@@ -1982,17 +1991,24 @@ const WEEK_SENTENCES = [
 ];
 function weekOf(ms) { const day = Math.floor((ms + 9 * 3600e3) / 864e5); return { wk: Math.floor((day + 3) / 7), wd: ((day + 3) % 7 + 7) % 7 }; }
 function weekSentence(ms) { return WEEK_SENTENCES[((weekOf(ms).wk % WEEK_SENTENCES.length) + WEEK_SENTENCES.length) % WEEK_SENTENCES.length]; }
-let weekHeard = { wk: -1, w: {} }; try { weekHeard = JSON.parse(load('pm_week', '')) || weekHeard; } catch (e) {}
+// 등대 낱말 기록: 문장별로 계속 쌓인다 (같은 문장은 4주마다 돌아오니, 띄엄띄엄 와도 이어서 모을 수 있다)
+//   { s: { 문장번호: { 요일번호: 1 } } }   (예전 형식 { wk, w } 은 그 주의 문장으로 옮겨 담는다)
+const sentIdx = ms => ((weekOf(ms).wk % WEEK_SENTENCES.length) + WEEK_SENTENCES.length) % WEEK_SENTENCES.length;
+let weekHeard = { s: {} };
+try {
+  const old = JSON.parse(load('pm_week', '')) || {};
+  if (old.s) weekHeard = old;
+  else if (old.wk >= 0 && old.w) { weekHeard = { s: { [((old.wk % WEEK_SENTENCES.length) + WEEK_SENTENCES.length) % WEEK_SENTENCES.length]: old.w } }; save('pm_week', JSON.stringify(weekHeard)); }
+} catch (e) {}
 function rememberWord() {
-  const { wk, wd } = weekOf(now());
-  if (weekHeard.wk !== wk) weekHeard = { wk, w: {} };
-  weekHeard.w[wd] = 1; save('pm_week', JSON.stringify(weekHeard));
+  const si = sentIdx(now()), { wd } = weekOf(now());
+  (weekHeard.s[si] = weekHeard.s[si] || {})[wd] = 1; save('pm_week', JSON.stringify(weekHeard));
 }
 function weekHint() {
-  const { wk } = weekOf(now());
-  if (weekHeard.wk !== wk || !Object.keys(weekHeard.w).length) return '';
-  const s = weekSentence(now());
-  return '이번 주 등대가 한 말 · ' + s.map((w, i) => (weekHeard.w[i] ? w[1] : '○')).join(' ');
+  const si = sentIdx(now()), got = weekHeard.s[si] || {};
+  if (!Object.keys(got).length) return '';
+  const s = weekSentence(now()), n = Object.keys(got).length;
+  return (n >= 7 ? '이번 주 등대 문장을 다 모았어요 · 노점 앞 모래에 써 보세요 · ' : `이번 주 등대 문장 ${n}/7 · `) + s.map((w, i) => (got[i] ? w[1] : '○')).join(' ');
 }
 let stallSpecial = 0, sentenceDone = -1, stallForce = 0;
 function checkSentence(w, live) {
@@ -3857,7 +3873,7 @@ function enter() {
   setTimeout(() => hint.classList.add('gone'), 9000);
 }
 document.getElementById('go').addEventListener('click', enter);
-if (FAST) window.__pm = { me, castle: () => castles, items: () => items, setWX, buildCastle, addItem, spawnReset: () => { itemEpoch = -1; }, beaconWord, crabs: () => crabs, gull: () => gull, porpNow: () => { porpNext = 0; }, porp: () => porp, FIREWORKS, weekSentence, cst: () => cst, constelPts, lanterns, writings, dex: () => dex, high: () => HIGH_NOW, setSit, peers, xy: (x, d) => [xOf(x, d), yOf(d)], shots, aim: () => aimDrag, termToday, questionOf, qAnswers, flocks, gold: () => GOLD, hitQuestion, walkerNow, npc: () => npc, meteors, storyOf, ball: () => ballPos(now()), omok: () => omok, glassHave, mapHave, photoHave, mapPieceToday, openOldBottle, setOldBottle: () => { oldBottleAt = 0; }, giveAnchovy, flockG, stormStars: () => stormStars, toads, setNeck, onPicked, shellN: () => shellN };   // 시험용
+if (FAST) window.__pm = { me, rememberWord, weekHint, castle: () => castles, items: () => items, setWX, buildCastle, addItem, spawnReset: () => { itemEpoch = -1; }, beaconWord, crabs: () => crabs, gull: () => gull, porpNow: () => { porpNext = 0; }, porp: () => porp, FIREWORKS, weekSentence, cst: () => cst, constelPts, lanterns, writings, dex: () => dex, high: () => HIGH_NOW, setSit, peers, xy: (x, d) => [xOf(x, d), yOf(d)], shots, aim: () => aimDrag, termToday, questionOf, qAnswers, flocks, gold: () => GOLD, hitQuestion, walkerNow, npc: () => npc, meteors, storyOf, ball: () => ballPos(now()), omok: () => omok, glassHave, mapHave, photoHave, mapPieceToday, openOldBottle, setOldBottle: () => { oldBottleAt = 0; }, giveAnchovy, flockG, stormStars: () => stormStars, toads, setNeck, onPicked, shellN: () => shellN };   // 시험용
 nick.addEventListener('keydown', e => { if (e.key === 'Enter') enter(); });
 })();
 </script>
