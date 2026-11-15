@@ -64,10 +64,16 @@ function postCard(req, res) {
     const days = Math.min(3650, Math.max(1, Math.floor(Number(m.days) || 0)));
     const buf = Buffer.from(String(m.img || '').replace(/^data:image\/jpeg;base64,/, ''), 'base64');
     if (buf.length < 2000 || buf.length > 420e3 || buf[0] !== 0xff || buf[1] !== 0xd8) return json(res, 400, { 안내: '그림이 이상해요' });
-    if (Date.now() - (cardLast.get(tag) || 0) < 20 * 3600e3) return json(res, 429, { 안내: '오늘은 이미 알렸어요' });
-    cardLast.set(tag, Date.now()); bump('완성카드');
+    // 같은 브라우저(tok)는 하루 한 번, 같은 인터넷 주소(휴대폰 통신사는 여럿이 나눠 씀)는 하루 다섯 번까지
+    const tok = String(m.tok || '').replace(/[^a-z0-9]/gi, '').slice(0, 24) || 'x', key = tag + ':' + tok, nowMs = Date.now();
+    if (nowMs - (cardLast.get(key) || 0) < 20 * 3600e3) return json(res, 429, { 안내: '오늘은 이미 알렸어요' });
+    const recent = (cardLast.get(tag + ':list') || []).filter(t => nowMs - t < 20 * 3600e3);
+    if (recent.length >= 5) return json(res, 429, { 안내: '지금은 알리는 사람이 많아요. 내일 다시 눌러 주세요' });
+    cardLast.set(key, nowMs); cardLast.set(tag + ':list', recent.concat(nowMs));
+    if (cardLast.size > 5000) cardLast.clear();
+    const test = m.test === 1; if (!test) bump('완성카드');
     const no = doneNo();
-    const lines = [`🐚 파도멍 ${no} · ${name} 님 (${days}일 걸림)`];
+    const lines = [`${test ? '🧪 [시험] ' : '🐚 '}파도멍 ${no} · ${name} 님 (${days}일 걸림)`];
     if (best || from) lines.push([best && `좋았던 순간: ${best}`, from && `온 길: ${from}`].filter(Boolean).join(' · '));
     if (word) lines.push(`한마디: ${word}`);
     lines.push('→ 이 번호로 @ieumfish 에 DM이 오면 생선회와 작은 굿즈 선물');
@@ -216,6 +222,21 @@ const server = http.createServer((req, res) => {
     if (!ADMIN_KEY) return json(res, 403, { 안내: 'ADMIN_KEY 환경변수를 정하면 열려요' });
     if (!isAdmin(u)) return json(res, 403, { 안내: '열쇠가 맞지 않아요' });
     if (p === '/stats') return json(res, 200, statsView());
+    if (p === '/admin/fill' || p === '/admin/unfill') {
+      // 주인 휴대폰 시험용: 이 브라우저의 도감을 41칸으로 채우거나(원래 도감은 따로 보관), 원래대로 되돌린다
+      const IDS = ['oyster','clam','pebble','kelp','crab','conch','star','glassG','feather','glassB','whelk','pearl','rain','snow','meteor','flag','beacon','crabwalk','gull','porpoise','hightide','constel','skylantern','firework','toadhouse','necklace','gullcall','rainbow','halo','starsea','gullflock','seaglass','omok','horn','mapdone','oldphoto','wish','walker','sunset','myfire','sentence'];
+      const fill = p === '/admin/fill';
+      const js = fill
+        ? `if(localStorage.getItem('pm_test')!=='1'){localStorage.setItem('pm_dex_backup',localStorage.getItem('pm_dex')||'{}');localStorage.setItem('pm_cardhung_backup',localStorage.getItem('pm_cardhung')||'');}
+           var d=JSON.parse(localStorage.getItem('pm_dex')||'{}');${JSON.stringify(IDS)}.forEach(function(i){d[i]=d[i]||1});
+           localStorage.setItem('pm_dex',JSON.stringify(d));localStorage.removeItem('pm_cardhung');localStorage.removeItem('pm_doneno');localStorage.setItem('pm_test','1');
+           document.body.innerHTML='<p>시험용으로 도감 41칸을 채웠어요.<br>원래 도감은 따로 보관했어요.<br><br><a href="/">파도멍으로 가기</a></p>';`
+        : `if(localStorage.getItem('pm_test')==='1'){localStorage.setItem('pm_dex',localStorage.getItem('pm_dex_backup')||'{}');var h=localStorage.getItem('pm_cardhung_backup');if(h)localStorage.setItem('pm_cardhung',h);else localStorage.removeItem('pm_cardhung');
+           localStorage.removeItem('pm_doneno');localStorage.removeItem('pm_test');localStorage.removeItem('pm_dex_backup');localStorage.removeItem('pm_cardhung_backup');}
+           document.body.innerHTML='<p>도감을 시험 전으로 되돌렸어요.<br><br><a href="/">파도멍으로 가기</a></p>';`;
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
+      return res.end(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>파도멍 시험</title><body style="font:17px/1.6 sans-serif;padding:32px;text-align:center"><script>${js}</script></body>`);
+    }
     if (p === '/admin/notify-test') {
       if (!TG_TOKEN) return json(res, 200, { 안내: 'TELEGRAM_BOT_TOKEN 환경변수가 비어 있어요' });
       notifyOwner('파도멍 서버에서 보낸 시험 알림이에요 🐚', null).then(r => json(res, 200, { 결과: r, 대화방: tgChat || '(아직 못 찾음)', 안내: tgChat && !process.env.TELEGRAM_CHAT_ID ? '이 대화방 번호를 TELEGRAM_CHAT_ID 환경변수에 넣어 두면 서버가 다시 켜져도 바로 보내요' : undefined }));

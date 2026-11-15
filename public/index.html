@@ -2,6 +2,9 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="파도멍">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>파도멍 — 목포 대반동 바닷가</title>
 <meta name="description" content="목포 대반동 바닷가에 파라솔 하나 들고 와서 앉아, 목포대교 너머로 파도가 오가는 모습과 소리를 함께 보는 곳.">
@@ -128,7 +131,8 @@
           background: linear-gradient(rgba(16,40,70,.35), rgba(16,40,70,.6)); transition: opacity .9s ease; }
   #gate.gone { opacity: 0; pointer-events: none; }
   #inapp { display: none; margin-top: 16px; padding: 12px 14px; border-radius: 14px; background: rgba(255,250,235,.94); color: #4a3a22; font-size: 13px; line-height: 1.55; text-align: left; word-break: keep-all; }
-  #inapp.on { display: block; } #inapp b { color: #22365a; }
+  #inapp.on, #iosTip.on { display: block; } #inapp b, #iosTip b { color: #22365a; }
+  #iosTip { display: none; margin-top: 12px; padding: 10px 12px; border-radius: 14px; background: rgba(255,250,235,.9); color: #4a3a22; font-size: 12.5px; line-height: 1.55; text-align: left; word-break: keep-all; }
   #inapp button { display: block; width: 100%; margin-top: 8px; border: 0; border-radius: 10px; padding: 10px; font: inherit; font-weight: 700; background: #2f7fb5; color: #fff; cursor: pointer; }
   #inapp span { display: block; margin-top: 6px; font-size: 12px; color: #7a6a50; }
   .card { width: min(86vw, 340px); text-align: center; }
@@ -225,6 +229,7 @@
     <div id="seats" class="opts"><button data-s="mat">돗자리</button><button data-s="chair">의자</button></div>
     <button id="go">바닷가로 가기</button>
     <div id="inapp"><b id="inappWho">카카오톡</b> 안에서 열렸어요. 여기서 모은 도감은 이 창에만 담겨서, 다음에 다른 앱으로 오면 보이지 않아요.<button id="inappOpen">늘 쓰는 인터넷 앱으로 열기</button><span id="inappHow"></span></div>
+    <div id="iosTip"><b>아이폰 사파리</b>는 7일 넘게 들르지 않으면 도감을 지울 수 있어요. <b>공유 → 홈 화면에 추가</b>로 만든 파도멍에서 모으면 안전해요. 홈 화면 파도멍은 사파리와 도감이 따로라서, 이미 모은 게 있으면 도감의 '도감 옮기기'로 옮겨 주세요.</div>
   </div>
 </div>
 
@@ -988,7 +993,7 @@ function hitPeer(cx, cy) {
 let bottle = null, outgoing = [], nextBottleAt = 0, waitingBottle = false;
 const bottleBtn = document.getElementById('bottleBtn'), sendBtn = document.getElementById('sendBtn');
 const bottleSheet = document.getElementById('bottleSheet'), letterSheet = document.getElementById('letterSheet');
-const FAST = location.hash === '#fast';   // 시험용: 주소 끝에 #fast 를 붙이면 병이 몇 초 만에 온다
+const FAST = location.hash === '#fast' && /^(localhost|127\.0\.0\.1)$/.test(location.hostname);   // 시험용: 내 컴퓨터에서만, 주소 끝에 #fast 를 붙이면 병이 몇 초 만에 온다
 function scheduleBottle(a, b) { nextBottleAt = Date.now() + (FAST ? 4e3 : (a + Math.random() * (b - a)) * 60e3); }
 function onBottle(m) {
   waitingBottle = false;
@@ -1505,6 +1510,7 @@ document.getElementById('doneSave').addEventListener('click', () => {
   const a = document.createElement('a'); a.href = doneURL; a.download = '파도멍-도감-완성.jpg'; document.body.appendChild(a); a.click(); a.remove();
   doneNote.textContent = '저장되지 않으면 그림을 길게 눌러 저장해 주세요';
 });
+function myTok() { let t = load('pm_tok', ''); if (!t) { t = Math.random().toString(36).slice(2, 12) + Date.now().toString(36); save('pm_tok', t); } return t; }
 function showGift(no) {
   const g = document.getElementById('doneGift'); g.classList.toggle('on', !!no); document.getElementById('doneAsk').style.display = no ? 'none' : '';
   if (!no) return;
@@ -1516,7 +1522,7 @@ function showGift(no) {
 document.getElementById('doneHang').addEventListener('click', async () => {
   const btn = document.getElementById('doneHang'); btn.disabled = true; doneNote.textContent = '노점에 알리는 중…';
   try {
-    const r = await fetch('/card', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: me.name, img: doneURL, best: document.getElementById('doneBest').value, from: document.getElementById('doneFrom').value, word: document.getElementById('doneWord').value, days: Math.max(1, dayIdx(now()) - (parseInt(load('pm_first', ''), 10) || dayIdx(now())) + 1) }) });
+    const r = await fetch('/card', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ tok: myTok(), test: load('pm_test', '') === '1' ? 1 : 0, name: me.name, img: doneURL, best: document.getElementById('doneBest').value, from: document.getElementById('doneFrom').value, word: document.getElementById('doneWord').value, days: Math.max(1, dayIdx(now()) - (parseInt(load('pm_first', ''), 10) || dayIdx(now())) + 1) }) });
     const j = await r.json().catch(() => ({}));
     if (r.ok) { save('pm_cardhung', String(dayIdx(now()))); if (j.no) { save('pm_doneno', j.no); showGift(j.no); } doneNote.textContent = '노점 주인에게 알렸어요 · 다 모아 줘서 고마워요'; chime([660, 880], 0.15); }
     else { doneNote.textContent = j.안내 || '지금은 알릴 수 없어요'; if (r.status !== 429) btn.disabled = false; }
@@ -1570,6 +1576,8 @@ document.getElementById('moveTake').addEventListener('click', () => {
 (function inAppNotice() {
   const ua = navigator.userAgent || '', box = document.getElementById('inapp');
   const who = /KAKAOTALK/i.test(ua) ? '카카오톡' : /Instagram/i.test(ua) ? '인스타그램' : /FBAN|FBAV/i.test(ua) ? '페이스북' : /NAVER\(inapp|NAVER/i.test(ua) ? '네이버 앱' : /Line\//i.test(ua) ? '라인' : /DaumApps/i.test(ua) ? '다음 앱' : '';
+  const ios = /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  if (!who && ios && !navigator.standalone && !matchMedia('(display-mode: standalone)').matches) document.getElementById('iosTip').classList.add('on');
   if (!who || !box) return;
   document.getElementById('inappWho').textContent = who; box.classList.add('on');
   const android = /Android/i.test(ua), how = document.getElementById('inappHow'), btn = document.getElementById('inappOpen');
