@@ -120,10 +120,17 @@
   #doneAsk select, #doneAsk input { font: inherit; font-size: 14px; padding: 8px 10px; border: 1px solid #d8d2c4; border-radius: 10px; background: #fff; color: #22303a; width: 100%; box-sizing: border-box; }
   .sheet .gift { display: none; margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: #eef5fa; font-size: 13.5px; line-height: 1.6; color: #22365a; word-break: keep-all; }
   .sheet .gift.on { display: block; } .sheet .gift b { font-size: 16px; letter-spacing: .02em; } .sheet .gift a { color: #2f7fb5; font-weight: 700; }
+  #moveSheet .ask { font-size: 13px; color: #4b5d6b; margin-top: 12px; font-weight: 700; }
+  #moveSheet textarea { width: 100%; box-sizing: border-box; margin-top: 6px; border: 1px solid #d8d2c4; border-radius: 10px; padding: 8px 10px; font: 12px/1.4 ui-monospace, monospace; color: #22303a; background: #fff; resize: none; user-select: text; -webkit-user-select: text; }
+  #moveSheet .wide { display: block; width: 100%; margin-top: 6px; background: #eef5fa; color: #2f7fb5; font-weight: 700; border-radius: 10px; padding: 10px; }
   .sheet img.pic { width: 100%; border-radius: 8px; margin-top: 10px; display: block; box-shadow: 0 4px 14px rgba(0,0,0,.15); }
   #gate { position: fixed; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center;
           background: linear-gradient(rgba(16,40,70,.35), rgba(16,40,70,.6)); transition: opacity .9s ease; }
   #gate.gone { opacity: 0; pointer-events: none; }
+  #inapp { display: none; margin-top: 16px; padding: 12px 14px; border-radius: 14px; background: rgba(255,250,235,.94); color: #4a3a22; font-size: 13px; line-height: 1.55; text-align: left; word-break: keep-all; }
+  #inapp.on { display: block; } #inapp b { color: #22365a; }
+  #inapp button { display: block; width: 100%; margin-top: 8px; border: 0; border-radius: 10px; padding: 10px; font: inherit; font-weight: 700; background: #2f7fb5; color: #fff; cursor: pointer; }
+  #inapp span { display: block; margin-top: 6px; font-size: 12px; color: #7a6a50; }
   .card { width: min(86vw, 340px); text-align: center; }
   .card h1 { margin: 0; font-size: 40px; font-weight: 700; letter-spacing: .12em; text-shadow: 0 2px 14px rgba(0,0,0,.3); }
   .card p { margin: 12px 0 22px; font-size: 15px; line-height: 1.65; opacity: .95; text-shadow: 0 1px 8px rgba(0,0,0,.35); }
@@ -192,6 +199,13 @@
 <input id="doneWord" maxlength="40" placeholder="아쉬웠던 것, 더 있었으면 하는 것 (40자)" autocomplete="off"></div>
 <div class="gift" id="doneGift"></div>
 <div class="row"><button class="sub" id="doneSave">그림으로 저장</button><button class="sub" id="doneHang">노점에 알리기</button><button class="main" id="doneClose">닫기</button></div></div>
+<div id="moveSheet" class="sheet"><div class="k">도감 옮기기</div>
+<div class="guide">휴대폰을 바꾸거나 다른 인터넷 앱으로 갈 때 써요. 도감, 지도 조각, 바다 유리, 옛 사진, 별자리까지 함께 옮겨져요.</div>
+<div class="ask">① 지금 이 화면의 도감 보내기</div><button class="sub wide" id="moveMake">옮기기 글자 만들기</button>
+<textarea id="moveOut" readonly rows="3" placeholder="여기에 옮기기 글자가 나와요"></textarea><button class="sub wide" id="moveCopy">글자 복사하기</button>
+<div class="ask">② 다른 곳에서 만든 글자 받기</div><textarea id="moveIn" rows="3" placeholder="복사해 온 옮기기 글자를 붙여 넣으세요"></textarea><button class="sub wide" id="moveTake">이 도감 받기</button>
+<div class="note" id="moveNote">카카오톡 '나와의 채팅'에 글자를 보내 두면 옮기기 쉬워요</div>
+<div class="row"><span></span><button class="main" id="moveClose">닫기</button></div></div>
 <div id="stall" class="hud" aria-live="polite">
   <svg id="stallLogo" class="k" viewBox="130 205 626 470" aria-label="이음수산 로고"><g fill="none"><circle cx="307" cy="335" r="86.5" stroke="#67a9dc" stroke-width="55"/><circle cx="584" cy="340" r="86.5" stroke="#67a9dc" stroke-width="55"/><polyline points="157,647 289,508 418,644" stroke="#22365a" stroke-width="56" stroke-linejoin="miter"/><polyline points="467,646 598,508 729,644" stroke="#22365a" stroke-width="56" stroke-linejoin="miter"/></g></svg>
   <div class="f" id="stallFish"></div>
@@ -210,6 +224,7 @@
     <div id="genders"><button data-g="m">남</button><button data-g="f">여</button></div>
     <div id="seats" class="opts"><button data-s="mat">돗자리</button><button data-s="chair">의자</button></div>
     <button id="go">바닷가로 가기</button>
+    <div id="inapp"><b id="inappWho">카카오톡</b> 안에서 열렸어요. 여기서 모은 도감은 이 창에만 담겨서, 다음에 다른 앱으로 오면 보이지 않아요.<button id="inappOpen">늘 쓰는 인터넷 앱으로 열기</button><span id="inappHow"></span></div>
   </div>
 </div>
 
@@ -1517,6 +1532,52 @@ function dexTip(cell, text) {             // 누른 칸이 있는 줄 바로 아
   const tip = document.createElement('div'); tip.className = 'tip'; tip.textContent = text;
   last.after(tip); cell.classList.add('sel');
 }
+/* ───────── 도감 옮기기: 서버 없이 글자로 옮긴다 (pm_ 로 시작하는 기록 전부) ───────── */
+const moveSheet = document.getElementById('moveSheet'), moveNote = document.getElementById('moveNote');
+const b64e = str => btoa(String.fromCharCode(...new TextEncoder().encode(str))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const b64d = str => new TextDecoder().decode(Uint8Array.from(atob(str.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0)));
+function openMove() { document.getElementById('moveOut').value = ''; document.getElementById('moveIn').value = ''; moveNote.textContent = "카카오톡 '나와의 채팅'에 글자를 보내 두면 옮기기 쉬워요"; moveSheet.classList.add('on'); wake(); }
+document.getElementById('moveClose').addEventListener('click', () => moveSheet.classList.remove('on'));
+document.getElementById('moveMake').addEventListener('click', () => {
+  const o = {}; try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith('pm_')) o[k] = localStorage.getItem(k); } } catch (e) {}
+  const n = Object.keys(dex).length;
+  document.getElementById('moveOut').value = 'PADO1.' + b64e(JSON.stringify(o));
+  moveNote.textContent = `도감 ${n}칸이 담긴 글자예요. 복사해서 옮겨 갈 곳에 붙여 넣으세요`;
+});
+document.getElementById('moveCopy').addEventListener('click', async () => {
+  const t = document.getElementById('moveOut'); if (!t.value) { moveNote.textContent = '먼저 옮기기 글자를 만들어 주세요'; return; }
+  try { await navigator.clipboard.writeText(t.value); moveNote.textContent = '복사했어요'; }
+  catch (e) { t.focus(); t.select(); try { document.execCommand('copy'); moveNote.textContent = '복사했어요'; } catch (e2) { moveNote.textContent = '글자를 길게 눌러 모두 선택한 뒤 복사해 주세요'; } }
+});
+function mergeVal(k, mine, theirs) {
+  if (mine === null || mine === undefined) return theirs;
+  let a, b; try { a = JSON.parse(mine); b = JSON.parse(theirs); } catch (e) { return mine; }
+  if (Array.isArray(a) && Array.isArray(b)) return JSON.stringify([...new Set([...a, ...b])]);
+  if (a && b && typeof a === 'object' && typeof b === 'object') { const r = { ...a }; for (const x in b) r[x] = typeof b[x] === 'number' ? Math.max(r[x] || 0, b[x]) : (r[x] ?? b[x]); return JSON.stringify(r); }
+  if (typeof a === 'number' && typeof b === 'number') return String(k === 'pm_first' ? Math.min(a, b) : Math.max(a, b));
+  return mine;
+}
+document.getElementById('moveTake').addEventListener('click', () => {
+  const raw = document.getElementById('moveIn').value.replace(/\s+/g, '');
+  let o; try { if (!raw.startsWith('PADO1.')) throw 0; o = JSON.parse(b64d(raw.slice(6))); if (!o || typeof o !== 'object') throw 0; } catch (e) { moveNote.textContent = '옮기기 글자가 아니에요. 처음부터 끝까지 다 복사했는지 봐 주세요'; return; }
+  let n = 0;
+  for (const k in o) { if (!k.startsWith('pm_') || typeof o[k] !== 'string' || o[k].length > 20000) continue; save(k, mergeVal(k, load(k, null), o[k])); n++; }
+  if (!n) { moveNote.textContent = '옮길 기록이 없어요'; return; }
+  moveNote.textContent = '도감을 받았어요. 바닷가를 다시 열어요…';
+  setTimeout(() => location.reload(), 900);
+});
+/* 카카오톡·인스타그램 같은 앱 안의 브라우저면, 도감이 그 창에만 담긴다고 알려 준다 */
+(function inAppNotice() {
+  const ua = navigator.userAgent || '', box = document.getElementById('inapp');
+  const who = /KAKAOTALK/i.test(ua) ? '카카오톡' : /Instagram/i.test(ua) ? '인스타그램' : /FBAN|FBAV/i.test(ua) ? '페이스북' : /NAVER\(inapp|NAVER/i.test(ua) ? '네이버 앱' : /Line\//i.test(ua) ? '라인' : /DaumApps/i.test(ua) ? '다음 앱' : '';
+  if (!who || !box) return;
+  document.getElementById('inappWho').textContent = who; box.classList.add('on');
+  const android = /Android/i.test(ua), how = document.getElementById('inappHow'), btn = document.getElementById('inappOpen');
+  if (who === '카카오톡') btn.onclick = () => { location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(location.href); };
+  else if (android) btn.onclick = () => { location.href = 'intent://' + location.host + location.pathname + location.search + '#Intent;scheme=https;end'; };
+  else { btn.style.display = 'none'; how.textContent = `오른쪽 위 ⋯ 를 눌러 '브라우저로 열기'나 'Safari로 열기'를 골라 주세요.`; return; }
+  how.textContent = '이미 여기서 모은 도감이 있다면, 도감의 \'도감 옮기기\'로 가져갈 수 있어요.';
+})();
 const HINTS = {
   oyster: '물이 빠지면 모래 위를 둘러보세요', clam: '물이 빠지면 모래 위를 둘러보세요', pebble: '물이 빠지면 모래 위를 둘러보세요', kelp: '물이 빠지면 모래 위를 둘러보세요', crab: '물이 빠지면 모래 위를 둘러보세요',
   conch: '물 빠진 모래에서, 조금 드물게', star: '물 빠진 모래에서, 조금 드물게', glassG: '물 빠진 모래에서, 조금 드물게', feather: '바람 센 날 물 빠진 모래에서',
@@ -1549,6 +1610,7 @@ function openDex() {
   if (bits.length) { const sp = document.createElement('span'); sp.textContent = bits.join(' · '); ex.appendChild(sp); }
   neckButtons(ex);
   if (dexDone()) { const b = document.createElement('button'); b.textContent = '완성 카드'; b.onclick = () => { dexSheet.classList.remove('on'); openDone(); }; ex.appendChild(b); }
+  { const b = document.createElement('button'); b.textContent = '도감 옮기기'; b.onclick = () => { dexSheet.classList.remove('on'); openMove(); }; ex.appendChild(b); }
   if (mapHave.size) { const b = document.createElement('button'); b.textContent = '지도 보기'; b.onclick = () => { dexSheet.classList.remove('on'); openMap(); }; ex.appendChild(b); }
   for (const [id, name] of ITEMS) {
     const cell = document.createElement('button'), got = !!dex[id];
