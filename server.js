@@ -165,6 +165,13 @@ function countPerson(key) {
 /* ───────── 통계를 텔레그램으로 (무료 서버는 다시 켜지면 통계가 지워지므로) ─────────
    밤 11시 55분에 그날 기록을, 서버가 꺼지기 직전(배포·재시작)에 그때까지의 기록을 보낸다. */
 const BOOT_AT = Date.now();
+// 스스로 깨어 있기: Render 무료 서버는 15분 동안 바깥 요청이 없으면 잠든다.
+// 9분마다 자기 공개 주소(/healthz)를 두드려 잠들지 않게 한다. (GitHub 예약 실행은 몇 시간씩 밀려서 이것만으로는 부족했다)
+const SELF_URL = (process.env.SITE_URL || (process.env.RENDER_EXTERNAL_URL || '')).replace(/\/$/, '');
+if (SELF_URL && process.env.KEEPALIVE !== '0') {
+  setInterval(() => { fetch(SELF_URL + '/healthz', { signal: AbortSignal.timeout(20000) }).catch(e => console.log('[깨우기] 실패:', e.message)); }, 9 * 60e3).unref();
+  console.log('[깨우기] 9분마다', SELF_URL + '/healthz');
+}
 function kstHM(ms) { const d = new Date(ms + 9 * 3600e3); return `${d.getUTCMonth() + 1}/${d.getUTCDate()} ${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`; }
 function statsReport(title) {
   const d = day(), avg = d.방문 ? (d.머문시간합_초 / d.방문 / 60).toFixed(1) : '0', dist = d.머문시간분포 || {};
