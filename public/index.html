@@ -64,6 +64,9 @@
            font-size: 13.5px; padding: 9px 16px; border-radius: 999px; background: rgba(20,40,70,.55); backdrop-filter: blur(6px);
            -webkit-backdrop-filter: blur(6px); max-width: 88vw; text-align: center; opacity: 0; pointer-events: none; transition: opacity .5s, transform .5s; }
   #toast.on { opacity: 1; transform: translate(-50%, 0); }
+  #toast.head { bottom: auto; transform: translate(-50%, calc(-100% + 8px)); background: rgba(20,40,70,.78); font-size: 14.5px; line-height: 1.45; border-radius: 16px; padding: 10px 16px; max-width: min(78vw, 340px); word-break: keep-all; }
+  #toast.head.on { transform: translate(-50%, -100%); }
+  #toast.head::after { content: ''; position: absolute; left: 50%; bottom: -7px; margin-left: -7px; border: 7px solid transparent; border-bottom: 0; border-top-color: rgba(20,40,70,.78); }
   body.quiet #toast.on { opacity: 1; }
   #acts { left: 50%; bottom: calc(max(26px, env(safe-area-inset-bottom)) + 62px); transform: translateX(-50%);
           display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; white-space: nowrap; width: max-content; max-width: 94vw; }
@@ -184,7 +187,7 @@
 <div class="row"><span></span><button class="main" id="dexClose">닫기</button></div></div>
 <div id="cardSheet" class="sheet"><div class="k">지금 이 바다를 엽서 한 장으로</div><img id="cardImg" alt="파도멍 엽서">
 <div class="note">휴대폰은 사진을 길게 눌러 저장할 수도 있어요</div>
-<div class="row"><button class="sub" id="cardClose">닫기</button><button class="main" id="cardSave">저장·공유하기</button></div></div>
+<div class="row"><button class="sub" id="cardClose">닫기</button><button class="main" id="cardSave">저장하기</button></div></div>
 <div id="sandSheet" class="sheet"><div class="k" id="sandK">모래에 몇 글자 써 두면, 파도가 닿을 때 지워져요. 물가 가까이 쓸수록 빨리 지워집니다.</div>
 <textarea id="sandText" maxlength="16" placeholder="16자까지" style="height:56px"></textarea>
 <div class="note" id="sandNote"></div>
@@ -931,6 +934,7 @@ function drawPerson(a, t, inWater, night) {
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(20,40,60,.45)'; ctx.strokeText(a.name, x, ly);
     ctx.fillStyle = a === me ? '#fff' : 'rgba(255,255,255,.88)'; ctx.fillText(a.name, x, ly);
+    if (a === me) myHead = { x, y: ly - 10 * s };
   }
 }
 
@@ -1830,10 +1834,6 @@ document.getElementById('cardBtn').addEventListener('click', () => {
 document.getElementById('cardClose').addEventListener('click', () => cardSheet.classList.remove('on'));
 document.getElementById('cardSave').addEventListener('click', async () => {
   const name = `padomeong-${Date.now()}.jpg`;
-  try {
-    const file = cardBlob && new File([cardBlob], name, { type: 'image/jpeg' });
-    if (file && navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: '파도멍' }); return; }
-  } catch (e) { if (e && e.name === 'AbortError') return; }
   const a = document.createElement('a'); a.href = cardImg.src; a.download = name; document.body.appendChild(a); a.click(); a.remove();
 });
 
@@ -3335,8 +3335,17 @@ function drawCalls(pn) {
 /* ───────── 알림 한 줄 · 물때 표시 ───────── */
 const toastEl = document.getElementById('toast'); let toastTimer = 0;
 function toast(msg) {
-  toastEl.textContent = msg; toastEl.classList.add('on'); hint.classList.add('gone');
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => toastEl.classList.remove('on'), 5200);
+  toastEl.textContent = msg; toastEl.classList.add('on'); hint.classList.add('gone'); placeToast();
+  const dur = clamp(3500 + String(msg).length * 110, 5000, 11000);      // 글이 길수록 오래 (읽을 시간)
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => toastEl.classList.remove('on'), dur);
+}
+// 알림은 내 머리 위 말풍선으로: 그림을 그릴 때 기억해 둔 내 머리 자리에 붙인다 (바닷가에 들어오기 전에는 아래쪽)
+let myHead = null;
+function placeToast() {
+  if (!joined || !myHead || myHead.y < 70) { toastEl.classList.remove('head'); toastEl.style.left = toastEl.style.top = ''; return; }
+  toastEl.classList.add('head');
+  const half = Math.min(toastEl.offsetWidth || 200, W - 16) / 2, x = clamp(myHead.x, half + 8, W - half - 8);
+  toastEl.style.left = x + 'px'; toastEl.style.top = Math.max(myHead.y - 10, 60) + 'px';
 }
 const tideEl = document.getElementById('tideLine'), eventEl = document.getElementById('eventLine'), wxEl = document.getElementById('wxLine');
 let infoAt = 0;
@@ -3606,6 +3615,7 @@ function frame(pn) {
   drawShots(pn); drawWishFx(pn); drawWalkerSay(pn);
   drawTermEffects(pn, t, pal); beaconHintTick(pn, nf);
   drawPrecip(pn, t);
+  if (toastEl.classList.contains('on')) placeToast();          // 걸어가도 말풍선이 따라온다
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
