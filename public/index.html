@@ -3685,7 +3685,7 @@ function connect() {
   catch (e) { ws = null; showCount(); return; }
   ws.onopen = () => {
     retry = 2000;
-    ws.send(JSON.stringify({ t: 'join', name: me.name, color: me.color, x: Math.round(me.x), d: +me.d.toFixed(3), sit: me.sit ? 1 : 0, k: me.kite ? 1 : 0, g: me.g, st: me.st, n: me.neck ? 1 : 0 }));
+    ws.send(JSON.stringify({ t: 'join', tok: myTok(), name: me.name, color: me.color, x: Math.round(me.x), d: +me.d.toFixed(3), sit: me.sit ? 1 : 0, k: me.kite ? 1 : 0, g: me.g, st: me.st, n: me.neck ? 1 : 0 }));
   };
   ws.onmessage = ev => {
     let m; try { m = JSON.parse(ev.data); } catch (e) { return; }

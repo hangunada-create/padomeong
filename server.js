@@ -102,8 +102,8 @@ async function findChat() {
   }
   throw new Error('봇에게 먼저 아무 말이나 한 번 보내 주세요');
 }
-async function notifyOwner(text, img) {
-  console.log('[완성 카드] ' + text);
+async function notifyOwner(text, img, quiet) {
+  console.log((quiet ? '[통계 알림] ' : '[완성 카드] ') + text.split('\n')[0]);
   if (!TG_TOKEN) return 'TELEGRAM_BOT_TOKEN 없음';
   try {
     const chat = await findChat();
@@ -155,6 +155,42 @@ function recordVisit(sec, sitSec) {
   d.머문시간분포[BUCKETS[b]]++;
   save('stats.json', stats);
 }
+// 오늘 온 사람(중복 뺀 수): 같은 인터넷 주소 + 같은 브라우저 표식은 하루 한 번만 센다
+let personDay = '', persons = new Set();
+function countPerson(key) {
+  const k = kstDay(); if (k !== personDay) { personDay = k; persons = new Set(); }
+  if (persons.has(key)) return; persons.add(key); bump('사람');
+}
+
+/* ───────── 통계를 텔레그램으로 (무료 서버는 다시 켜지면 통계가 지워지므로) ─────────
+   밤 11시 55분에 그날 기록을, 서버가 꺼지기 직전(배포·재시작)에 그때까지의 기록을 보낸다. */
+const BOOT_AT = Date.now();
+function kstHM(ms) { const d = new Date(ms + 9 * 3600e3); return `${d.getUTCMonth() + 1}/${d.getUTCDate()} ${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`; }
+function statsReport(title) {
+  const d = day(), avg = d.방문 ? (d.머문시간합_초 / d.방문 / 60).toFixed(1) : '0', dist = d.머문시간분포 || {};
+  return [
+    `🌊 ${title}`, `(${kstHM(BOOT_AT)} 서버가 켜진 뒤부터 ${kstHM(Date.now())}까지)`,
+    `온 사람 ${d.사람 || 0}명 · 들어온 횟수 ${d.입장 || 0}번 · 5초 넘게 머문 방문 ${d.방문 || 0}번`,
+    `평균 머문 시간 ${avg}분 · 가장 많이 동시에 ${d.최대동시접속 || 0}명`,
+    '머문 시간: ' + (Object.entries(dist).filter(([, v]) => v).map(([k, v]) => `${k} ${v}`).join(', ') || '없음'),
+    `유리병 ${d.띄운병 || 0} · 모래 글씨 ${d.모래글씨 || 0} · 손 흔들기 ${d.손흔들기 || 0} · 완성 카드 ${d.완성카드 || 0}`,
+  ].join('\n');
+}
+let reportedDay = '';
+setInterval(() => {
+  const d = new Date(Date.now() + 9 * 3600e3);
+  if (d.getUTCHours() === 23 && d.getUTCMinutes() >= 55 && reportedDay !== kstDay()) { reportedDay = kstDay(); notifyOwner(statsReport('오늘 파도멍 기록'), null, true); }
+}, 60e3).unref();
+let closing = false;
+async function reportAndExit(sig) {
+  if (closing) return; closing = true;
+  const d = day();
+  if ((d.입장 || 0) > 0) { try { await Promise.race([notifyOwner(statsReport('서버가 다시 켜지기 전 기록'), null, true), new Promise(r => setTimeout(r, 8000))]); } catch (e) {} }
+  console.log('[종료]', sig); process.exit(0);
+}
+process.on('SIGTERM', () => reportAndExit('SIGTERM'));
+process.on('SIGINT', () => reportAndExit('SIGINT'));
+
 function statsView() {
   const out = {};
   for (const [k, d] of Object.entries(stats).sort().reverse()) {
@@ -237,6 +273,7 @@ const server = http.createServer((req, res) => {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
       return res.end(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>파도멍 시험</title><body style="font:17px/1.6 sans-serif;padding:32px;text-align:center"><script>${js}</script></body>`);
     }
+    if (p === '/admin/report-test') { notifyOwner(statsReport('지금까지 파도멍 기록 (시험)'), null, true).then(r => json(res, 200, { 결과: r, 내용: statsReport('지금까지 파도멍 기록 (시험)') })); return; }
     if (p === '/admin/notify-test') {
       if (!TG_TOKEN) return json(res, 200, { 안내: 'TELEGRAM_BOT_TOKEN 환경변수가 비어 있어요' });
       notifyOwner('파도멍 서버에서 보낸 시험 알림이에요 🐚', null).then(r => json(res, 200, { 결과: r, 대화방: tgChat || '(아직 못 찾음)', 안내: tgChat && !process.env.TELEGRAM_CHAT_ID ? '이 대화방 번호를 TELEGRAM_CHAT_ID 환경변수에 넣어 두면 서버가 다시 켜져도 바로 보내요' : undefined }));
@@ -442,7 +479,7 @@ wss.on('connection', (ws, req) => {
       for (const pid of rooms.get(room)) { const p = people.get(pid); if (p) list.push([pid, p.x, p.d, p.sit, p.color, p.name, p.k, p.g, p.st, p.n]); }
       rooms.get(room).add(id); people.set(id, me);
       const d = day(); d.최대동시접속 = Math.max(d.최대동시접속, people.size);
-      if (!isBot) bump('입장');
+      if (!isBot) { bump('입장'); countPerson(tag + ':' + String(m.tok || '').replace(/[^a-z0-9]/gi, '').slice(0, 24)); }
       const cs = castleOf(room);
       send(ws, { t: 'hi', id, now: Date.now(), room, rooms: rooms.size, p: list, w: writings.get(room) || [], today: todayView(), wx: weather, castle: cs.map(c => [c.lvl, c.gen]), ball: ballOf(room), ob: omokView(omokOf(room)), ln: lanternList(), qa: qaList().slice(-40), sn: sunsetCount() });
       sendRoom(room, { t: 'in', p: [id, me.x, me.d, me.sit, me.color, me.name, me.k, me.g, me.st, me.n] }, id);
