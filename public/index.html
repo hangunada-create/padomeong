@@ -75,9 +75,9 @@
   #sendBtn, #kiteBtn, #lanternBtn, #fwBtn, #feedBtn, #toadBtn, #gcBtn { display: none; }
   #sendBtn.on, #kiteBtn.on, #lanternBtn.on, #fwBtn.on, #feedBtn.on, #toadBtn.on, #gcBtn.on { display: inline-block; }
   #acts { transition: opacity 1.5s; }
-  #omokGrid { display: grid; grid-template-columns: repeat(9, 1fr); width: min(306px, 78vw); aspect-ratio: 1; margin: 10px auto 4px; background: #e2cc9c; border-radius: 8px; padding: 6px; box-sizing: border-box; }
+  #omokGrid { display: grid; grid-template-columns: repeat(15, 1fr); width: min(390px, 100%); aspect-ratio: 1; margin: 10px auto 4px; background: #e2cc9c; border-radius: 8px; padding: 6px; box-sizing: border-box; }
   #omokGrid button { border: 0; padding: 0; background: linear-gradient(#a8885c, #a8885c) center / 1px 100% no-repeat, linear-gradient(#a8885c, #a8885c) center / 100% 1px no-repeat; cursor: pointer; position: relative; }
-  #omokGrid button.k::after, #omokGrid button.w::after { content: ''; position: absolute; inset: 12%; border-radius: 50%; background: #2b2b2e; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
+  #omokGrid button.k::after, #omokGrid button.w::after { content: ''; position: absolute; inset: 8%; border-radius: 50%; background: #2b2b2e; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
   #omokGrid button.w::after { background: #f8f6f0; }
   .sheet canvas.pic { width: 100%; border-radius: 8px; margin-top: 10px; display: block; box-shadow: 0 4px 14px rgba(0,0,0,.15); }
   #dexExtra { margin-top: 6px; font-size: 12.5px; color: #6a7884; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
@@ -2972,20 +2972,21 @@ function hitBall(cx, cy) { const p = ballPos(now()), s = sOf(p.d); return Math.h
 
 /* ───────── 모래 오목: 같은 해변 사람끼리 9×9 판에서 ───────── */
 const OMOK = { x: 2640, d: 0.46 }, omokSheet = document.getElementById('omokSheet'), omokGrid = document.getElementById('omokGrid'), omokNote = document.getElementById('omokNote');
-let omok = { b: '0'.repeat(81), turn: 1, p: ['', ''], win: 0 };
-for (let i = 0; i < 81; i++) { const c = document.createElement('button'); c.dataset.i = i; omokGrid.appendChild(c); }
+const ON = 15;                                   // 오목판 칸 수 (15줄 × 15줄)
+let omok = { b: '0'.repeat(ON * ON), turn: 1, p: ['', ''], win: 0 };
+for (let i = 0; i < ON * ON; i++) { const c = document.createElement('button'); c.dataset.i = i; omokGrid.appendChild(c); }
 omokGrid.addEventListener('click', e => {
   const i = e.target.dataset && e.target.dataset.i; if (i === undefined) return;
   if (ws && online) ws.send(JSON.stringify({ t: 'om', i: +i }));
   else localOmok(+i);
 });
 document.getElementById('omokClose').addEventListener('click', () => omokSheet.classList.remove('on'));
-document.getElementById('omokNew').addEventListener('click', () => { if (ws && online) ws.send(JSON.stringify({ t: 'or' })); else { omok = { b: '0'.repeat(81), turn: 1, p: ['', ''], win: 0 }; renderOmok(); } });
+document.getElementById('omokNew').addEventListener('click', () => { if (ws && online) ws.send(JSON.stringify({ t: 'or' })); else { omok = { b: '0'.repeat(ON * ON), turn: 1, p: ['', ''], win: 0 }; renderOmok(); } });
 function omokWin(b, i) {
-  const c = b[i], r = Math.floor(i / 9), q = i % 9;
+  const c = b[i], r = Math.floor(i / ON), q = i % ON;
   for (const [dr, dq] of [[0, 1], [1, 0], [1, 1], [1, -1]]) {
     let n = 1;
-    for (const sg of [1, -1]) for (let k = 1; k < 5; k++) { const rr = r + dr * k * sg, qq = q + dq * k * sg; if (rr < 0 || rr > 8 || qq < 0 || qq > 8 || b[rr * 9 + qq] !== c) break; n++; }
+    for (const sg of [1, -1]) for (let k = 1; k < 5; k++) { const rr = r + dr * k * sg, qq = q + dq * k * sg; if (rr < 0 || rr > ON - 1 || qq < 0 || qq > ON - 1 || b[rr * ON + qq] !== c) break; n++; }
     if (n >= 5) return true;
   }
   return false;
@@ -3007,13 +3008,13 @@ function drawOmokBoard(pn) {
   const s = sOf(OMOK.d), x = xOf(OMOK.x, OMOK.d), y = yOf(OMOK.d);
   if (x < -120 || x > W + 120) return;
   const half = 36, dd = 0.06;               // 오목판 크기 (가로 반폭, 깊이 폭) — 지나다니기 편하게 작게
-  const P = (i, j) => { const d = OMOK.d - dd / 2 + dd * j / 8, wx = OMOK.x - half + 2 * half * i / 8; return [xOf(wx, d), yOf(d)]; };
-  ctx.strokeStyle = 'rgba(120,90,60,.45)'; ctx.lineWidth = 0.8 * s;
-  for (let k = 0; k < 9; k++) { let [a, b] = P(0, k), [c, d] = P(8, k); ctx.beginPath(); ctx.moveTo(a, b); ctx.lineTo(c, d); ctx.stroke(); [a, b] = P(k, 0); [c, d] = P(k, 8); ctx.beginPath(); ctx.moveTo(a, b); ctx.lineTo(c, d); ctx.stroke(); }
-  for (let i = 0; i < 81; i++) {
+  const P = (i, j) => { const d = OMOK.d - dd / 2 + dd * j / (ON - 1), wx = OMOK.x - half + 2 * half * i / (ON - 1); return [xOf(wx, d), yOf(d)]; };
+  ctx.strokeStyle = 'rgba(120,90,60,.35)'; ctx.lineWidth = 0.6 * s;
+  for (let k = 0; k < ON; k++) { let [a, b] = P(0, k), [c, d] = P(ON - 1, k); ctx.beginPath(); ctx.moveTo(a, b); ctx.lineTo(c, d); ctx.stroke(); [a, b] = P(k, 0); [c, d] = P(k, ON - 1); ctx.beginPath(); ctx.moveTo(a, b); ctx.lineTo(c, d); ctx.stroke(); }
+  for (let i = 0; i < ON * ON; i++) {
     const v = omok.b[i]; if (v === '0') continue;
-    const [px, py] = P(i % 9, Math.floor(i / 9)), ss = sOf(OMOK.d - dd / 2 + dd * Math.floor(i / 9) / 8);
-    ctx.fillStyle = v === '1' ? '#2b2b2e' : '#f6f4ee'; ctx.beginPath(); ctx.ellipse(px, py, 2.8 * ss, 1.7 * ss, 0, 0, 6.3); ctx.fill();
+    const [px, py] = P(i % ON, Math.floor(i / ON)), ss = sOf(OMOK.d - dd / 2 + dd * Math.floor(i / ON) / (ON - 1));
+    ctx.fillStyle = v === '1' ? '#2b2b2e' : '#f6f4ee'; ctx.beginPath(); ctx.ellipse(px, py, 2.0 * ss, 1.2 * ss, 0, 0, 6.3); ctx.fill();
   }
   void x; void y; void pn;
 }

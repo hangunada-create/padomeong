@@ -388,14 +388,14 @@ const balls = new Map(); const BALL_K = 1.4;
 const ballOf = room => { if (!balls.has(room)) balls.set(room, [1500, 0.5, 0, 0, Date.now()]); return balls.get(room); };
 function ballNow(b, ms) { const e = Math.max(0, (ms - b[4]) / 1000), f = (1 - Math.exp(-BALL_K * e)) / BALL_K; return [clamp(b[0] + b[2] * f, 80, WORLD_W - 80), clamp(b[1] + b[3] * f, 0.02, 0.7)]; }
 // 모래 오목 (해변마다 한 판, 9×9)
-const omoks = new Map();
-const omokOf = room => { if (!omoks.has(room)) omoks.set(room, { b: Array(81).fill('0'), turn: 1, p: [null, null], win: 0, last: 0 }); return omoks.get(room); };
+const omoks = new Map(), ON = 15;           // 오목판 15줄 × 15줄
+const omokOf = room => { if (!omoks.has(room)) omoks.set(room, { b: Array(ON * ON).fill('0'), turn: 1, p: [null, null], win: 0, last: 0 }); return omoks.get(room); };
 const omokView = o => ({ t: 'ob', b: o.b.join(''), turn: o.turn, p: o.p.map(x => (x ? x.name : '')), win: o.win });
 function omokWin(b, i) {
-  const c = b[i], r = Math.floor(i / 9), q = i % 9;
+  const c = b[i], r = Math.floor(i / ON), q = i % ON;
   for (const [dr, dq] of [[0, 1], [1, 0], [1, 1], [1, -1]]) {
     let n = 1;
-    for (const sg of [1, -1]) for (let k = 1; k < 5; k++) { const rr = r + dr * k * sg, qq = q + dq * k * sg; if (rr < 0 || rr > 8 || qq < 0 || qq > 8 || b[rr * 9 + qq] !== c) break; n++; }
+    for (const sg of [1, -1]) for (let k = 1; k < 5; k++) { const rr = r + dr * k * sg, qq = q + dq * k * sg; if (rr < 0 || rr > ON - 1 || qq < 0 || qq > ON - 1 || b[rr * ON + qq] !== c) break; n++; }
     if (n >= 5) return true;
   }
   return false;
@@ -560,7 +560,7 @@ wss.on('connection', (ws, req) => {
 
     } else if (m.t === 'om') {                    // 모래 오목에 돌 놓기
       const o = omokOf(me.room), i = m.i | 0;
-      if (o.win || i < 0 || i > 80 || o.b[i] !== '0') return send(ws, omokView(o));
+      if (o.win || i < 0 || i > ON * ON - 1 || o.b[i] !== '0') return send(ws, omokView(o));
       const seat = o.p[o.turn - 1];
       if (seat && seat.id !== id && people.has(seat.id) && t - seat.at < 180000) return send(ws, omokView(o));
       o.p[o.turn - 1] = { id, name: me.name, at: t };
