@@ -2960,20 +2960,20 @@ function renderOmok() {
 function drawOmokBoard(pn) {
   const s = sOf(OMOK.d), x = xOf(OMOK.x, OMOK.d), y = yOf(OMOK.d);
   if (x < -120 || x > W + 120) return;
-  const half = 60, dd = 0.1;
+  const half = 36, dd = 0.06;               // 오목판 크기 (가로 반폭, 깊이 폭) — 지나다니기 편하게 작게
   const P = (i, j) => { const d = OMOK.d - dd / 2 + dd * j / 8, wx = OMOK.x - half + 2 * half * i / 8; return [xOf(wx, d), yOf(d)]; };
-  ctx.strokeStyle = 'rgba(120,90,60,.45)'; ctx.lineWidth = 1 * s;
+  ctx.strokeStyle = 'rgba(120,90,60,.45)'; ctx.lineWidth = 0.8 * s;
   for (let k = 0; k < 9; k++) { let [a, b] = P(0, k), [c, d] = P(8, k); ctx.beginPath(); ctx.moveTo(a, b); ctx.lineTo(c, d); ctx.stroke(); [a, b] = P(k, 0); [c, d] = P(k, 8); ctx.beginPath(); ctx.moveTo(a, b); ctx.lineTo(c, d); ctx.stroke(); }
   for (let i = 0; i < 81; i++) {
     const v = omok.b[i]; if (v === '0') continue;
     const [px, py] = P(i % 9, Math.floor(i / 9)), ss = sOf(OMOK.d - dd / 2 + dd * Math.floor(i / 9) / 8);
-    ctx.fillStyle = v === '1' ? '#2b2b2e' : '#f6f4ee'; ctx.beginPath(); ctx.ellipse(px, py, 4.4 * ss, 2.6 * ss, 0, 0, 6.3); ctx.fill();
+    ctx.fillStyle = v === '1' ? '#2b2b2e' : '#f6f4ee'; ctx.beginPath(); ctx.ellipse(px, py, 2.8 * ss, 1.7 * ss, 0, 0, 6.3); ctx.fill();
   }
   void x; void y; void pn;
 }
 function hitOmok(cx, cy) {
   const s = sOf(OMOK.d), x = xOf(OMOK.x, OMOK.d), y = yOf(OMOK.d);
-  return Math.abs(cx - x) < 70 * s + 10 && Math.abs(cy - y) < 22 * s + 10;
+  return Math.abs(cx - x) < 42 * s + 6 && Math.abs(cy - y) < 14 * s + 6;
 }
 function openOmok() {
   if (Math.abs(me.x - OMOK.x) > 400 || Math.abs(me.d - OMOK.d) > 0.35) { me.tx = OMOK.x; me.td = OMOK.d + 0.12; return; }
