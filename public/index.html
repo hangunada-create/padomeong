@@ -1605,13 +1605,38 @@ const HINTS = {
   toadhouse: '모래를 다독여 두꺼비집을 지어 보세요', necklace: '조개 다섯 가지를 모아 보세요', gullcall: '갈매기가 보일 때 끼룩 하고 불러 보세요',
   rainbow: '비가 막 그친 뒤 낮 하늘을 보세요', halo: '습도가 아주 높은 밤, 달 둘레를 보세요', starsea: '바람이 아주 센 날의 다음 날 아침, 밀려온 불가사리를 바다로',
   gullflock: '노점에서 멸치를 얻어 갈매기에게 던져 보세요', seaglass: '물 빠진 모래에서 일곱 빛깔 바다 유리를 모아 보세요', omok: '모래 위 오목판에서 한 판을 끝까지',
-  horn: '아침 7시 50분, 목포항 쪽에 귀를 기울여 보세요', mapdone: '하루에 한 조각씩, 모래 속 지도 조각을 일곱 날 모아 보세요', oldphoto: '물가에 밀려온 짙은 갈색 병을 찾아보세요. 하루 한 병, 옛 목포 일곱 장을 다 모으면 도감에 담겨요',
+  horn: '목포항에서 쾌속선이 떠나는 시각, 바닷가에 있어 보세요', mapdone: '하루에 한 조각씩, 모래 속 지도 조각을 일곱 날 모아 보세요', oldphoto: '물가에 밀려온 짙은 갈색 병을 찾아보세요. 하루 한 병, 옛 목포 일곱 장을 다 모으면 도감에 담겨요',
   wish: '밤하늘에 별똥별이 지나가면 그 자리를 눌러 보세요', walker: '아침 7시, 낮 12시 반, 저녁 6시에 해변을 걷는 사람이 있어요', sunset: '해 지는 시각에 십 분 동안 머물러 보세요',
   myfire: '저녁 바다에서 불꽃 단추를 당겨 쏘아 보세요', sentence: '등대가 밤마다 한 낱말씩 깜빡여요(월~일, 일곱 낱말이 한 문장). 같은 문장은 4주마다 돌아오니 천천히 모아도 돼요. 다 모이면 그 문장이 돌아온 주에 노점 앞 모래에 써 보세요',
 };
 function dexHint(id) {
   const t = now(), day = 864e5, md = ms => { const d = new Date(ms + 9 * 3600e3); return `${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일`; };
   if (id === 'snow') return seasonHint(t);
+  // 그날의 실마리: 지금 날씨·달·물때를 보고 알려 준다
+  if (id === 'pearl') {
+    const sp = ms => { const ph = moonPhase(ms); return Math.min(ph, Math.abs(ph - 0.5), 1 - ph) < 0.08; };
+    if (sp(t)) return `${HINTS.pearl} · 오늘이 사리 무렵이에요. 물 빠진 모래를 천천히 둘러보세요`;
+    for (let k = 1; k < 20; k++) if (sp(t + k * day)) return `${HINTS.pearl} · 다음 사리 무렵 ${md(t + k * day)}부터`;
+  }
+  if (id === 'starsea') {
+    const gust = WX ? +WX.gust || 0 : 0, ws = WX ? +WX.ws || 0 : 0, h = kst(t).h;
+    if (gust >= 8 && ws < 8 && h >= 5 && h < 12) return `${HINTS.starsea} · 지금이에요! 밤새 센 바람에 불가사리가 밀려왔을지 몰라요`;
+    if (gust >= 8) return `${HINTS.starsea} · 오늘 바람이 세요(최대 초속 ${Math.round(gust)}m). 바람이 잦아든 아침 5~12시에 와 보세요`;
+    return `${HINTS.starsea} · 오늘은 바람이 잔잔해요`;
+  }
+  if (id === 'rainbow') {
+    const age = WX && WX.after ? (now() - WX.after) / 60000 : -1, dayNow = kst(t).h >= 7 && kst(t).h < 18;
+    if (WXF.rain > 0.1) return `${HINTS.rainbow} · 지금 비가 와요. 그치고 40분 안에, 해가 있을 때 하늘을 보세요`;
+    if (age >= 0 && age <= 40 && dayNow) return `${HINTS.rainbow} · 방금 비가 그쳤어요! 지금 하늘을 보세요`;
+    return `${HINTS.rainbow} · 오늘은 비 소식이 없어요`;
+  }
+  if (id === 'halo') {
+    const ph = moonPhase(t), lit = (1 - Math.cos(ph * 2 * Math.PI)) / 2, hum = WX ? +WX.h || 0 : 0;
+    if (lit < 0.35) { const left = ((0.5 - ph + 1) % 1) * 29.53; return `${HINTS.halo} · 지금은 달이 가늘어요. 달이 차오르는 ${md(t + Math.max(0, left - 6) * day)} 무렵부터`; }
+    if (hum >= 80) return `${HINTS.halo} · 오늘 밤이 좋아요(습도 ${Math.round(hum)}%). 비만 오지 않으면 달 둘레를 보세요`;
+    return `${HINTS.halo} · 달은 밝은데 지금 습도가 ${Math.round(hum)}%예요. 80%가 넘는 밤을 기다려 보세요`;
+  }
+  if (id === 'horn') { const ht = hornTimes(t).map(([h, m]) => `${h}시${m ? ' ' + m + '분' : ''}`).join(', '); return `${HINTS.horn} · 지금 철에는 ${ht}에 울려요. 울리는 6분 사이에 바닷가에 있으면 들려요`; }
   if (id === 'oldphoto') return `${HINTS.oldphoto} · 지금 ${photoHave.size}/${OLD.length}`;
   if (id === 'mapdone') return `${HINTS.mapdone} · 지금 ${mapHave.size}/7`;
   if (id === 'skylantern') { const ph = moonPhase(t), left = ((0.5 - ph + 1) % 1) * 29.53; return left < 1.2 || left > 28.3 ? '오늘 밤이 보름 무렵이에요. 밤에 등을 띄워 보세요' : `보름달 뜬 밤에 띄워요 · 다음 보름 ${md(t + left * day)} 무렵`; }
@@ -3011,9 +3036,9 @@ function hornState(ms) {
 }
 function hornTick(t) {
   const st = hornState(t);
-  if (st && st.go && st.e < 0.3 && hornDone !== st.key && joined) {
+  if (st && st.go && hornDone !== st.key && joined) {          // 뱃고동이 울리는 6분 사이에 바닷가에 있으면 듣는다
     hornDone = st.key; playHorn();
-    setTimeout(() => { if (!dex.horn) addItem('horn', '목포항에서 뱃고동이 울렸어요 · 도감에 담았어요'); }, 3500);
+    setTimeout(() => { if (!dex.horn) addItem('horn', st.e < 0.5 ? '목포항에서 뱃고동이 울렸어요 · 도감에 담았어요' : '목포항 쪽에서 뱃고동이 길게 이어져요 · 도감에 담았어요'); }, 3500);
   }
 }
 function playHorn() {
