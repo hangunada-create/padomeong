@@ -2473,13 +2473,120 @@ cv.addEventListener('pointercancel', () => { aimDrag = null; });
 function onPeerShot(m) { const p = peers.get(m.id); if (p) addShot(p, m.ax, m.ay, p.color, false); }
 
 const hourOf = ms => { const k = kst(ms); return k.h + k.m / 60 + k.s / 3600; };
+/* ───────── 더 오래 가만히: 숭어가 뛴다 ─────────
+   게(3분)·갈매기 다음 단계. 움직이지 않고 6분쯤 있으면 먼바다에서 숭어가 가끔 뛰어오른다.
+   움직이면 멈춘다. 도감에는 넣지 않는다: 그냥 본 사람만 아는 장면. */
+let mullet = null, mulletNext = 0;
+function mulletTick(pn, dE) {
+  const still = pn - stillSince, need = FAST ? 5000 : 360000;
+  if (!joined || still < need || RAINY() || WXF.fog || WXF.wind > 9) { if (still < need) mulletNext = 0; }
+  else if (!mullet) {
+    if (!mulletNext) mulletNext = pn + (FAST ? 500 : 4000);
+    if (pn > mulletNext) {
+      const hy = horizonY(), ye = yOf(dE), k = 0.35 + Math.random() * 0.5, y = lerp(hy + 6 * U, ye - 14 * U, k);
+      const n = Math.random() < 0.35 ? 2 + Math.floor(Math.random() * 2) : 1;     // 가끔은 연달아 두세 번
+      mullet = { x: W * (0.12 + Math.random() * 0.76), y, k, dir: Math.random() < 0.5 ? -1 : 1, t0: pn, n };
+      mulletNext = pn + (FAST ? 3000 : 35000 + Math.random() * 60000);
+    }
+  }
+  if (mullet && pn - mullet.t0 > mullet.n * 1100 + 1600) mullet = null;
+}
+function drawMullet(pn, nf) {
+  if (!mullet) return;
+  const M = mullet, sz = (5 + 9 * M.k) * U;
+  for (let i = 0; i < M.n; i++) {
+    const e = (pn - M.t0 - i * 1100) / 900; if (e < 0) continue;
+    const x0 = M.x + M.dir * i * sz * 3.2;
+    if (e < 1) {                                  // 물 밖으로 활처럼 튀어 오른 몸
+      const h = Math.sin(Math.PI * e) * sz * 2.6, x = x0 + M.dir * (e - 0.5) * sz * 2.4, ang = M.dir * (e - 0.5) * 1.6;
+      ctx.save(); ctx.translate(x, M.y - h); ctx.rotate(ang);
+      ctx.fillStyle = nf > 0.5 ? 'rgba(170,185,205,.85)' : 'rgba(200,210,222,.95)';
+      ctx.beginPath(); ctx.ellipse(0, 0, sz, sz * 0.28, 0, 0, 6.3); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-M.dir * sz * 0.9, 0); ctx.lineTo(-M.dir * sz * 1.35, -sz * 0.3); ctx.lineTo(-M.dir * sz * 1.35, sz * 0.3); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.fillRect(-sz * 0.6, -sz * 0.12, sz * 1.1, sz * 0.07);
+      ctx.restore();
+    }
+    for (const [at, x] of [[0, x0 - M.dir * sz * 1.2], [1, x0 + M.dir * sz * 1.2]]) {   // 들어가고 나온 자리의 물보라와 동그라미
+      const f = (e - at) / 1.4; if (f < 0 || f > 1) continue;
+      const r = sz * (0.6 + f * 2.4);
+      ctx.strokeStyle = `rgba(255,255,255,${0.55 * (1 - f)})`; ctx.lineWidth = 1.1 * U;
+      ctx.beginPath(); ctx.ellipse(x, M.y, r, r * 0.22, 0, 0, 6.3); ctx.stroke();
+      if (f < 0.3) { ctx.fillStyle = `rgba(255,255,255,${0.7 * (1 - f / 0.3)})`; for (let j = 0; j < 4; j++) { ctx.beginPath(); ctx.arc(x + (j - 1.5) * sz * 0.35, M.y - Math.sin(f / 0.3 * Math.PI) * sz * (0.6 + j % 2 * 0.4), 1.2 * U, 0, 6.3); ctx.fill(); } }
+    }
+  }
+}
+
+/* ───────── 둘이 앉은 밤, 파도가 푸르게 빛난다 ─────────
+   밤에 누군가와 가까이 앉아 3분쯤 함께 있으면, 두 사람 앞 물가에서만 파도가 야광충처럼 푸르게 빛난다.
+   혼자서는 볼 수 없다. 처음 한 번만 짧게 알려 준다. */
+let glowPair = null, glowSince = 0, glowK = 0, glowTold = '';
+function glowTick(pn, dt, night) {
+  let mate = null;
+  if (joined && night && me.sit && !RAINY()) {
+    let best = 1e9;
+    for (const p of peers.values()) {
+      if (!p.sit) continue;
+      const dx = Math.abs(p.x - me.x); if (dx < 170 && Math.abs(p.d - me.d) < 0.14 && dx < best) { best = dx; mate = p; }
+    }
+  }
+  if (!mate) { glowPair = null; glowSince = 0; }
+  else { if (glowPair !== mate) { glowPair = mate; glowSince = pn; } }
+  const on = glowPair && pn - glowSince > (FAST ? 4000 : 180000);
+  glowK = clamp(glowK + (on ? dt / 8 : -dt / 4), 0, 1);
+  if (on && glowTold !== dayKey(now())) { glowTold = dayKey(now()); toast('함께 앉은 두 사람 앞에서 파도가 푸르게 빛나요'); }
+}
+function drawGlow(pn, t, dE) {
+  if (glowK <= 0.01 || !glowPair) return;
+  const a = Math.min(me.x, glowPair.x) - 190, b = Math.max(me.x, glowPair.x) + 190, mid = (a + b) / 2, half = (b - a) / 2;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
+  const surge = 0.6 + 0.4 * Math.sin(t / 900);                           // 파도가 부서질 때마다 밝아졌다 잦아든다
+  for (let wx = a; wx <= b; wx += 6) {
+    const fall = 1 - Math.pow(Math.abs(wx - mid) / half, 2); if (fall <= 0) continue;
+    const fl = 0.55 + 0.45 * Math.sin(pn / 260 + wx * 0.21) * Math.sin(pn / 410 + wx * 0.07);
+    const al = glowK * fall * surge * fl;
+    for (let j = 0; j < 3; j++) {                                         // 물가 선과 그 앞 부서지는 물결 두 줄
+      const d = dE + wobble(wx, t) - j * 0.035 - (j ? 0.01 * Math.sin(t / 700 + wx * 0.01 + j) : 0);
+      const x = xOf(wx, d), y = yOf(d), s = sOf(d), aj = al * (j ? 0.55 : 1);
+      if (x < -30 || x > W + 30) continue;
+      ctx.fillStyle = `rgba(40,170,255,${0.28 * aj})`; ctx.beginPath(); ctx.ellipse(x, y, 20 * s, 7 * s, 0, 0, 6.3); ctx.fill();
+      ctx.fillStyle = `rgba(110,225,255,${0.55 * aj})`; ctx.beginPath(); ctx.ellipse(x, y, 8 * s, 2.6 * s, 0, 0, 6.3); ctx.fill();
+      ctx.fillStyle = `rgba(210,250,255,${0.8 * aj})`; ctx.beginPath(); ctx.ellipse(x, y - 0.4 * s, 3.5 * s, 1.2 * s, 0, 0, 6.3); ctx.fill();
+    }
+    if (hash(wx * 0.37 + Math.floor(pn / 300)) > 0.75) {                 // 물속 반짝이
+      const dd = dE + wobble(wx, t) - 0.01 - hash(wx * 1.3) * 0.12, sx = xOf(wx, dd), sy = yOf(dd), ss = sOf(dd);
+      ctx.fillStyle = `rgba(150,240,255,${0.9 * al})`; ctx.beginPath(); ctx.arc(sx, sy, 1.8 * ss, 0, 6.3); ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
 /* ───────── 노을 십 분 ─────────
    실제 해넘이 앞뒤 10분 동안 바다가 금빛이 되고 그림자가 길어진다.
    끝나면 오늘 노을을 함께 본 사람 수를 알려 준다. 그 사이 찍은 엽서에는 노을 도장이 찍힌다. */
 let GOLD = 0, sunsetSent = '', sunsetN = 0, sunsetSeen = '', sunsetTold = '';
 const dayKey = ms => new Date(ms + 9 * 3600e3).toISOString().slice(0, 10);
+let calmOverride = '', sunsetPre = '', wasOverride = false;
+const hhmm = h => { const m = Math.round(h * 60); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`; };
+function sunsetNotice(dm, set, k) {         // 해넘이 앞 시간 안내: 위 한 줄 + 두 번 알림
+  const here = (joined ? 1 : 0) + peers.size;
+  calmOverride = dm > -90 && dm < -30 ? `오늘 해넘이 ${hhmm(set)} · 그때 함께 노을 봐요`
+    : dm >= -30 && dm < -1 ? `노을까지 ${Math.ceil(-dm)}분 · 바다 쪽을 함께 봐요`
+    : dm >= -1 && dm <= 10 ? '지금 노을이에요 · 잠깐 바다를 봐요' : '';
+  const calmEl = document.getElementById('calmLine');
+  if (calmOverride && calmEl.textContent !== calmOverride) { calmEl.textContent = calmOverride; calmEl.style.opacity = ''; }
+  else if (!calmOverride && wasOverride) calmEl.textContent = CALM[0];
+  wasOverride = !!calmOverride;
+  if (!joined) return;
+  if (dm > -30 && dm < -25 && sunsetPre !== k + 'a') {
+    sunsetPre = k + 'a';
+    toast(here > 1 ? `30분 뒤 노을이에요 · 지금 ${here}명이 바닷가에 있어요, 함께 봐요` : `30분 뒤 노을이에요 · ${hhmm(set)}에 함께 봐요`);
+  } else if (dm > -3 && dm < 0 && sunsetPre !== k + 'b') {
+    sunsetPre = k + 'b'; toast('곧 해가 져요 · 바다 쪽을 함께 봐요');
+  }
+}
 function sunsetTick(t) {
   const h = hourOf(t), set = sunTimes(t).set, dm = (h - set) * 60;
+  sunsetNotice(dm, set, dayKey(t));
   const vis = (1 - 0.7 * WXF.cloud) * (1 - WXF.rain) * (1 - 0.8 * WXF.fog);
   GOLD = clamp(1 - Math.max(0, Math.abs(dm) - 8) / 6, 0, 1) * vis;
   const inWin = Math.abs(dm) <= 10, k = dayKey(t);
@@ -3739,6 +3846,8 @@ function frame(pn) {
   drawDecor(pal);
   spawnItems(t, wv); drawItems(pn, t, wv);
   crabTick(pn, t); drawCrabs(pn, nf);
+  mulletTick(pn, dE); drawMullet(pn, nf);
+  glowTick(pn, dt, nf > 0.5);
   stormTick(t); drawStormStars(pn); glassTick(pn, t); drawSeaGlass(pn, t, wv); drawMapPiece(pn, t);
   oldBottleTick(pn, dE); drawOldBottle(pn, nf); drawOmokBoard(pn); ballTick(pn); drawBall(pn);
   walkToTick(); feedTick(); hornTick(t); toadTick(pn, dE); gcTick(pal);
@@ -3788,6 +3897,7 @@ function frame(pn) {
     ctx.fillStyle = lg; ctx.fillRect(0, H * 0.62, W, H * 0.38); ctx.restore();
   }
   drawLanterns(pn, nf);
+  drawGlow(pn, t, dE);                 // 어스름 위에 그려야 어둠 속에서 빛난다
   drawFeeding(pn); drawCalls(pn);
   drawShots(pn); drawWishFx(pn); drawWalkerSay(pn);
   drawTermEffects(pn, t, pal); beaconHintTick(pn, nf);
@@ -3906,7 +4016,7 @@ const countEl = document.getElementById('count');
 // 숫자 밑에 한 줄: 할 일이 아니라 머물러도 된다는 말. 2분마다 천천히 바뀐다
 const CALM = ['파도 소리에 귀 기울이기만 해도 좋아요', '아무것도 하지 않아도 괜찮은 바닷가예요', '숨을 파도에 맞춰 천천히 쉬어 보세요', '물이 들고 나는 걸 그냥 바라봐도 좋아요', '휴대폰을 세워 두고 소리만 들어도 좋아요'];
 (() => { const el = document.getElementById('calmLine'); let k = 0;
-  setInterval(() => { el.style.opacity = 0; setTimeout(() => { k = (k + 1) % CALM.length; el.textContent = CALM[k]; el.style.opacity = ''; }, 1200); }, 120000); })();
+  setInterval(() => { if (calmOverride) return; el.style.opacity = 0; setTimeout(() => { k = (k + 1) % CALM.length; el.textContent = CALM[k]; el.style.opacity = ''; }, 1200); }, 120000); })();
 let ws = null, online = false, retry = 2000, lastSent = '', lastSentAt = 0;
 function showCount() {
   if (!joined) return;
@@ -4099,7 +4209,7 @@ function enter() {
   setTimeout(() => hint.classList.add('gone'), 9000);
 }
 document.getElementById('go').addEventListener('click', enter);
-if (FAST) window.__pm = { dbg: () => ({ edge: edgeD(waveAt(now()).reach), vd: me.vd, vx: me.vx, sit: me.sit, joined }), me, openOldBottle, onPicked, feet: () => feet, rememberWord, weekHint, castle: () => castles, items: () => items, setWX, buildCastle, addItem, spawnReset: () => { itemEpoch = -1; }, beaconWord, crabs: () => crabs, gull: () => gull, porpNow: () => { porpNext = 0; }, porp: () => porp, FIREWORKS, weekSentence, cst: () => cst, constelPts, lanterns, writings, dex: () => dex, high: () => HIGH_NOW, setSit, peers, xy: (x, d) => [xOf(x, d), yOf(d)], shots, aim: () => aimDrag, termToday, questionOf, qAnswers, flocks, gold: () => GOLD, hitQuestion, walkerNow, npc: () => npc, meteors, storyOf, ball: () => ballPos(now()), omok: () => omok, glassHave, mapHave, photoHave, mapPieceToday, openOldBottle, setOldBottle: () => { oldBottleAt = 0; }, giveAnchovy, flockG, stormStars: () => stormStars, toads, setNeck, onPicked, shellN: () => shellN };   // 시험용
+if (FAST) window.__pm = { mullet: () => mullet, glow: () => ({ glowK, pair: !!glowPair }), calm: () => calmOverride, sunset: () => sunTimes(now()).set, dbg: () => ({ edge: edgeD(waveAt(now()).reach), vd: me.vd, vx: me.vx, sit: me.sit, joined }), me, openOldBottle, onPicked, feet: () => feet, rememberWord, weekHint, castle: () => castles, items: () => items, setWX, buildCastle, addItem, spawnReset: () => { itemEpoch = -1; }, beaconWord, crabs: () => crabs, gull: () => gull, porpNow: () => { porpNext = 0; }, porp: () => porp, FIREWORKS, weekSentence, cst: () => cst, constelPts, lanterns, writings, dex: () => dex, high: () => HIGH_NOW, setSit, peers, xy: (x, d) => [xOf(x, d), yOf(d)], shots, aim: () => aimDrag, termToday, questionOf, qAnswers, flocks, gold: () => GOLD, hitQuestion, walkerNow, npc: () => npc, meteors, storyOf, ball: () => ballPos(now()), omok: () => omok, glassHave, mapHave, photoHave, mapPieceToday, openOldBottle, setOldBottle: () => { oldBottleAt = 0; }, giveAnchovy, flockG, stormStars: () => stormStars, toads, setNeck, onPicked, shellN: () => shellN };   // 시험용
 nick.addEventListener('keydown', e => { if (e.key === 'Enter') enter(); });
 })();
 </script>
