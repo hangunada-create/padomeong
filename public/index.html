@@ -2787,6 +2787,17 @@ function chime(freqs = [880, 1320], vol = 0.25) {
   } catch (e) {}
 }
 
+function sfxSplash() {                     // 촤악: 짧은 물보라 소리
+  if (!AC || !soundOn || AC.state !== 'running') return;
+  try {
+    const n = AC.sampleRate * 0.6, buf = AC.createBuffer(1, n, AC.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 2);
+    const src = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain(), t0 = AC.currentTime;
+    f.type = 'bandpass'; f.frequency.setValueAtTime(2600, t0); f.frequency.exponentialRampToValueAtTime(700, t0 + 0.6); f.Q.value = 0.8;
+    g.gain.value = 0.35; src.buffer = buf; src.connect(f); f.connect(g); g.connect(AC.destination); src.start(t0);
+  } catch (e) {}
+}
+
 /* ───────── 무지개: 실제로 비가 그친 뒤 40분 동안, 낮에만 ───────── */
 let rainbowSeen = 0;
 function drawRainbow(pn, t, pal) {
@@ -3574,6 +3585,11 @@ function frame(pn) {
   drawToads(pn, t, wv, pal);
   gullTick(pn, pal.stars < 0.6); drawGull(pn);
   if (t - highAt > 5000) { highAt = t; HIGH_NOW = nearHigh(t); }
+  // 앉아 있는데 파도가 자리까지 오면: 앗 차가워! 벌떡 일어나 모래 위로 물러난다
+  if (joined && me.sit && !RAINY() && me.vd < dE + wobble(me.vx, t) + 0.004 && pn - wetAt > 4000) {
+    wetAt = pn; setSit(false); toast('앗 차가워! 파도가 자리까지 와서 벌떡 일어났어요');
+    me.tx = me.x; me.td = Math.min(0.95, dE + wobble(me.vx, t) + 0.07); sfxSplash();
+  }
   if (HIGH_NOW && joined && !highTold && !(me.sit && !RAINY()) && me.vd < dE + wobble(me.vx, t) + 0.012) { highTold = true; addItem('hightide', dex.hightide ? '만조의 물이 발목까지 올라왔어요' : '만조의 물이 발목까지 올라왔어요 · 도감에 담았어요'); }
   drawProjections(t, nf);
   drawBottles(pn, t, dE, nf);
@@ -3805,7 +3821,10 @@ const act = document.getElementById('act'), hint = document.getElementById('hint
 let lastNight = false;
 let lastRainy = false;
 function actLabel() { act.textContent = lastRainy ? (me.sit ? '다시 걷기' : '우산 쓰고 서 있기') : me.sit ? '일어나기' : (lastNight ? '랜턴 켜고 앉기' : '파라솔 펴고 앉기'); }
+let wetAt = -1e9;
+function inSurf() { const t = now(); return me.vd < edgeD(waveAt(t).reach) + wobble(me.vx, t) + 0.004; }
 function setSit(v) {
+  if (v && !RAINY() && inSurf()) { toast('앗 차가워! 여긴 파도가 닿는 자리예요 · 조금 위로 올라가서 앉아요'); return; }
   me.sit = v; me.tx = me.td = null; resetStill(); if (v) sitAt = performance.now();
   actLabel();
   if (v) { if (!bottle && !nextBottleAt) scheduleBottle(2, 5); }
