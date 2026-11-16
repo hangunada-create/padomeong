@@ -60,6 +60,14 @@
   #tideLine, #eventLine { font-size: 12.5px; opacity: .88; margin-top: 2px; }
   #eventLine:empty { display: none; }
   #calmLine { font-size: 12.5px; opacity: .8; margin-top: 2px; font-style: italic; transition: opacity 1.2s; }
+  #ritual { font-size: 12.5px; opacity: .88; margin-top: 2px; }
+  #ritual:empty { display: none; }
+  #footBtn { display: none; }
+  #shellOv { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; background: radial-gradient(circle, rgba(10,20,40,.15), rgba(10,20,40,.55)); opacity: 0; pointer-events: none; transition: opacity .8s; }
+  #shellOv.on { opacity: 1; pointer-events: auto; }
+  #shellOv .shellBox { text-align: center; color: #fff; font-size: 15px; text-shadow: 0 1px 8px rgba(0,0,0,.4); }
+  #shellOv svg { display: block; margin: 0 auto 10px; filter: drop-shadow(0 8px 20px rgba(0,0,0,.35)); animation: shellBreath 4s ease-in-out infinite; }
+  @keyframes shellBreath { 0%,100% { transform: scale(1) rotate(-6deg); } 50% { transform: scale(1.06) rotate(-3deg); } }
   #credit { left: 14px; bottom: max(10px, env(safe-area-inset-bottom)); font-size: 11px; opacity: .7; max-width: 46vw; }
   #toast { left: 50%; bottom: calc(max(26px, env(safe-area-inset-bottom)) + 114px); transform: translate(-50%, 8px);
            font-size: 13.5px; padding: 9px 16px; border-radius: 999px; background: rgba(20,40,70,.55); backdrop-filter: blur(6px);
@@ -162,7 +170,7 @@
 <body>
 <canvas id="sea"></canvas>
 
-<div id="top" class="hud"><b>파도멍 · 대반동</b><div id="count">바닷가에 들어가는 중…</div><div id="calmLine">파도 소리에 귀 기울이기만 해도 좋아요</div><div id="wxLine"></div><div id="tideLine"></div><div id="eventLine"></div><div id="todayLine"></div></div>
+<div id="top" class="hud"><b>파도멍 · 대반동</b><div id="count">바닷가에 들어가는 중…</div><div id="calmLine">파도 소리에 귀 기울이기만 해도 좋아요</div><div id="ritual"></div><div id="wxLine"></div><div id="tideLine"></div><div id="eventLine"></div><div id="todayLine"></div></div>
 <div id="tools" class="hud">
   <button id="timeBtn" class="chip">지금 시간</button>
   <button id="sndBtn" class="chip">소리 켜짐</button>
@@ -173,6 +181,8 @@
 <button id="bottleBtn" class="hud">유리병이 밀려왔어요 · 열어 보기</button>
 <div id="acts" class="hud">
   <button id="breathBtn" class="chip">숨 고르기</button>
+  <button id="footBtn" class="chip">발자국</button>
+  <button id="shellBtn" class="chip">소라</button>
   <button id="sandBtn" class="chip">모래 쓰기</button>
   <button id="sendBtn" class="chip">병 띄우기</button>
   <button id="kiteBtn" class="chip">연 띄우기</button>
@@ -214,6 +224,7 @@
 <div class="ask">② 다른 곳에서 만든 글자 받기</div><textarea id="moveIn" rows="3" placeholder="복사해 온 옮기기 글자를 붙여 넣으세요"></textarea><button class="sub wide" id="moveTake">이 도감 받기</button>
 <div class="note" id="moveNote">카카오톡 '나와의 채팅'에 글자를 보내 두면 옮기기 쉬워요</div>
 <div class="row"><span></span><button class="main" id="moveClose">닫기</button></div></div>
+<div id="shellOv" aria-hidden="true"><div class="shellBox"><svg viewBox="0 0 140 120" width="170" height="146"><defs><linearGradient id="sg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff6ea"/><stop offset=".6" stop-color="#f0c9a4"/><stop offset="1" stop-color="#c98a5f"/></linearGradient><radialGradient id="sm" cx="50%" cy="50%"><stop offset="0" stop-color="#f7c8b4"/><stop offset="1" stop-color="#d98a74"/></radialGradient></defs><path d="M14 22 L40 30 C 64 26, 96 30, 118 52 C 132 66, 128 88, 110 98 C 94 107, 70 104, 56 92 C 44 82, 34 64, 30 48 Z" fill="url(#sg)" stroke="#a8724e" stroke-width="2" stroke-linejoin="round"/><path d="M14 22 L28 34 M40 30 C 44 46, 54 60, 72 66 M56 28 C 62 48, 76 62, 98 64 M78 30 C 86 46, 100 54, 120 58" fill="none" stroke="#b9805a" stroke-width="1.8" stroke-linecap="round"/><path d="M60 92 C 70 76, 96 70, 112 80 C 118 90, 104 102, 86 100 C 74 99, 64 97, 60 92 Z" fill="url(#sm)" stroke="#b06a55" stroke-width="1.5"/><path d="M30 48 L22 56 L30 58 Z" fill="#e3b28b" stroke="#a8724e" stroke-width="1.5"/></svg><div id="shellText">소라에 귀를 대 봐요…</div></div></div>
 <div id="stall" class="hud" aria-live="polite">
   <svg id="stallLogo" class="k" viewBox="130 205 626 470" aria-label="이음수산 로고"><g fill="none"><circle cx="307" cy="335" r="86.5" stroke="#67a9dc" stroke-width="55"/><circle cx="584" cy="340" r="86.5" stroke="#67a9dc" stroke-width="55"/><polyline points="157,647 289,508 418,644" stroke="#22365a" stroke-width="56" stroke-linejoin="miter"/><polyline points="467,646 598,508 729,644" stroke="#22365a" stroke-width="56" stroke-linejoin="miter"/></g></svg>
   <div class="f" id="stallFish"></div>
@@ -3220,6 +3231,74 @@ document.getElementById('stallFeed').addEventListener('click', giveAnchovy);
 
 /* ───────── 두꺼비집: 마른 모래에 가만히 서 있으면 "두꺼비집" 버튼이 나온다 ─────────
    모래를 다독여 집을 지어 두면, 얼마 뒤 작은 게가 들어가 살기도 한다. 파도가 닿으면 무너진다. */
+/* ───────── 반복 의례 ①: 발자국 찍기 ─────────
+   누를 때마다 한 걸음 바다 쪽으로 걸으며 젖은 모래에 발자국을 남긴다. 파도가 와서 지우면 숫자가 하나 쌓인다.
+   ②: 소라에 귀 대기 — 누르면 소라 속 바다 소리가 한 번 밀려왔다 빠진다. 둘 다 그날 숫자만 조용히 남는다. */
+const footBtn = document.getElementById('footBtn'), shellBtn = document.getElementById('shellBtn'), ritualEl = document.getElementById('ritual');
+let rit = { day: -1, foot: 0, sea: 0 }; try { rit = JSON.parse(load('pm_rit', '')) || rit; } catch (e) {}
+function ritToday() { const d = dayIdx(now()); if (rit.day !== d) rit = { day: d, foot: 0, sea: 0 }; return rit; }
+function ritShow() {
+  const r = ritToday(), parts = [];
+  if (r.foot) parts.push(`파도가 지운 발자국 ${r.foot}`); if (r.sea) parts.push(`소라로 들은 바다 ${r.sea}`);
+  ritualEl.textContent = parts.join(' · ');
+}
+function ritAdd(k) { const r = ritToday(); r[k]++; save('pm_rit', JSON.stringify(r)); ritShow(); }
+ritShow();
+const feet = []; let footN = 0, footHinted = false;
+footBtn.addEventListener('click', () => {
+  if (!joined || me.sit) return; wake(); resetStill();
+  const side = footN++ % 2 ? 1 : -1;
+  feet.push({ x: me.vx + side * 5, d: me.vd + 0.004, side, t0: performance.now(), gone: 0 });
+  if (feet.length > 60) feet.shift();
+  me.tx = me.vx; me.td = Math.max(-0.2, me.vd - 0.014);                 // 한 걸음 바다 쪽으로
+  sfxStep();
+  if (!footHinted && footN === 3) { footHinted = true; toast('물가 가까이 찍을수록 파도가 빨리 지워요'); }
+});
+function sfxStep() {
+  if (!AC || !soundOn || AC.state !== 'running') return;
+  try {
+    const n = AC.sampleRate * 0.18, buf = AC.createBuffer(1, n, AC.sampleRate), dd = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) dd[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 3);
+    const src = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
+    f.type = 'lowpass'; f.frequency.value = 900; g.gain.value = 0.5; src.buffer = buf; src.connect(f); f.connect(g); g.connect(AC.destination); src.start();
+  } catch (e) {}
+}
+function drawFootprints(pn, t, wv) {
+  footBtn.style.display = joined && !me.sit ? 'inline-block' : 'none';
+  const edge = edgeD(wv.reach);
+  for (let i = feet.length - 1; i >= 0; i--) {
+    const f = feet[i];
+    if (!f.gone && edge + wobble(f.x, t) >= f.d) { f.gone = pn; ritAdd('foot'); }
+    const a = f.gone ? 1 - (pn - f.gone) / 1200 : Math.min(1, (pn - f.t0) / 300);
+    if (a <= 0) { feet.splice(i, 1); continue; }
+    const s = sOf(f.d), x = xOf(f.x, f.d), y = yOf(f.d); if (x < -20 || x > W + 20) continue;
+    ctx.save(); ctx.translate(x, y); ctx.globalAlpha = 0.7 * a; ctx.fillStyle = 'rgba(105,80,55,1)';
+    ctx.beginPath(); ctx.ellipse(0, 0, 6 * s, 2.6 * s, f.side * 0.15, 0, 6.3); ctx.fill();                 // 발뒤꿈치~발바닥
+    ctx.beginPath(); ctx.ellipse(f.side * 1.2 * s, -4.2 * s, 4.4 * s, 1.8 * s, 0, 0, 6.3); ctx.fill();     // 발가락 쪽
+    ctx.restore();
+  }
+}
+const shellOv = document.getElementById('shellOv'), shellText = document.getElementById('shellText');
+let shellBusy = false;
+shellBtn.addEventListener('click', () => {
+  if (shellBusy) return; shellBusy = true; wake();
+  shellText.textContent = '소라에 귀를 대 봐요…'; shellOv.classList.add('on'); sfxShell();
+  setTimeout(() => { shellText.textContent = '쏴아—'; }, 1400);
+  setTimeout(() => { shellOv.classList.remove('on'); ritAdd('sea'); shellBusy = false; }, 5200);
+});
+shellOv.addEventListener('click', () => { shellOv.classList.remove('on'); });
+function sfxShell() {                     // 소라 속 바다: 낮게 울리는 숨소리가 부풀었다 가라앉는다
+  if (!AC || !soundOn || AC.state !== 'running') return;
+  try {
+    const len = 5, n = AC.sampleRate * len, buf = AC.createBuffer(1, n, AC.sampleRate), d = buf.getChannelData(0);
+    let b = 0; for (let i = 0; i < n; i++) { b = 0.985 * b + 0.15 * (Math.random() * 2 - 1); d[i] = b; }      // 갈색 잡음
+    const src = AC.createBufferSource(), bp = AC.createBiquadFilter(), g = AC.createGain(), t0 = AC.currentTime;
+    bp.type = 'bandpass'; bp.frequency.value = 420; bp.Q.value = 1.6;
+    g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(0.9, t0 + 1.8); g.gain.linearRampToValueAtTime(0.5, t0 + 3); g.gain.linearRampToValueAtTime(0, t0 + len);
+    src.buffer = buf; src.connect(bp); bp.connect(g); g.connect(AC.destination); src.start(t0);
+  } catch (e) {}
+}
+
 const toadBtn = document.getElementById('toadBtn');
 const toads = []; let toadBusy = 0;
 function toadTick(pn, dE) {
@@ -3583,7 +3662,7 @@ function frame(pn) {
   stormTick(t); drawStormStars(pn); glassTick(pn, t); drawSeaGlass(pn, t, wv); drawMapPiece(pn, t);
   oldBottleTick(pn, dE); drawOldBottle(pn, nf); drawOmokBoard(pn); ballTick(pn); drawBall(pn);
   walkToTick(); feedTick(); hornTick(t); toadTick(pn, dE); gcTick(pal);
-  drawToads(pn, t, wv, pal);
+  drawToads(pn, t, wv, pal); drawFootprints(pn, t, wv);
   gullTick(pn, pal.stars < 0.6); drawGull(pn);
   if (t - highAt > 5000) { highAt = t; HIGH_NOW = nearHigh(t); }
   // 앉아 있는데 파도가 자리까지 오면: 앗 차가워! 벌떡 일어나 모래 위로 물러난다
