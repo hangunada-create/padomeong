@@ -1518,6 +1518,19 @@ function spawnItems(t, wv) {
     items.push({ id, x: clamp(me.x + (Math.random() - 0.5) * 2000, 80, WORLD_W - 260), d: lerp(low, high, Math.random()), wash: 0, tilt: (Math.random() - 0.5) * 1.4 });
   }
 }
+// 하루에 한 번은 소라를 만날 수 있게: 오늘 아직 소라로 바다를 듣지 않았다면, 들어온 지 1분쯤 뒤
+// 근처 마른 모래(물이 거의 닿지 않는 윗줄)에 소라 하나를 둔다. 물때와 상관없이 놓인다.
+let conchAt = 0, conchLeft = 3;
+function dailyConchTick(pn) {
+  if (!joined) { conchAt = 0; return; }
+  if (!conchAt) { conchAt = pn + (FAST ? 3000 : 60000); return; }
+  if (pn < conchAt || conchLeft <= 0) return;
+  conchAt = pn + (FAST ? 3000 : 20000);
+  if (ritToday().sea > 0 || items.some(i => i.id === 'conch')) return;
+  conchLeft--;
+  const side = Math.random() < 0.5 ? -1 : 1;
+  items.push({ id: 'conch', x: clamp(me.x + side * (220 + Math.random() * 380), 80, WORLD_W - 260), d: 0.36 + Math.random() * 0.06, wash: 0, tilt: (Math.random() - 0.5) * 1.4 });
+}
 function drawItems(pn, t, wv) {
   for (let i = items.length - 1; i >= 0; i--) {
     const it = items[i];
@@ -1666,7 +1679,7 @@ document.getElementById('moveTake').addEventListener('click', () => {
 })();
 const HINTS = {
   oyster: '물이 빠지면 모래 위를 둘러보세요', clam: '물이 빠지면 모래 위를 둘러보세요', pebble: '물이 빠지면 모래 위를 둘러보세요', kelp: '물이 빠지면 모래 위를 둘러보세요', crab: '물이 빠지면 모래 위를 둘러보세요',
-  conch: '물 빠진 모래에서, 조금 드물게', star: '물 빠진 모래에서, 조금 드물게', glassG: '물 빠진 모래에서, 조금 드물게', feather: '바람 센 날 물 빠진 모래에서',
+  conch: '하루에 한 번, 근처 윗모래 어딘가에 소라가 놓여요', star: '물 빠진 모래에서, 조금 드물게', glassG: '물 빠진 모래에서, 조금 드물게', feather: '바람 센 날 물 빠진 모래에서',
   glassB: '보름이나 그믐 무렵, 물이 가장 멀리 빠지는 날', whelk: '보름이나 그믐 무렵, 물이 가장 멀리 빠지는 날', pearl: '보름이나 그믐 무렵 사리 간조에, 아주 드물게',
   rain: '비 오는 날 물 빠진 모래에서', flag: '여럿이 모래성을 끝까지 쌓고, 파도가 무너뜨린 뒤에',
   beacon: '밤에 고하도 등대가 깜빡이는 낱말을 모래에 써 보세요', crabwalk: '앉아서 오래 가만히 있어 보세요', gull: '낮에 앉아서 오래 가만히 있어 보세요',
@@ -3844,7 +3857,7 @@ function frame(pn) {
   drawWrack(pal);
   drawWritings(pn, t, pal); drawQuestion(pn, t, pal);
   drawDecor(pal);
-  spawnItems(t, wv); drawItems(pn, t, wv);
+  spawnItems(t, wv); dailyConchTick(pn); drawItems(pn, t, wv);
   crabTick(pn, t); drawCrabs(pn, nf);
   mulletTick(pn, dE); drawMullet(pn, nf);
   glowTick(pn, dt, nf > 0.5);
