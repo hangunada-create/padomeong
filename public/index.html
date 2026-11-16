@@ -3418,18 +3418,22 @@ function ritShow() {
 }
 function ritAdd(k) { const r = ritToday(); r[k]++; save('pm_rit', JSON.stringify(r)); ritShow(); }
 ritShow();
-const feet = []; let footN = 0, lastFoot = null;
-// 파도가 닿는 젖은 모래(물가에서 조금 위까지)를 걸으면 저절로 발자국이 남는다
+const feet = [];
+// 파도가 닿는 젖은 모래를 걸으면 저절로 발자국이 남는다. 나뿐 아니라 함께 있는 사람들의 발자국도 각자 화면에 찍힌다
 function stampFeet(t, edge, pn) {
-  if (!joined || me.sit) { lastFoot = null; return; }
-  const wob = wobble(me.vx, t);
+  stampOne(me, joined, t, edge, pn);
+  for (const p of peers.values()) stampOne(p, true, t, edge, pn);
+}
+function stampOne(e, here, t, edge, pn) {
+  if (!here || e.sit || e.vx == null) { e.lastFoot = null; return; }
+  const wob = wobble(e.vx, t);
   // 지금 물에 잠기지 않았고, 파도가 막 닿았다 빠진 젖은 모래(wetD: 젖은 자국 윗선) 안쪽이면
-  if (wetD < edge + 0.01 || me.vd < edge + wob - 0.004 || me.vd > wetD + wob) { lastFoot = null; return; }   // 파도가 실제로 닿았던 띠 안에서만
-  if (lastFoot && Math.hypot(me.vx - lastFoot.x, (me.vd - lastFoot.d) * 900) < 22) return;
-  const side = footN++ % 2 ? 1 : -1;
-  feet.push({ x: me.vx + side * 4, d: me.vd + 0.004, side, t0: pn, gone: 0 });
-  if (feet.length > 80) feet.shift();
-  lastFoot = { x: me.vx, d: me.vd }; sfxStep();
+  if (wetD < edge + 0.01 || e.vd < edge + wob - 0.004 || e.vd > wetD + wob) { e.lastFoot = null; return; }   // 파도가 실제로 닿았던 띠 안에서만
+  if (e.lastFoot && Math.hypot(e.vx - e.lastFoot.x, (e.vd - e.lastFoot.d) * 900) < 22) return;
+  e.footN = (e.footN || 0) + 1; const side = e.footN % 2 ? 1 : -1, mine = e === me;
+  feet.push({ x: e.vx + side * 4, d: e.vd + 0.004, side, t0: pn, gone: 0, mine });
+  if (feet.length > 160) feet.splice(feet.findIndex(f => !f.gone) >= 0 ? feet.findIndex(f => !f.gone) : 0, 1);
+  e.lastFoot = { x: e.vx, d: e.vd }; if (mine) sfxStep();
 }
 function sfxStep() {
   if (!AC || !soundOn || AC.state !== 'running') return;
@@ -3444,7 +3448,7 @@ function drawFootprints(pn, t, wv) {
   const edge = edgeD(wv.reach); stampFeet(t, edge, pn);
   for (let i = feet.length - 1; i >= 0; i--) {
     const f = feet[i];
-    if (!f.gone && edge + wobble(f.x, t) >= f.d) { f.gone = pn; ritAdd('foot'); }
+    if (!f.gone && edge + wobble(f.x, t) >= f.d) { f.gone = pn; if (f.mine) ritAdd('foot'); }
     const a = f.gone ? 1 - (pn - f.gone) / 1200 : clamp((pn - f.t0) / 300, 0.05, 1);
     if (a <= 0) { feet.splice(i, 1); continue; }
     const s = sOf(f.d), x = xOf(f.x, f.d), y = yOf(f.d); if (x < -20 || x > W + 20) continue;
