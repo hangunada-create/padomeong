@@ -529,12 +529,25 @@ wss.on('connection', (ws, req) => {
       for (const bid of m.ids.slice(0, 30)) { const b = bottles.list.find(b => b.id === Number(bid)); if (b) r[b.id] = b.reads || 0; }
       send(ws, { t: 'mineR', r });
 
+    } else if (m.t === 'dw') {                    // 모래에 그림 그리기 (손가락으로 그린 선, 파도가 지울 때까지)
+      if (t - lastSand < 20000) return send(ws, { t: 'wr', ok: false, msg: '조금 있다가 다시 그려요' });
+      const pic = String(m.pic || '');
+      if (pic.length < 3 || pic.length > 2400 || !/^\d{1,2},\d{1,2}( \d{1,2},\d{1,2})*(\|\d{1,2},\d{1,2}( \d{1,2},\d{1,2})*)*$/.test(pic) || pic.split('|').length > 40)
+        return send(ws, { t: 'wr', ok: false, msg: '이 그림은 모래에 남길 수 없어요' });
+      lastSand = t; bump('모래그림');
+      const w = [nextW++, clamp(num(m.x, me.x), 40, WORLD_W - 40), clamp(num(m.d, me.d), -0.3, D_MAX), '', t, me.color, pic];
+      const list = writings.get(me.room) || []; list.push(w); while (list.length > 40) list.shift();
+      writings.set(me.room, list);
+      send(ws, { t: 'wr', ok: true });
+      sendRoom(me.room, { t: 'w', w });
+
     } else if (m.t === 'w' && m.to !== undefined) {   // 누군가의 모래 글씨 뒤에 한 낱말 이어 쓰기
       if (t - lastSand < 8000) return send(ws, { t: 'wr', ok: false, msg: '조금 있다가 다시 써요' });
       const word = checkSand(m.text, 8);
       if (!word) return send(ws, { t: 'wr', ok: false, msg: '이 글씨는 모래에 남길 수 없어요' });
       const list = writings.get(me.room) || [], w = list.find(w => w[0] === Number(m.to));
       if (!w) return send(ws, { t: 'wr', ok: false, msg: '파도가 먼저 지웠어요' });
+      if (w[6]) return send(ws, { t: 'wr', ok: false, msg: '그림 뒤에는 이어 쓸 수 없어요' });
       if (w[3].length + 1 + word.length > 40) return send(ws, { t: 'wr', ok: false, msg: '이 문장은 이제 꽉 찼어요' });
       lastSand = t; bump('이어쓰기');
       w[3] = w[3] + ' ' + word;

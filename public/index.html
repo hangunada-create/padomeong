@@ -137,6 +137,7 @@
   #moveSheet .ask { font-size: 13px; color: #4b5d6b; margin-top: 12px; font-weight: 700; }
   #moveSheet textarea { width: 100%; box-sizing: border-box; margin-top: 6px; border: 1px solid #d8d2c4; border-radius: 10px; padding: 8px 10px; font: 12px/1.4 ui-monospace, monospace; color: #22303a; background: #fff; resize: none; user-select: text; -webkit-user-select: text; }
   #moveSheet .wide { display: block; width: 100%; margin-top: 6px; background: #eef5fa; color: #2f7fb5; font-weight: 700; border-radius: 10px; padding: 10px; }
+  #drawPad { display: block; width: 100%; aspect-ratio: 5 / 3; margin-top: 10px; border-radius: 12px; background: linear-gradient(#e9d8b4, #dcc596); touch-action: none; cursor: crosshair; box-shadow: inset 0 2px 8px rgba(90,60,30,.18); }
   .sheet img.pic { width: 100%; border-radius: 8px; margin-top: 10px; display: block; box-shadow: 0 4px 14px rgba(0,0,0,.15); }
   #gate { position: fixed; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center;
           background: linear-gradient(rgba(16,40,70,.35), rgba(16,40,70,.6)); transition: opacity .9s ease; }
@@ -181,6 +182,7 @@
 <div id="acts" class="hud">
   <button id="breathBtn" class="chip">숨 고르기</button>
   <button id="sandBtn" class="chip">모래 쓰기</button>
+  <button id="drawBtn" class="chip">모래 그리기</button>
   <button id="sendBtn" class="chip">병 띄우기</button>
   <button id="kiteBtn" class="chip">연 띄우기</button>
   <button id="lanternBtn" class="chip">등 띄우기</button>
@@ -196,6 +198,10 @@
 <div id="cardSheet" class="sheet"><div class="k">지금 이 바다를 엽서 한 장으로</div><img id="cardImg" alt="파도멍 엽서">
 <div class="note">휴대폰은 사진을 길게 눌러 저장할 수도 있어요</div>
 <div class="row"><button class="sub" id="cardClose">닫기</button><button class="main" id="cardSave">저장하기</button></div></div>
+<div id="drawSheet" class="sheet"><div class="k">손가락으로 모래에 그려요. 파도가 닿으면 지워져요.</div>
+<canvas id="drawPad" width="600" height="360"></canvas>
+<div class="note" id="drawNote"></div>
+<div class="row"><button class="sub" id="drawCancel">그만두기</button><button class="sub" id="drawClear">다시 그리기</button><button class="main" id="drawSend">모래에 그리기</button></div></div>
 <div id="sandSheet" class="sheet"><div class="k" id="sandK">모래에 몇 글자 써 두면, 파도가 닿을 때 지워져요. 물가 가까이 쓸수록 빨리 지워집니다.</div>
 <textarea id="sandText" maxlength="16" placeholder="16자까지" style="height:56px"></textarea>
 <div class="note" id="sandNote"></div>
@@ -1139,7 +1145,7 @@ const writings = [];                      // {id, x, d, text, ts, color, wash}
 const sandSheet = document.getElementById('sandSheet'), sandText = document.getElementById('sandText'), sandNote = document.getElementById('sandNote');
 function addWriting(w, live) {
   if (!w || writings.some(o => o.id === w[0])) return;
-  const o = { id: w[0], x: w[1], d: w[2], text: String(w[3]).slice(0, 40), ts: w[4], color: w[5] | 0, wash: 0 };
+  const o = { id: w[0], x: w[1], d: w[2], text: String(w[3]).slice(0, 40), ts: w[4], color: w[5] | 0, wash: 0, pic: w[6] ? parsePic(w[6]) : null };
   writings.push(o); checkSentence(o, live);
   while (writings.length > 60) writings.shift();
 }
@@ -1174,8 +1180,56 @@ document.getElementById('sandSend').addEventListener('click', () => {
   if (ws && online) ws.send(JSON.stringify({ t: 'w', text: v, x: Math.round(me.x), d: +d.toFixed(3) }));
   else { addWriting([-Date.now(), me.x, d, v, now(), me.color], true); closeSand(); }
 });
+/* 모래 그리기 그림판 */
+const drawSheet = document.getElementById('drawSheet'), drawPad = document.getElementById('drawPad'), drawNote = document.getElementById('drawNote'), dctx = drawPad.getContext('2d');
+let padStrokes = [], padCur = null;
+function padRedraw() {
+  dctx.clearRect(0, 0, 600, 360); dctx.lineCap = 'round'; dctx.lineJoin = 'round';
+  for (const off of [[0, 3, 'rgba(255,250,235,.55)'], [0, 0, 'rgba(120,88,52,.85)']]) {
+    dctx.strokeStyle = off[2]; dctx.lineWidth = 9; dctx.beginPath();
+    for (const st of padStrokes) st.forEach(([a, b], i) => { const px = a * 6, py = b * 6 + off[1]; i ? dctx.lineTo(px, py) : dctx.moveTo(px, py); if (st.length === 1) dctx.lineTo(px + 0.1, py); });
+    dctx.stroke();
+  }
+}
+const padPt = e => { const r = drawPad.getBoundingClientRect(); return [clamp(Math.round((e.clientX - r.left) / r.width * 99), 0, 99), clamp(Math.round((e.clientY - r.top) / r.height * 59), 0, 59)]; };
+const padCount = () => padStrokes.reduce((a, st) => a + st.length, 0);
+drawPad.addEventListener('pointerdown', e => {
+  if (padStrokes.length >= 40 || padCount() > 380) { drawNote.textContent = '모래가 꽉 찼어요 · 이대로 그려 볼까요?'; return; }
+  drawPad.setPointerCapture(e.pointerId); padCur = [padPt(e)]; padStrokes.push(padCur); padRedraw(); e.preventDefault();
+});
+drawPad.addEventListener('pointermove', e => {
+  if (!padCur) return; const p = padPt(e), q = padCur[padCur.length - 1];
+  if (Math.hypot(p[0] - q[0], p[1] - q[1]) >= 2 && padCount() <= 400) { padCur.push(p); padRedraw(); }
+});
+const padEnd = () => { padCur = null; };
+drawPad.addEventListener('pointerup', padEnd); drawPad.addEventListener('pointercancel', padEnd);
+document.getElementById('drawBtn').addEventListener('click', () => { padStrokes = []; padRedraw(); drawNote.textContent = ''; drawSheet.classList.add('on'); wake(); });
+document.getElementById('drawClear').addEventListener('click', () => { padStrokes = []; padRedraw(); drawNote.textContent = ''; });
+document.getElementById('drawCancel').addEventListener('click', () => drawSheet.classList.remove('on'));
+document.getElementById('drawSend').addEventListener('click', () => {
+  if (!padCount()) { drawNote.textContent = '선을 하나 이상 그어 주세요'; return; }
+  const pic = encPic(padStrokes), d = clamp(me.d - 0.07, -0.3, 1);
+  drawSending = true;
+  if (ws && online) ws.send(JSON.stringify({ t: 'dw', pic, x: Math.round(me.x), d: +d.toFixed(3) }));
+  else { addWriting([-Date.now(), me.x, d, '', now(), me.color, pic], true); drawSheet.classList.remove('on'); drawSending = false; }
+});
+let drawSending = false;
 function closeSand() { sandSheet.classList.remove('on'); sandText.value = ''; sandText.blur(); appendTo = null; answering = false; }
-function onSandResult(m) { if (m.ok) closeSand(); else sandNote.textContent = m.msg || '쓰지 못했어요'; }
+function onSandResult(m) {
+  if (drawSending) { drawSending = false; if (m.ok) drawSheet.classList.remove('on'); else drawNote.textContent = m.msg || '그리지 못했어요'; return; }
+  if (m.ok) closeSand(); else sandNote.textContent = m.msg || '쓰지 못했어요';
+}
+// 모래 그림: 그림판(100×60 칸)에 그린 선을 모래 위에 눕혀 판다
+function parsePic(str) { return String(str).split('|').slice(0, 40).map(st => st.split(' ').map(p => p.split(',').map(Number))).filter(st => st.length); }
+function encPic(strokes) { return strokes.filter(st => st.length).map(st => st.map(([a, b]) => `${a},${b}`).join(' ')).join('|'); }
+function drawPic(strokes, x, y, s, fade, pal) {
+  const k = 1.8 * s;                        // 그림 한 칸 = 1.8(원근 배율) → 가로 180쯤
+  ctx.save(); ctx.translate(x, y); ctx.scale(1, 0.5); ctx.globalAlpha = fade; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const path = () => { ctx.beginPath(); for (const st of strokes) { st.forEach(([a, b], i) => { const px = (a - 50) * k, py = (b - 30) * k; i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }); if (st.length === 1) ctx.lineTo((st[0][0] - 50) * k + 0.1, (st[0][1] - 30) * k); } };
+  ctx.translate(0, 3 * s); path(); ctx.strokeStyle = 'rgba(255,250,235,.45)'; ctx.lineWidth = 5 * s; ctx.stroke();          // 파인 자리의 밝은 테두리
+  ctx.translate(0, -3 * s); path(); ctx.strokeStyle = rgb(pal.sand.map(c => Math.round(c * 0.5)), 0.8); ctx.lineWidth = 4.2 * s; ctx.stroke();
+  ctx.restore();
+}
 function drawWritings(pn, t, pal) {
   const wv = waveAt(t);
   for (let i = writings.length - 1; i >= 0; i--) {
@@ -1185,6 +1239,7 @@ function drawWritings(pn, t, pal) {
     if (fade <= 0) { writings.splice(i, 1); continue; }
     const s = sOf(w.d), x = xOf(w.x, w.d), y = yOf(w.d);
     if (x < -200 || x > W + 200) continue;
+    if (w.pic) { drawPic(w.pic, x, y, s, fade, pal); continue; }
     ctx.save(); ctx.translate(x, y); ctx.scale(1, 0.5); ctx.globalAlpha = fade;
     ctx.font = `600 ${26 * s}px "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -2298,6 +2353,7 @@ let appendTo = null;
 function hitWriting(cx, cy) {
   for (const w of writings) {
     if (w.wash) continue;
+    if (w.pic) continue;                  // 그림 뒤에는 이어 쓰지 않는다
     const s = sOf(w.d), x = xOf(w.x, w.d), y = yOf(w.d), half = Math.max(30, w.text.length * 13 * s);
     if (Math.abs(cx - x) < half && Math.abs(cy - y) < 8 * s + 4) return w;
   }
@@ -3248,7 +3304,7 @@ function stampFeet(t, edge, pn) {
   if (!joined || me.sit) { lastFoot = null; return; }
   const wob = wobble(me.vx, t);
   // 지금 물에 잠기지 않았고, 파도가 막 닿았다 빠진 젖은 모래(wetD: 젖은 자국 윗선) 안쪽이면
-  if (me.vd < edge + wob + 0.002 || me.vd > Math.max(wetD, edge + 0.06) + wob + 0.03) { lastFoot = null; return; }
+  if (wetD < edge + 0.01 || me.vd < edge + wob - 0.004 || me.vd > wetD + wob) { lastFoot = null; return; }   // 파도가 실제로 닿았던 띠 안에서만
   if (lastFoot && Math.hypot(me.vx - lastFoot.x, (me.vd - lastFoot.d) * 900) < 22) return;
   const side = footN++ % 2 ? 1 : -1;
   feet.push({ x: me.vx + side * 4, d: me.vd + 0.004, side, t0: pn, gone: 0 });
