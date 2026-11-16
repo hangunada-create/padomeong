@@ -59,6 +59,7 @@
   #stall button { border: 0; background: none; font: inherit; font-size: 12.5px; color: #6a7884; cursor: pointer; padding: 4px 0; }
   #tideLine, #eventLine { font-size: 12.5px; opacity: .88; margin-top: 2px; }
   #eventLine:empty { display: none; }
+  #calmLine { font-size: 12.5px; opacity: .8; margin-top: 2px; font-style: italic; transition: opacity 1.2s; }
   #credit { left: 14px; bottom: max(10px, env(safe-area-inset-bottom)); font-size: 11px; opacity: .7; max-width: 46vw; }
   #toast { left: 50%; bottom: calc(max(26px, env(safe-area-inset-bottom)) + 114px); transform: translate(-50%, 8px);
            font-size: 13.5px; padding: 9px 16px; border-radius: 999px; background: rgba(20,40,70,.55); backdrop-filter: blur(6px);
@@ -161,7 +162,7 @@
 <body>
 <canvas id="sea"></canvas>
 
-<div id="top" class="hud"><b>파도멍 · 대반동</b><div id="count">바닷가에 들어가는 중…</div><div id="wxLine"></div><div id="tideLine"></div><div id="eventLine"></div><div id="todayLine"></div></div>
+<div id="top" class="hud"><b>파도멍 · 대반동</b><div id="count">바닷가에 들어가는 중…</div><div id="calmLine">파도 소리에 귀 기울이기만 해도 좋아요</div><div id="wxLine"></div><div id="tideLine"></div><div id="eventLine"></div><div id="todayLine"></div></div>
 <div id="tools" class="hud">
   <button id="timeBtn" class="chip">지금 시간</button>
   <button id="sndBtn" class="chip">소리 켜짐</button>
@@ -3742,6 +3743,10 @@ function tickAudio() {
 
 /* ───────── 함께 보기 (서버 연결) ───────── */
 const countEl = document.getElementById('count');
+// 숫자 밑에 한 줄: 할 일이 아니라 머물러도 된다는 말. 2분마다 천천히 바뀐다
+const CALM = ['파도 소리에 귀 기울이기만 해도 좋아요', '아무것도 하지 않아도 괜찮은 바닷가예요', '숨을 파도에 맞춰 천천히 쉬어 보세요', '물이 들고 나는 걸 그냥 바라봐도 좋아요', '휴대폰을 세워 두고 소리만 들어도 좋아요'];
+(() => { const el = document.getElementById('calmLine'); let k = 0;
+  setInterval(() => { el.style.opacity = 0; setTimeout(() => { k = (k + 1) % CALM.length; el.textContent = CALM[k]; el.style.opacity = ''; }, 1200); }, 120000); })();
 let ws = null, online = false, retry = 2000, lastSent = '', lastSentAt = 0;
 function showCount() {
   if (!joined) return;
