@@ -3066,7 +3066,7 @@ function returnStar(st) {
 
 /* ───────── 갈매기 떼와 멸치 한 줌: 낮에 노점에서 멸치를 받아 바다 쪽으로 던지면 ───────── */
 const feedBtn = document.getElementById('feedBtn');
-let anchovy = 0, flockG = [], tossed = [], gullCatch = 0, flockLeaveAt = 0;
+let anchovy = 0, flockG = [], tossed = [], gullCatch = 0;
 function giveAnchovy() {
   if (palette(hourNow()).stars > 0.4) { toast('갈매기들은 벌써 자러 갔어요'); return; }
   anchovy = 10; toast('노점에서 멸치 한 줌을 받았어요'); feedTick();
@@ -3076,14 +3076,40 @@ function feedTick() {
   feedBtn.classList.toggle('on', joined && anchovy > 0 && day);
   feedBtn.textContent = `멸치 던지기 · ${anchovy}`;
 }
+const sendFx = o => { if (ws && online) ws.send(JSON.stringify(Object.assign({ t: 'fx' }, o))); };
+// who: null이면 나, 아니면 그 사람 id. 갈매기 떼는 던진 사람 머리 위를 돈다
+function tossAnchovy(who, x0, d0, tx, td) {
+  const pn = performance.now();
+  tossed.push({ who, x0, d0, x: tx, d: td, t0: pn, caught: false });
+  if (!flockG.some(g => g.who === who)) for (let i = 0, n = 4 + Math.floor(Math.random() * 4); i < n; i++) flockG.push({ who, ph: Math.random() * 6, r: 0.7 + Math.random() * 0.5, sp: 0.7 + Math.random() * 0.6, t0: pn + i * 400, dive: null });
+  for (const g of flockG) if (g.who === who) g.leave = pn + 25000;
+}
 feedBtn.addEventListener('click', () => {
   if (anchovy <= 0) return; anchovy--; feedTick(); wake(); resetStill();
-  const pn = performance.now(), dir = Math.random() < 0.5 ? -1 : 1;
+  const dir = Math.random() < 0.5 ? -1 : 1;
   const tx = me.x + dir * (40 + Math.random() * 160), td = clamp(me.d - 0.12 - Math.random() * 0.12, -0.2, 1);
-  tossed.push({ x0: me.x, d0: me.d, x: tx, d: td, t0: pn, caught: false });
-  if (!flockG.length) for (let i = 0, n = 4 + Math.floor(Math.random() * 4); i < n; i++) flockG.push({ ph: Math.random() * 6, r: 0.7 + Math.random() * 0.5, sp: 0.7 + Math.random() * 0.6, t0: pn + i * 400, dive: null });
-  flockLeaveAt = pn + 25000;
+  tossAnchovy(null, me.x, me.d, tx, td); sendFx({ k: 'feed', x: Math.round(tx), d: +td.toFixed(3) });
 });
+function onPeerFx(m) {
+  const p = peers.get(m.id); if (!p) return;
+  const pn = performance.now();
+  if (m.k === 'feed') tossAnchovy(m.id, p.vx ?? p.x, p.vd ?? p.d, m.x, m.d);
+  else if (m.k === 'toad') { p.toadUntil = pn + 3000; setTimeout(() => { if (toads.filter(o => o.who === m.id).length < 3) toads.push({ who: m.id, x: m.x, d: m.d, t0: performance.now(), crabAt: performance.now() + 30000 + Math.random() * 60000, crab: false, fall: 0 }); }, 3000); }
+  else if (m.k === 'shell') p.shellUntil = pn + 9000;
+}
+function drawPersonFx(a, pn) {                // 남의 몸짓: 두꺼비집을 다독이는 손, 귀에 댄 소라
+  const s = sOf(a.vd), x = xOf(a.vx, a.vd), y = yOf(a.vd);
+  if (a !== me && a.toadUntil > pn) {
+    ctx.fillStyle = '#f1cfae'; ctx.beginPath(); ctx.ellipse(x + 6, y - 4 * s - Math.abs(Math.sin(pn / 140)) * 5 * s, 4 * s, 2.5 * s, 0, 0, 6.3); ctx.fill();
+  }
+  if ((a === me ? shellBusy : a.shellUntil > pn)) {
+    const hy = y - (a.sit && !RAINY() ? 46 : 64) * s;
+    ctx.save(); ctx.translate(x + 12 * s, hy); ctx.rotate(-1.1); drawItemShape(ctx, 'conch', 0, 0, s * 1.5); ctx.restore();
+    ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = 1.4 * s;            // 귀에 들리는 바다: 퍼져 나가는 물결 두 줄
+    for (let j = 0; j < 2; j++) { const r = (8 + ((pn / 60 + j * 10) % 20)) * s; ctx.globalAlpha = 1 - ((pn / 60 + j * 10) % 20) / 20; ctx.beginPath(); ctx.arc(x + 12 * s, hy, r, -0.6, 0.6); ctx.stroke(); }
+    ctx.globalAlpha = 1;
+  }
+}
 function drawFlyingGull(x, y, k, pn, ph) {
   const flap = Math.sin(pn / 95 + ph) * 8 * k;
   ctx.strokeStyle = '#f6f6f2'; ctx.lineWidth = 2.6 * k; ctx.lineCap = 'round';
@@ -3092,7 +3118,6 @@ function drawFlyingGull(x, y, k, pn, ph) {
 }
 function drawFeeding(pn) {
   if (!flockG.length && !tossed.length) return;
-  const mx = xOf(me.vx, me.vd), my = yOf(me.vd);
   for (let i = tossed.length - 1; i >= 0; i--) {                  // 날아가는 멸치
     const o = tossed[i], k = (pn - o.t0) / 700;
     if (o.caught || k > 3) { tossed.splice(i, 1); continue; }
@@ -3100,26 +3125,29 @@ function drawFeeding(pn) {
       const x = lerp(xOf(o.x0, o.d0), xOf(o.x, o.d), k), y = lerp(yOf(o.d0) - 50 * sOf(o.d0), yOf(o.d), k) - Math.sin(Math.PI * k) * 90 * U;
       ctx.fillStyle = '#cfd6dc'; ctx.beginPath(); ctx.ellipse(x, y, 3 * U, 1.2 * U, k * 6, 0, 6.3); ctx.fill();
       if (!o.dived && k > 0.35) {                                   // 갈매기 한 마리가 낚아채러 내려온다
-        const g = flockG.find(g => !g.dive); if (g) { g.dive = { o, t0: pn }; o.dived = true; }
+        const g = flockG.find(g => !g.dive && g.who === o.who); if (g) { g.dive = { o, t0: pn }; o.dived = true; }
       }
     }
   }
   for (let i = flockG.length - 1; i >= 0; i--) {
     const g = flockG[i]; if (pn < g.t0) continue;
-    const leaving = pn > flockLeaveAt, lk = leaving ? clamp((pn - flockLeaveAt) / 3000, 0, 1) : 0;
+    const own = g.who == null ? me : peers.get(g.who);
+    if (!own && !g.gone) g.leave = Math.min(g.leave, pn);
+    const leaving = pn > g.leave, lk = leaving ? clamp((pn - g.leave) / 3000, 0, 1) : 0;
     if (lk >= 1) { flockG.splice(i, 1); continue; }
+    if (own) { g.cx = own.vx ?? own.x; g.cd = own.vd ?? own.d; }
+    const mx = xOf(g.cx, g.cd);
     const ang = pn / 1000 * g.sp + g.ph, cxr = mx + Math.cos(ang) * 140 * U * g.r, cyr = horizonY() * 0.75 + Math.sin(ang * 1.3) * 30 * U - lk * 400 * U;
     let x = cxr, y = cyr, k = U * 1.1;
     if (g.dive) {
       const e = (pn - g.dive.t0) / 900, o = g.dive.o;
       const px = xOf(o.x, o.d), py = yOf(o.d) - 120 * U * (1 - Math.min(1, e));
       if (e < 1) { x = lerp(cxr, px, Math.sin(Math.PI * e)); y = lerp(cyr, py, Math.sin(Math.PI * e)); }
-      if (e > 0.5 && !o.caught) { o.caught = true; gullCatch++; if (gullCatch === 3 && !dex.gullflock) addItem('gullflock', '갈매기 떼가 멸치를 낚아챘어요 · 도감에 담았어요'); }
+      if (e > 0.5 && !o.caught) { o.caught = true; if (o.who == null) gullCatch++; if (gullCatch === 3 && !dex.gullflock) addItem('gullflock', '갈매기 떼가 멸치를 낚아챘어요 · 도감에 담았어요'); }
       if (e > 1) g.dive = null;
     }
     drawFlyingGull(x, y, k, pn, g.ph);
   }
-  void my;
 }
 
 /* ───────── 바다 유리: 물 빠진 모래에서 일곱 빛깔 ───────── */
@@ -3485,7 +3513,7 @@ document.getElementById('shellNo').addEventListener('click', () => shellAsk.clas
 document.getElementById('shellYes').addEventListener('click', () => { shellAsk.classList.remove('on'); listenShell(); });
 function askShell() { if (shellBusy || document.querySelector('.sheet.on')) return; shellAsk.classList.add('on'); wake(); }
 function listenShell() {
-  if (shellBusy) return; shellBusy = true; wake();
+  if (shellBusy) return; shellBusy = true; wake(); sendFx({ k: 'shell' });
   shellText.textContent = '소라에 귀를 대 봐요…'; shellOv.classList.add('on'); sfxShell();
   setTimeout(() => { shellText.textContent = '아주 먼 바다가 들려요'; }, 2600);
   setTimeout(() => { shellOv.classList.remove('on'); ritAdd('sea'); shellBusy = false; }, 9000);
@@ -3526,27 +3554,28 @@ const toadBtn = document.getElementById('toadBtn');
 const toads = []; let toadBusy = 0;
 function toadTick(pn, dE) {
   const ok = joined && !me.sit && !RAINY() && me.walk === 0 && pn - stillSince > (FAST ? 800 : 4000) && me.vd > dE + 0.1 && !toadBusy &&
-    toads.length < 3 && !toads.some(o => Math.abs(o.x - me.x) < 90 && Math.abs(o.d - me.d) < 0.1);
+    toads.filter(o => !o.who).length < 3 && !toads.some(o => Math.abs(o.x - me.x) < 90 && Math.abs(o.d - me.d) < 0.1);
   toadBtn.classList.toggle('on', ok);
   if (toadBusy && pn > toadBusy) {
     toadBusy = 0;
     toads.push({ x: me.x + 6, d: clamp(me.d - 0.035, 0, 1), t0: pn, crabAt: pn + (FAST ? 3000 : 30000 + Math.random() * 60000), crab: false, fall: 0 });
     toast('두꺼비집이 다 지어졌어요');
   }
-  for (const o of toads) if (!o.crab && pn > o.crabAt && Math.abs(me.x - o.x) < 900) {
-    o.crab = true; toast('두꺼비집에 작은 게가 들어갔어요');
+  for (const o of toads) if (!o.crab && pn > o.crabAt && (o.who || Math.abs(me.x - o.x) < 900)) {
+    o.crab = true; if (o.who) continue; toast('두꺼비집에 작은 게가 들어갔어요');
     if (!dex.toadhouse) setTimeout(() => addItem('toadhouse', '게가 사는 두꺼비집 · 도감에 담았어요'), 1500);
   }
 }
 toadBtn.addEventListener('click', () => {
   toadBusy = performance.now() + 3000; toadBtn.classList.remove('on'); wake();
+  sendFx({ k: 'toad', x: Math.round(me.x + 6), d: +clamp(me.d - 0.035, 0, 1).toFixed(3) });
   toast('두껍아 두껍아 헌 집 줄게 새 집 다오');
 });
 function drawToads(pn, t, wv, pal) {
   const sand = pal.sand, dark = rgb(sand.map(c => Math.round(c * 0.8))), light = rgb(sand.map(c => Math.min(255, Math.round(c * 1.04))));
   for (let i = toads.length - 1; i >= 0; i--) {
     const o = toads[i];
-    if (!o.fall && edgeD(wv.reach) + wobble(o.x, t) >= o.d - 0.004) { o.fall = pn; if (Math.abs(me.x - o.x) < 900) toast('파도가 두꺼비집을 데려갔어요'); }
+    if (!o.fall && edgeD(wv.reach) + wobble(o.x, t) >= o.d - 0.004) { o.fall = pn; if (!o.who && Math.abs(me.x - o.x) < 900) toast('파도가 두꺼비집을 데려갔어요'); }
     const k = o.fall ? 1 - (pn - o.fall) / 1500 : 1; if (k <= 0) { toads.splice(i, 1); continue; }
     const s = sOf(o.d), x = xOf(o.x, o.d), y = yOf(o.d), up = clamp((pn - o.t0) / 600, 0, 1) * k;
     if (x < -40 || x > W + 40) continue;
@@ -3911,7 +3940,7 @@ function frame(pn) {
     if (a.fire) { drawFire(pn, nf); continue; }
     if (a.npc) { drawWalker(pn, t, night); continue; }
     drawPerson(a, t, a.vd < dE + wobble(a.vx, t) + 0.012, night);
-    drawGift(a, pn, night);
+    drawGift(a, pn, night); drawPersonFx(a, pn);
   }
   drawGestures(pn);
   drawBreath(t);
@@ -4098,6 +4127,7 @@ function connect() {
     else if (m.t === 'ln') addLantern(m.l, true);
     else if (m.t === 'pf') onPeerShot(m);
     else if (m.t === 'gc') onPeerCall(m);
+    else if (m.t === 'fx') onPeerFx(m);
     else if (m.t === 'look') { const p = peers.get(m.id); if (p) { p.st = m.st || 'mat'; p.neck = !!m.n; } }
     else if (m.t === 'snc') sunsetN = m.n | 0;
     else if (m.t === 'ball') onBall(m.b);

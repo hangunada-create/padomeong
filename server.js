@@ -567,6 +567,14 @@ wss.on('connection', (ws, req) => {
       me.st = ['mat', 'chair'].includes(m.st) ? m.st : me.st; me.n = m.n ? 1 : 0;
       sendRoom(me.room, { t: 'look', id, st: me.st, n: me.n }, id);
 
+    } else if (m.t === 'fx') {                    // 남에게도 보이는 작은 몸짓: 멸치 던지기·두꺼비집·소라에 귀 대기
+      const k = ['feed', 'toad', 'shell'].includes(m.k) ? m.k : null; if (!k) return;
+      const gap = { feed: 300, toad: 3000, shell: 8000 }[k];
+      me.fxAt = me.fxAt || {}; if (t - (me.fxAt[k] || 0) < gap) return; me.fxAt[k] = t;
+      const o = { t: 'fx', id, k };
+      if (k !== 'shell') { o.x = clamp(num(m.x, me.x), 40, WORLD_W - 40); o.d = clamp(num(m.d, me.d), D_MIN, D_MAX); }
+      sendRoom(me.room, o, id);
+
     } else if (m.t === 'gc') {                    // 끼룩 (갈매기 흉내)
       if (t - (me.gcAt || 0) < 2000) return; me.gcAt = t; bump('끼룩');
       sendRoom(me.room, { t: 'gc', id }, id);
