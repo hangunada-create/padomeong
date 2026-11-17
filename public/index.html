@@ -221,7 +221,7 @@
 <div class="gift" id="doneGift"></div>
 <div class="row"><button class="sub" id="doneSave">그림으로 저장</button><button class="sub" id="doneHang">노점에 알리기</button><button class="main" id="doneClose">닫기</button></div></div>
 <div id="moveSheet" class="sheet"><div class="k">도감 옮기기</div>
-<div class="guide">휴대폰을 바꾸거나 다른 인터넷 앱으로 갈 때 써요. 도감, 지도 조각, 바다 유리, 옛 사진, 별자리까지 함께 옮겨져요.</div>
+<div class="guide">휴대폰을 바꾸거나 다른 인터넷 앱으로 갈 때 써요. 도감, 지도 조각, 바다 유리, 옛 사진, 별자리까지 함께 옮겨져요.<br>옮긴 도감은 처음 도감과 같은 도감으로 여겨요. 완성 선물은 한 도감에 한 번이에요.</div>
 <div class="ask">① 지금 이 화면의 도감 보내기</div><button class="sub wide" id="moveMake">옮기기 글자 만들기</button>
 <textarea id="moveOut" readonly rows="3" placeholder="여기에 옮기기 글자가 나와요"></textarea><button class="sub wide" id="moveCopy">글자 복사하기</button>
 <div class="ask">② 다른 곳에서 만든 글자 받기</div><textarea id="moveIn" rows="3" placeholder="복사해 온 옮기기 글자를 붙여 넣으세요"></textarea><button class="sub wide" id="moveTake">이 도감 받기</button>
@@ -1592,6 +1592,16 @@ document.getElementById('doneSave').addEventListener('click', () => {
   const a = document.createElement('a'); a.href = doneURL; a.download = '파도멍-도감-완성.jpg'; document.body.appendChild(a); a.click(); a.remove();
   doneNote.textContent = '저장되지 않으면 그림을 길게 눌러 저장해 주세요';
 });
+// 도감의 뿌리: 처음 도감을 만든 곳마다 하나씩 생기는 표식. 옮기기로 나눠도 뿌리는 같이 따라가서(합집합),
+// 한 도감을 여러 곳에 나눠 완성 카드를 여러 장 받으려 하면 노점 쪽에서 같은 뿌리로 알아볼 수 있다
+function myOrigins() {
+  let a = []; try { a = JSON.parse(load('pm_origin', '[]')); } catch (e) {}
+  if (!Array.isArray(a)) a = [];
+  a = a.filter(x => typeof x === 'string' && /^[a-z0-9]{6,12}$/.test(x));
+  if (!a.length) { a = [Math.random().toString(36).slice(2, 10).padEnd(8, '0')]; save('pm_origin', JSON.stringify(a)); }
+  return a.slice(0, 8);
+}
+myOrigins();
 function myTok() { let t = load('pm_tok', ''); if (!t) { t = Math.random().toString(36).slice(2, 12) + Date.now().toString(36); save('pm_tok', t); } return t; }
 function showGift(no) {
   const g = document.getElementById('doneGift'); g.classList.toggle('on', !!no); document.getElementById('doneAsk').style.display = no ? 'none' : '';
@@ -1604,7 +1614,7 @@ function showGift(no) {
 document.getElementById('doneHang').addEventListener('click', async () => {
   const btn = document.getElementById('doneHang'); btn.disabled = true; doneNote.textContent = '노점에 알리는 중…';
   try {
-    const r = await fetch('/card', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ tok: myTok(), test: load('pm_test', '') === '1' ? 1 : 0, name: me.name, img: doneURL, best: document.getElementById('doneBest').value, from: document.getElementById('doneFrom').value, word: document.getElementById('doneWord').value, days: Math.max(1, dayIdx(now()) - (parseInt(load('pm_first', ''), 10) || dayIdx(now())) + 1) }) });
+    const r = await fetch('/card', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ tok: myTok(), origin: myOrigins(), mout: +load('pm_moveout', '0') || 0, min: +load('pm_movein', '0') || 0, test: load('pm_test', '') === '1' ? 1 : 0, name: me.name, img: doneURL, best: document.getElementById('doneBest').value, from: document.getElementById('doneFrom').value, word: document.getElementById('doneWord').value, days: Math.max(1, dayIdx(now()) - (parseInt(load('pm_first', ''), 10) || dayIdx(now())) + 1) }) });
     const j = await r.json().catch(() => ({}));
     if (r.ok) { save('pm_cardhung', String(dayIdx(now()))); if (j.no) { save('pm_doneno', j.no); showGift(j.no); } doneNote.textContent = '노점 주인에게 알렸어요 · 다 모아 줘서 고마워요'; chime([660, 880], 0.15); }
     else { doneNote.textContent = j.안내 || '지금은 알릴 수 없어요'; if (r.status !== 429) btn.disabled = false; }
@@ -1629,6 +1639,7 @@ document.getElementById('moveClose').addEventListener('click', () => moveSheet.c
 document.getElementById('moveMake').addEventListener('click', () => {
   const o = {}; try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith('pm_')) o[k] = localStorage.getItem(k); } } catch (e) {}
   const n = Object.keys(dex).length;
+  save('pm_moveout', String((+load('pm_moveout', '0') || 0) + 1)); o.pm_moveout = '0';   // 보낸 쪽에 '보냄' 기록 (받는 쪽엔 넘기지 않음)
   document.getElementById('moveOut').value = 'PADO1.' + b64e(JSON.stringify(o));
   moveNote.textContent = `도감 ${n}칸이 담긴 글자예요. 복사해서 옮겨 갈 곳에 붙여 넣으세요`;
 });
@@ -1658,8 +1669,9 @@ document.getElementById('moveTake').addEventListener('click', () => {
   const raw = document.getElementById('moveIn').value.replace(/\s+/g, '');
   let o; try { if (!raw.startsWith('PADO1.')) throw 0; o = JSON.parse(b64d(raw.slice(6))); if (!o || typeof o !== 'object') throw 0; } catch (e) { moveNote.textContent = '옮기기 글자가 아니에요. 처음부터 끝까지 다 복사했는지 봐 주세요'; return; }
   let n = 0;
-  for (const k in o) { if (!k.startsWith('pm_') || typeof o[k] !== 'string' || o[k].length > 20000) continue; save(k, mergeVal(k, load(k, null), o[k])); n++; }
+  for (const k in o) { if (!k.startsWith('pm_') || k === 'pm_moveout' || k === 'pm_movein' || typeof o[k] !== 'string' || o[k].length > 20000) continue; save(k, mergeVal(k, load(k, null), o[k])); n++; }
   if (!n) { moveNote.textContent = '옮길 기록이 없어요'; return; }
+  save('pm_movein', String((+load('pm_movein', '0') || 0) + 1));
   moveNote.textContent = '도감을 받았어요. 바닷가를 다시 열어요…';
   setTimeout(() => location.reload(), 900);
 });

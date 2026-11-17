@@ -47,6 +47,7 @@ function save(name, obj) {
    한 사람(ipTag) 하루 한 번. TELEGRAM_BOT_TOKEN 이 있어야 알림이 간다.
    TELEGRAM_CHAT_ID 가 없으면 봇에게 마지막으로 말을 건 1:1 대화방을 찾아 쓴다. */
 const cardLast = new Map();          // tag → 마지막으로 알린 시각
+const doneCards = load('done.json', []);   // 완성 카드 기록: 번호와 도감 뿌리만 (같은 도감이 두 번 오는지 보려고)
 const TG_TOKEN = (process.env.TELEGRAM_BOT_TOKEN || '').trim();
 let tgChat = (process.env.TELEGRAM_CHAT_ID || '').trim() || (load('tg.json', {}).chat || '');
 function postCard(req, res) {
@@ -73,7 +74,14 @@ function postCard(req, res) {
     if (cardLast.size > 5000) cardLast.clear();
     const test = m.test === 1; if (!test) bump('완성카드');
     const no = doneNo();
+    // 도감의 뿌리(옮기기로 나눠도 같이 따라감)와 옮기기 이력. 이미 완성 카드를 받은 뿌리와 겹치면 알린다
+    const origin = (Array.isArray(m.origin) ? m.origin : []).map(x => String(x)).filter(x => /^[a-z0-9]{6,12}$/.test(x)).slice(0, 8);
+    const mout = Math.min(99, Math.max(0, Number(m.mout) | 0)), min = Math.min(99, Math.max(0, Number(m.min) | 0));
+    const seen = test ? [] : doneCards.filter(c => c.o.some(x => origin.includes(x)));
+    if (!test) { doneCards.push({ no, o: origin, at: nowMs }); save('done.json', doneCards); }
     const lines = [`${test ? '🧪 [시험] ' : '🐚 '}파도멍 ${no} · ${name} 님 (${days}일 걸림)`];
+    if (seen.length) lines.push(`⚠️ 같은 도감에서 이미 완성 카드가 왔어요: ${seen.map(c => c.no).join(', ')} → 옮기기로 나눈 도감일 수 있어요`);
+    lines.push(`도감 뿌리 ${origin.map(x => x.slice(0, 4)).join('·') || '없음'}${mout || min ? ` · 옮기기 보냄 ${mout} 받음 ${min}` : ''}${!origin.length ? ' (뿌리가 지워진 도감: 확인 필요)' : ''}`);
     if (best || from) lines.push([best && `좋았던 순간: ${best}`, from && `온 길: ${from}`].filter(Boolean).join(' · '));
     if (word) lines.push(`한마디: ${word}`);
     lines.push('→ 이 번호로 @ieumfish 에 DM이 오면 생선회와 작은 굿즈 선물');
