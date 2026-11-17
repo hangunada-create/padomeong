@@ -205,7 +205,9 @@
 <div id="sandSheet" class="sheet"><div class="k" id="sandK">모래에 몇 글자 써 두면, 파도가 닿을 때 지워져요. 물가 가까이 쓸수록 빨리 지워집니다.</div>
 <textarea id="sandText" maxlength="16" placeholder="16자까지" style="height:56px"></textarea>
 <div class="note" id="sandNote"></div>
-<div class="row"><button class="sub" id="sandCancel">그만두기</button><button class="main" id="sandSend">모래에 쓰기</button></div></div>
+<div class="row"><button class="sub" id="sandCancel">그만두기</button><button class="sub" id="sandReport" style="display:none">신고하기</button><button class="main" id="sandSend">모래에 쓰기</button></div></div>
+<div id="wrepSheet" class="sheet"><div class="k">모래에 남은 이 그림이 불쾌한가요?</div><div class="note" id="wrepNote">서로 다른 세 사람이 신고하면 바로 지워져요. 신고하면 내 화면에서는 곧바로 사라져요.</div>
+<div class="row"><button class="sub" id="wrepCancel">닫기</button><button class="main" id="wrepSend">신고하기</button></div></div>
 <div id="bottleSheet" class="sheet"><div class="k">파도가 밀어 온 유리병</div><div class="msg" id="bottleMsg"></div><div class="row"><button class="sub" id="bottleReport">이 글 신고하기</button><button class="main" id="bottleBack">다시 바다로 보내기</button></div></div>
 <div id="letterSheet" class="sheet"><div class="k">한 줄을 유리병에 담아 띄워요. 누가 쓴 건지는 아무도 몰라요.</div><textarea id="letterText" maxlength="80" placeholder="이 바다에 남기고 싶은 한 줄"></textarea><div class="note" id="letterNote"></div><div class="row"><button class="sub" id="letterCancel">그만두기</button><button class="main" id="letterSend">바다에 띄우기</button></div></div>
 <div id="lanternSheet" class="sheet"><div class="k">보름달 뜬 밤, 작은 등에 한 줄을 적어 띄워요. 등은 바다를 건너 수평선까지 날아가요.</div><textarea id="lanternText" maxlength="20" placeholder="20자까지" style="height:56px"></textarea><div class="note" id="lanternNote"></div><div class="row"><button class="sub" id="lanternCancel">그만두기</button><button class="main" id="lanternSend">등 띄우기</button></div></div>
@@ -1151,10 +1153,32 @@ function addWriting(w, live) {
 }
 const sandK = document.getElementById('sandK'), SAND_K = sandK.textContent;
 document.getElementById('sandBtn').addEventListener('click', () => {
+  document.getElementById('sandReport').style.display = 'none';
   appendTo = null; answering = false; sandK.textContent = SAND_K; sandText.maxLength = 16; sandText.placeholder = '16자까지';
   sandNote.textContent = ''; sandSheet.classList.add('on'); setTimeout(() => sandText.focus(), 50); wake();
 });
+// 모래 글씨·그림 신고: 서버로 보내고, 내 화면에서는 바로 지운다
+function reportWriting(w) {
+  if (!w || !(w.id > 0)) return;
+  if (ws && online) ws.send(JSON.stringify({ t: 'wrep', id: w.id }));
+  const i = writings.indexOf(w); if (i >= 0) writings.splice(i, 1);
+  toast('신고했어요 · 내 화면에서는 지웠어요');
+}
+const wrepSheet = document.getElementById('wrepSheet'); let wrepTo = null;
+document.getElementById('wrepCancel').addEventListener('click', () => { wrepSheet.classList.remove('on'); wrepTo = null; });
+document.getElementById('wrepSend').addEventListener('click', () => { wrepSheet.classList.remove('on'); reportWriting(wrepTo); wrepTo = null; });
+document.getElementById('sandReport').addEventListener('click', () => { const w = appendTo; closeSand(); reportWriting(w); });
+function hitPic(cx, cy) {
+  for (const w of writings) {
+    if (w.wash || !w.pic) continue;
+    const s = sOf(w.d), x = xOf(w.x, w.d), y = yOf(w.d);
+    if (Math.abs(cx - x) < 90 * s && Math.abs(cy - y) < 40 * s) return w;
+  }
+  return null;
+}
+function onWritingDel(m) { const i = writings.findIndex(o => o.id === m.id); if (i >= 0) writings.splice(i, 1); }
 function openAppend(w) {
+  document.getElementById('sandReport').style.display = w.id > 0 ? '' : 'none';
   appendTo = w; answering = false; sandK.textContent = `‘${w.text}’ 뒤에 한 낱말을 이어 써요. 파도가 오면 함께 지워져요.`;
   sandText.maxLength = 8; sandText.placeholder = '8자까지'; sandText.value = '';
   sandNote.textContent = ''; sandSheet.classList.add('on'); setTimeout(() => sandText.focus(), 50); wake();
@@ -2716,6 +2740,7 @@ function hitQuestion(cx, cy) {
 }
 let answering = false;
 function openAnswer() {
+  document.getElementById('sandReport').style.display = 'none';
   appendTo = null; answering = true;
   sandK.textContent = `오늘의 질문 · “${questionOf(now())}” 아래에 답을 이어 써요. 자정이 되면 파도가 지워요.`;
   sandText.maxLength = 16; sandText.placeholder = '16자까지'; sandText.value = '';
@@ -4136,6 +4161,7 @@ function connect() {
     else if (m.t === 'bs') onSent(m);
     else if (m.t === 'w') addWriting(m.w, true);
     else if (m.t === 'wu') onWritingUpdate(m);
+    else if (m.t === 'wdel') onWritingDel(m);
     else if (m.t === 'ln') addLantern(m.l, true);
     else if (m.t === 'pf') onPeerShot(m);
     else if (m.t === 'gc') onPeerCall(m);
@@ -4197,6 +4223,8 @@ cv.addEventListener('pointerdown', e => {
   if (hitQuestion(e.clientX, e.clientY) && Math.abs(me.x - QSPOT.x) < 420 && Math.abs(me.d - QSPOT.d) < 0.35) { openAnswer(); return; }
   const wr = hitWriting(e.clientX, e.clientY);
   if (wr && Math.abs(me.x - wr.x) < 380 && Math.abs(me.d - wr.d) < 0.3) { openAppend(wr); return; }
+  const pic = hitPic(e.clientX, e.clientY);
+  if (pic && pic.id > 0 && Math.abs(me.x - pic.x) < 380 && Math.abs(me.d - pic.d) < 0.3) { wrepTo = pic; wrepSheet.classList.add('on'); wake(); return; }
   const who = hitPeer(e.clientX, e.clientY);
   if (who !== null) { if (ws && online) ws.send(JSON.stringify({ t: 'g', to: who })); hint.classList.add('gone'); return; }
   resetStill();

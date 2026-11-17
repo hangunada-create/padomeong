@@ -47,7 +47,8 @@ function save(name, obj) {
    한 사람(ipTag) 하루 한 번. TELEGRAM_BOT_TOKEN 이 있어야 알림이 간다.
    TELEGRAM_CHAT_ID 가 없으면 봇에게 마지막으로 말을 건 1:1 대화방을 찾아 쓴다. */
 const cardLast = new Map();          // tag → 마지막으로 알린 시각
-const doneCards = load('done.json', []);   // 완성 카드 기록: 번호와 도감 뿌리만 (같은 도감이 두 번 오는지 보려고)
+const doneCards = load('done.json', []);
+const wreps = new Map();            // 모래 글씨 id → 신고한 사람(ipTag)들   // 완성 카드 기록: 번호와 도감 뿌리만 (같은 도감이 두 번 오는지 보려고)
 const TG_TOKEN = (process.env.TELEGRAM_BOT_TOKEN || '').trim();
 let tgChat = (process.env.TELEGRAM_CHAT_ID || '').trim() || (load('tg.json', {}).chat || '');
 function postCard(req, res) {
@@ -80,6 +81,9 @@ function postCard(req, res) {
     const seen = test ? [] : doneCards.filter(c => c.o.some(x => origin.includes(x)));
     if (!test) { doneCards.push({ no, o: origin, at: nowMs }); save('done.json', doneCards); }
     const lines = [`${test ? '🧪 [시험] ' : '🐚 '}파도멍 ${no} · ${name} 님 (${days}일 걸림)`];
+    const v = visits.t[tok], md = d => d ? `${+d.slice(5, 7)}/${+d.slice(8, 10)}` : '';
+    lines.push(v ? `서버가 본 방문: 처음 ${md(v[0])} · 들른 날 ${v[1]}일${v[1] <= 2 ? ' ⚠️ 너무 적어요: 확인 필요' : ''} (${md(visits.since)}부터 기록)`
+                 : `⚠️ 서버가 이 브라우저의 방문을 본 적이 없어요 (${md(visits.since)}부터 기록) → 직접 요청했거나 기록이 지워진 뒤일 수 있어요`);
     if (seen.length) lines.push(`⚠️ 같은 도감에서 이미 완성 카드가 왔어요: ${seen.map(c => c.no).join(', ')} → 옮기기로 나눈 도감일 수 있어요`);
     lines.push(`도감 뿌리 ${origin.map(x => x.slice(0, 4)).join('·') || '없음'}${mout || min ? ` · 옮기기 보냄 ${mout} 받음 ${min}` : ''}${!origin.length ? ' (뿌리가 지워진 도감: 확인 필요)' : ''}`);
     if (best || from) lines.push([best && `좋았던 순간: ${best}`, from && `온 길: ${from}`].filter(Boolean).join(' · '));
@@ -112,7 +116,7 @@ async function findChat() {
 }
 async function notifyOwner(text, img, quiet) {
   console.log((quiet ? '[통계 알림] ' : '[완성 카드] ') + text.split('\n')[0]);
-  if (!TG_TOKEN) return 'TELEGRAM_BOT_TOKEN 없음';
+  if (!TG_TOKEN) { if (!quiet) console.log(text); return 'TELEGRAM_BOT_TOKEN 없음'; }   // 시험할 때는 알림 전문을 기록에 남긴다
   try {
     const chat = await findChat();
     if (img) {
@@ -165,6 +169,19 @@ function recordVisit(sec, sitSec) {
 }
 // 오늘 온 사람(중복 뺀 수): 같은 인터넷 주소 + 같은 브라우저 표식은 하루 한 번만 센다
 let personDay = '', persons = new Set();
+// 브라우저 표식(tok)별로 서버가 직접 본 방문: [처음 본 날, 들른 날 수, 마지막 날]. 완성 카드가 진짜 다닌 사람의 것인지 가늠하려고.
+// (무료 서버는 배포하면 지워지므로 기록이 시작된 날 since 도 함께 둔다)
+const visits = load('visits.json', null) || { since: '', t: {} };
+function noteVisit(tok) {
+  if (!tok || tok === 'x') return;
+  const k = kstDay(); if (!visits.since) visits.since = k;
+  const v = visits.t[tok];
+  if (!v) visits.t[tok] = [k, 1, k];
+  else if (v[2] !== k) { v[1]++; v[2] = k; } else return;
+  const keys = Object.keys(visits.t);
+  if (keys.length > 30000) { keys.sort((a, b) => (visits.t[a][2] < visits.t[b][2] ? -1 : 1)); for (const x of keys.slice(0, 5000)) delete visits.t[x]; }
+  save('visits.json', visits);
+}
 function countPerson(key) {
   const k = kstDay(); if (k !== personDay) { personDay = k; persons = new Set(); }
   if (persons.has(key)) return; persons.add(key); bump('사람');
@@ -494,7 +511,7 @@ wss.on('connection', (ws, req) => {
       for (const pid of rooms.get(room)) { const p = people.get(pid); if (p) list.push([pid, p.x, p.d, p.sit, p.color, p.name, p.k, p.g, p.st, p.n]); }
       rooms.get(room).add(id); people.set(id, me);
       const d = day(); d.최대동시접속 = Math.max(d.최대동시접속, people.size);
-      if (!isBot) { bump('입장'); countPerson(tag + ':' + String(m.tok || '').replace(/[^a-z0-9]/gi, '').slice(0, 24)); }
+      if (!isBot) { const tk = String(m.tok || '').replace(/[^a-z0-9]/gi, '').slice(0, 24); bump('입장'); countPerson(tag + ':' + tk); noteVisit(tk); }
       const cs = castleOf(room);
       send(ws, { t: 'hi', id, now: Date.now(), room, rooms: rooms.size, p: list, w: writings.get(room) || [], today: todayView(), wx: weather, castle: cs.map(c => [c.lvl, c.gen]), ball: ballOf(room), ob: omokView(omokOf(room)), ln: lanternList(), qa: qaList().slice(-40), sn: sunsetCount() });
       sendRoom(room, { t: 'in', p: [id, me.x, me.d, me.sit, me.color, me.name, me.k, me.g, me.st, me.n] }, id);
@@ -673,6 +690,12 @@ wss.on('connection', (ws, req) => {
       mine.add(b.id); lastBottleBy.set(tag, t);
       save('bottles.json', bottles); bump('띄운병');
       send(ws, { t: 'bs', ok: true, id: b.id });
+
+    } else if (m.t === 'wrep') {                  // 모래 글씨·그림 신고: 서로 다른 세 사람이 신고하면 바로 지운다
+      const list = writings.get(me.room) || [], i = list.findIndex(w => w[0] === Number(m.id)); if (i < 0) return;
+      const r = wreps.get(list[i][0]) || new Set(); if (r.has(tag)) return; r.add(tag); wreps.set(list[i][0], r); bump('모래신고');
+      if (r.size >= 3) { const id0 = list[i][0]; list.splice(i, 1); wreps.delete(id0); sendRoom(me.room, { t: 'wdel', id: id0 }); }
+      if (wreps.size > 2000) wreps.clear();
 
     } else if (m.t === 'rep') {                   // 신고: 서로 다른 사람 셋이 신고하면 숨김
       const b = bottles.list.find(b => b.id === Number(m.id));
