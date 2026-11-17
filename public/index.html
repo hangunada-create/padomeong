@@ -1920,6 +1920,26 @@ document.getElementById('cardSave').addEventListener('click', async () => {
    아주 드물게 먼바다에 상괭이가 등을 보인다. 아무것도 설명하지 않는다. */
 let stillSince = performance.now(), sitAt = 0;
 const resetStill = () => { stillSince = performance.now(); };
+// 다른 사람이 걸어서 다가오면 게는 구멍으로 숨고 갈매기는 날아간다. 가만히 앉아 있는 사람은 놀라게 하지 않는다.
+// 놀란 뒤에는 처음부터 다시: 또 한참 가만히 있어야 다시 나온다.
+function scareTick(pn) {
+  if (!joined) return;
+  let near = false;
+  for (const p of peers.values()) {
+    if (p.vx == null) continue;
+    const moved = p._sx != null && Math.hypot(p.vx - p._sx, (p.vd - p._sd) * 900) > 0.6;
+    p._sx = p.vx; p._sd = p.vd;
+    if (!moved || p.sit) continue;
+    const r = Math.hypot(p.vx - me.x, (p.vd - me.d) * 900);
+    if (r < 260 || crabs.some(c => c.st !== 'hide' && Math.hypot(p.vx - c.x, (p.vd - c.hd) * 900) < 140)) near = true;
+  }
+  if (!near) return;
+  const had = crabs.some(c => c.st !== 'hide') || (gull && gull.st !== 'off');
+  stillSince = pn; if (me.sit) sitAt = pn;
+  if (gull && gull.st !== 'off') { gull.st = 'off'; gull.t0 = pn; }
+  if (had && !scareTold) { scareTold = true; toast('누가 다가오자 게는 숨고 갈매기는 날아갔어요'); }
+}
+let scareTold = false;
 const crabs = []; let crabHinted = false;
 function crabTick(pn, t) {
   const still = pn - stillSince, need = FAST ? 4000 : 180000;
@@ -3862,7 +3882,7 @@ function frame(pn) {
   drawWritings(pn, t, pal); drawQuestion(pn, t, pal);
   drawDecor(pal);
   spawnItems(t, wv); dailyConchTick(pn); drawItems(pn, t, wv);
-  crabTick(pn, t); drawCrabs(pn, nf);
+  scareTick(pn); crabTick(pn, t); drawCrabs(pn, nf);
   mulletTick(pn, dE); drawMullet(pn, nf);
   glowTick(pn, dt, nf > 0.5);
   stormTick(t); drawStormStars(pn); glassTick(pn, t); drawSeaGlass(pn, t, wv); drawMapPiece(pn, t);
