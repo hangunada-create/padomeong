@@ -1350,10 +1350,23 @@ function showerToday(ms) {
   }
   return null;
 }
+// 유성우 '밤'은 저녁부터 다음 날 새벽 6시까지 한 밤으로 친다 (자정을 넘겨도 같은 유성우 밤)
+const showerNight = ms => showerToday(ms - 6 * 3600e3);
+// 별똥별 조각: 유성우 오는 밤이면 물때와 상관없이, 가끔 근처 모래 위로 하나 떨어져 있다
+let meteorAt = 0;
+function meteorFragTick(pn, t) {
+  if (!joined || !showerNight(t) || palette(hourNow()).stars < 0.4) { meteorAt = 0; return; }
+  if (!meteorAt) { meteorAt = pn + (FAST ? 3000 : 90000); return; }
+  if (pn < meteorAt) return;
+  meteorAt = pn + (FAST ? 3000 : 180000 + Math.random() * 120000);
+  if (items.some(i => i.id === 'meteor') || Math.random() < 0.3) return;
+  const side = Math.random() < 0.5 ? -1 : 1;
+  items.push({ id: 'meteor', x: clamp(me.x + side * (200 + Math.random() * 450), 80, WORLD_W - 260), d: 0.33 + Math.random() * 0.08, wash: 0, tilt: (Math.random() - 0.5) * 1.4 });
+}
 const meteors = []; let nextMeteor = 0;
 function drawMeteors(pn, t, pal) {
   if (pal.stars < 0.4) return;
-  const sh = showerToday(t), every = sh ? (sh.peak ? 4500 : 9000) : 120000;
+  const sh = showerNight(t), every = sh ? (sh.peak ? 4500 : 9000) : 120000;
   if (pn > nextMeteor) {
     nextMeteor = pn + every * (0.5 + Math.random()) / Math.max(0.15, 1 - WXF.cloud);
     if (nextMeteor - pn < 600000) meteors.push({ x: 0.2 + Math.random() * 0.75, y: 0.05 + Math.random() * 0.4, t0: pn, len: 0.08 + Math.random() * 0.12 });
@@ -1430,7 +1443,7 @@ const ITEMS = [
   ['pearl', '작은 진주', 2, '아주 드물게, 물이 가장 많이 빠진 날.'],
   ['rain', '빗방울 조약돌', 3, '비 오는 날 젖은 모래에서만.'],
   ['snow', '계절이 남긴 조개', 3, '겨울엔 눈·서리, 여름엔 장마·열대야, 봄가을엔 짙은 해무가 낀 날 바닷가에서.'],
-  ['meteor', '별똥별 조각', 3, '유성우가 오는 날 밤, 물이 빠진 자리에서.'],
+  ['meteor', '별똥별 조각', 3, '유성우가 오는 밤, 모래 위에서.'],
   ['flag', '모래성 깃발', 3, '여럿이 높이 쌓은 모래성이 파도에 무너진 뒤 남은 것.'],
   ['beacon', '등대의 말', 3, '고하도 등대가 깜빡인 낱말을 모래에 써서 받은 답.'],
   ['crabwalk', '옆걸음 게', 3, '오래 가만히 있었더니 모래 구멍에서 나와 옆으로 걸었다.'],
@@ -1526,7 +1539,7 @@ function spawnItems(t, wv) {
   const low = edgeD(1.25 * WIND_F) + 0.03, high = 0.22;
   if (high - low < 0.04) return;
   const ph = moonPhase(t), spring = Math.min(ph, Math.abs(ph - 0.5), 1 - ph) < 0.08;
-  const night = palette(hourNow()).stars > 0.4, shower = showerToday(t);
+  const night = palette(hourNow()).stars > 0.4, shower = showerNight(t);
   const n = 4 + Math.floor(Math.random() * 3);
   for (let i = 0; i < n && items.length < 14; i++) {
     let id;
@@ -1759,8 +1772,8 @@ function dexHint(id) {
   if (id === 'mapdone') return `${HINTS.mapdone} · 지금 ${mapHave.size}/7`;
   if (id === 'skylantern') { const ph = moonPhase(t), left = ((0.5 - ph + 1) % 1) * 29.53; return left < 1.2 || left > 28.3 ? '오늘 밤이 보름 무렵이에요. 밤에 등을 띄워 보세요' : `보름달 뜬 밤에 띄워요 · 다음 보름 ${md(t + left * day)} 무렵`; }
   if (id === 'meteor') {
-    const now0 = showerToday(t); if (now0) return `지금 ${now0.name} 유성우 무렵이에요. 밤에 물 빠진 모래를 보세요`;
-    for (let k = 1; k < 400; k++) { const s2 = showerToday(t + k * day); if (s2) return `유성우 오는 밤, 물 빠진 모래에서 · 다음 ${s2.name} 유성우 ${md(t + (k + 1) * day)} 무렵`; }
+    const now0 = showerNight(t); if (now0) return `지금 ${now0.name} 유성우 무렵이에요. 밤에 모래 위를 걸으며 살펴보세요`;
+    for (let k = 1; k < 400; k++) { const s2 = showerToday(t + k * day); if (s2) return `유성우 오는 밤, 모래 위에서 · 다음 ${s2.name} 유성우 ${md(t + (k + 1) * day)} 무렵`; }
   }
   if (id === 'firework') { const nx = fwList(t).find(f => f[0] + f[1] * 60e3 > t); if (nx) { const d = new Date(nx[0] + 9 * 3600e3); return `목포 하늘에 불꽃이 오르는 밤 · 다음 ${nx[2]} 불꽃 ${md(nx[0])} ${d.getUTCHours()}시${d.getUTCMinutes() ? ' ' + d.getUTCMinutes() + '분' : ''}`; } }
   return HINTS[id] || '이 바다에 오래 머물러 보세요';
@@ -3737,7 +3750,7 @@ function infoTick(t, tide) {
   if (t - infoAt < 1000) return; infoAt = t;
   const dir = tide.rising ? '물이 들어오는 중' : '물이 빠지는 중';
   tideEl.textContent = `목포 ${dir} · ${tide.nextHigh ? '만조' : '간조'} ${hm(tide.next)}${tide.approx ? ' (어림)' : ''}`;
-  const sh = showState(t), ms = showerToday(t), isNight = palette(hourNow()).stars > 0.4;
+  const sh = showState(t), ms = showerNight(t), isNight = palette(hourNow()).stars > 0.4;
   const fw = fwState(t);
   const term = termToday(t), gold = Math.abs(hourOf(t) - sunTimes(t).set) * 60 <= 10;
   const hs = hornState(t);
@@ -3948,7 +3961,7 @@ function frame(pn) {
   drawWrack(pal);
   drawWritings(pn, t, pal); drawQuestion(pn, t, pal);
   drawDecor(pal);
-  spawnItems(t, wv); dailyConchTick(pn); drawItems(pn, t, wv);
+  spawnItems(t, wv); dailyConchTick(pn); meteorFragTick(pn, t); drawItems(pn, t, wv);
   scareTick(pn); crabTick(pn, t); drawCrabs(pn, nf);
   mulletTick(pn, dE); drawMullet(pn, nf);
   glowTick(pn, dt, nf > 0.5);
