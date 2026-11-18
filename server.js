@@ -340,7 +340,7 @@ const server = http.createServer((req, res) => {
    실패하면 이전 값을 그대로 쓴다. 출처 표기: 기상청(공공누리 제1유형). */
 const KMA_KEY = process.env.KMA_KEY || '';
 const KMA_NX = 50, KMA_NY = 66;
-let weather = null, rainEndAt = 0; const wxHist = [];
+let weather = null, rainEndAt = +(load('rain.json', {}).end || 0), wasRain = !!load('rain.json', {}).was; const wxHist = [];   // 서버가 다시 켜져도 '비가 오고 있었다'를 기억
 function kmaBase(minsBack, minute) {       // 한국 시각 기준 발표 날짜·시각
   const d = new Date(Date.now() + 9 * 3600e3 - minsBack * 60e3);
   const ymd = d.toISOString().slice(0, 10).replace(/-/g, '');
@@ -388,8 +388,10 @@ async function fetchWeather() {
     const w = kmaToWx(nc, fc), was = weather;
     wxHist.push({ t: Date.now(), ws: w.ws }); while (wxHist.length && Date.now() - wxHist[0].t > 24 * 3600e3) wxHist.shift();
     w.gust = Math.max(...wxHist.map(x => x.ws));                       // 지난 24시간 가장 센 바람
-    if (was && was.rain && !w.rain) rainEndAt = Date.now();             // 비가 막 그쳤다 → 무지개
+    if (((was && was.rain) || (!was && wasRain)) && !w.rain) rainEndAt = Date.now();   // 비가 막 그쳤다 → 무지개
     if (w.rain) rainEndAt = 0;
+    if (wasRain !== w.rain || (was && was.after !== rainEndAt)) save('rain.json', { was: w.rain, end: rainEndAt });
+    wasRain = w.rain;
     w.after = rainEndAt;
     weather = w;
     if (people.size) sendAll({ t: 'wx', wx: weather });

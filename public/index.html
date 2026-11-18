@@ -3052,7 +3052,8 @@ function drawRainbow(pn, t, pal) {
   ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, hy); ctx.clip(); ctx.lineWidth = 5 * U;
   cols.forEach((c, i) => { ctx.strokeStyle = `rgba(${c},${0.28 * a})`; ctx.beginPath(); ctx.arc(cx, cy, R - i * 5 * U, Math.PI * 1.05, Math.PI * 1.95); ctx.stroke(); });
   ctx.restore();
-  if (joined && a > 0.5) { if (!rainbowSeen) rainbowSeen = pn; if (pn - rainbowSeen > 8000 && !dex.rainbow) addItem('rainbow', '비 그친 하늘에 무지개 · 도감에 담았어요'); }
+  // 눈에 보이면(구름 때문에 흐려도) 8초 바라보면 도감에 담긴다
+  if (joined && a > 0.08) { if (!rainbowSeen) rainbowSeen = pn; if (pn - rainbowSeen > 8000 && !dex.rainbow) addItem('rainbow', '비 그친 하늘에 무지개 · 도감에 담았어요'); }
 }
 
 /* ───────── 달무리: 습한 밤, 달 둘레에 빛 고리 ───────── */
