@@ -214,7 +214,7 @@
 <div class="row"><button class="sub" id="sandCancel">그만두기</button><button class="sub" id="sandReport" style="display:none">신고하기</button><button class="main" id="sandSend">모래에 쓰기</button></div></div>
 <div id="mungLine"></div>
 <div id="instSheet" class="sheet"><div class="k">심란할 때 바로 올 수 있게, 휴대폰 홈 화면에 이 바다를 둘까요?</div>
-<div class="note" id="instNote">아이콘을 누르면 이름 묻지 않고 바로 바다가 열려요.</div>
+<div class="note" id="instNote">아이콘을 누르면 주소창 없이 화면 가득 바다가 열려요.</div>
 <div class="row"><button class="sub" id="instNo">괜찮아요</button><button class="main" id="instYes">홈 화면에 두기</button></div></div>
 <div id="wrepSheet" class="sheet"><div class="k">모래에 남은 이 그림이 불쾌한가요?</div><div class="note" id="wrepNote">서로 다른 세 사람이 신고하면 바로 지워져요. 신고하면 내 화면에서는 곧바로 사라져요.</div>
 <div class="row"><button class="sub" id="wrepCancel">닫기</button><button class="main" id="wrepSend">신고하기</button></div></div>
@@ -4348,9 +4348,8 @@ PARASOLS.forEach((c, i) => {
   sw.appendChild(b);
 });
 /* ───────── 심란할 때 바로 오는 바다 ─────────
-   1) 홈 화면 아이콘(설치)으로 열면 이름을 묻지 않고 바로 들어간다
-   2) 아이콘으로 열면 파라솔 펴고 앉은 채로 시작 → 몇 초 뒤 글자가 사라지고 바다만 남는다
-   3) 앉아서 글자가 사라졌을 때도 구석에 옅게 '지금 n명이 같은 바다를 보고 있어요' 한 줄 */
+   1) 홈 화면에 아이콘으로 둘 수 있다 (들어가는 방식은 브라우저와 같다)
+   2) 앉아서 글자가 사라졌을 때도 구석에 옅게 '지금 n명이 같은 바다를 보고 있어요' 한 줄 */
 const STANDALONE = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true || /[?&]home=1/.test(location.search);
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('/sw.js').catch(() => {});
 let instEvt = null;
@@ -4360,7 +4359,7 @@ const IOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
 setTimeout(() => {                                   // 1분 반쯤 머문 사람에게 한 번만 권한다
   if (STANDALONE || load('pm_inst', '') || !joined || document.querySelector('.sheet.on') || document.body.classList.contains('quiet')) return;
   if (!instEvt && !IOS) return;
-  if (IOS) { document.getElementById('instNote').textContent = '아래쪽 공유 버튼(네모에 위 화살표)을 누르고 "홈 화면에 추가"를 고르면 돼요. 아이콘을 누르면 이름 묻지 않고 바로 바다가 열려요.'; document.getElementById('instYes').textContent = '알겠어요'; }
+  if (IOS) { document.getElementById('instNote').textContent = '아래쪽 공유 버튼(네모에 위 화살표)을 누르고 "홈 화면에 추가"를 고르면 돼요. 아이콘을 누르면 화면 가득 바다가 열려요.'; document.getElementById('instYes').textContent = '알겠어요'; }
   instSheet.classList.add('on');
 }, FAST ? 4000 : 90000);
 document.getElementById('instNo').addEventListener('click', () => { save('pm_inst', 'no'); instSheet.classList.remove('on'); });
@@ -4385,14 +4384,6 @@ function enter() {
   setTimeout(() => hint.classList.add('gone'), 9000);
 }
 document.getElementById('go').addEventListener('click', enter);
-// 홈 화면 아이콘으로 연 단골: 이름을 묻지 않고 바로 바다로. 소리는 첫 터치에서 켜진다(브라우저 규칙)
-if (STANDALONE && load('pm_name', '')) setTimeout(() => {
-  enter(); setTimeout(() => { if (!me.sit) setSit(true); }, 2500);   // 몇 걸음 걸어 들어가 파라솔 펴고 앉기
-  if (!AC || AC.state !== 'running') {
-    const on = () => { startAudio(); if (AC && AC.state === 'suspended') AC.resume(); };
-    window.addEventListener('pointerdown', on, { once: true });
-  }
-}, 300);
 if (FAST) window.__pm = { mullet: () => mullet, glow: () => ({ glowK, pair: !!glowPair }), calm: () => calmOverride, sunset: () => sunTimes(now()).set, dbg: () => ({ edge: edgeD(waveAt(now()).reach), vd: me.vd, vx: me.vx, sit: me.sit, joined }), me, openOldBottle, onPicked, feet: () => feet, rememberWord, weekHint, castle: () => castles, items: () => items, setWX, buildCastle, addItem, spawnReset: () => { itemEpoch = -1; }, beaconWord, crabs: () => crabs, gull: () => gull, porpNow: () => { porpNext = 0; }, porp: () => porp, FIREWORKS, weekSentence, cst: () => cst, constelPts, lanterns, writings, dex: () => dex, high: () => HIGH_NOW, setSit, peers, xy: (x, d) => [xOf(x, d), yOf(d)], shots, aim: () => aimDrag, termToday, questionOf, qAnswers, flocks, gold: () => GOLD, hitQuestion, walkerNow, npc: () => npc, meteors, storyOf, ball: () => ballPos(now()), omok: () => omok, glassHave, mapHave, photoHave, mapPieceToday, openOldBottle, setOldBottle: () => { oldBottleAt = 0; }, giveAnchovy, flockG, stormStars: () => stormStars, toads, setNeck, onPicked, shellN: () => shellN };   // 시험용
 nick.addEventListener('keydown', e => { if (e.key === 'Enter') enter(); });
 })();
