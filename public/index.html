@@ -4356,12 +4356,17 @@ let instEvt = null;
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); instEvt = e; });
 const instSheet = document.getElementById('instSheet');
 const IOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-setTimeout(() => {                                   // 1분 반쯤 머문 사람에게 한 번만 권한다
-  if (STANDALONE || load('pm_inst', '') || !joined || document.querySelector('.sheet.on') || document.body.classList.contains('quiet')) return;
-  if (!instEvt && !IOS) return;
+// 바닷가에 1분 반쯤 머문 사람에게 한 번만 권한다. 앉아서 화면이 비워져 있으면 기다렸다가,
+// 글자가 다시 보일 때(눌렀거나 일어났을 때) 띄운다
+let instAt = 0;
+const instTimer = setInterval(() => {
+  if (STANDALONE || load('pm_inst', '') || (!instEvt && !IOS)) { if (STANDALONE || load('pm_inst', '')) clearInterval(instTimer); return; }
+  if (!joined) return;
+  if (!instAt) { instAt = Date.now() + (FAST ? 8000 : 90000); return; }
+  if (Date.now() < instAt || document.querySelector('.sheet.on') || document.body.classList.contains('quiet')) return;
   if (IOS) { document.getElementById('instNote').textContent = '아래쪽 공유 버튼(네모에 위 화살표)을 누르고 "홈 화면에 추가"를 고르면 돼요. 아이콘을 누르면 화면 가득 바다가 열려요.'; document.getElementById('instYes').textContent = '알겠어요'; }
-  instSheet.classList.add('on');
-}, FAST ? 4000 : 90000);
+  instSheet.classList.add('on'); clearInterval(instTimer);
+}, 2000);
 document.getElementById('instNo').addEventListener('click', () => { save('pm_inst', 'no'); instSheet.classList.remove('on'); });
 document.getElementById('instYes').addEventListener('click', async () => {
   save('pm_inst', 'yes'); instSheet.classList.remove('on');
