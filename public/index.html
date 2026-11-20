@@ -86,10 +86,9 @@
   #sendBtn.on, #kiteBtn.on, #lanternBtn.on, #fwBtn.on, #feedBtn.on, #toadBtn.on, #gcBtn.on { display: inline-block; }
   #acts { transition: opacity 1.5s; }
   .hud { transition: opacity 1.8s; }
-  body.mung .hud { opacity: 0 !important; pointer-events: none !important; }
   #mungLine { position: fixed; left: 16px; top: calc(max(14px, env(safe-area-inset-top)) + 4px); z-index: 25; color: rgba(255,255,255,.55); font-size: 12px;
               text-shadow: 0 1px 3px rgba(0,0,0,.3); pointer-events: none; opacity: 0; transition: opacity 2s; }
-  body.mung #mungLine { opacity: 1; }
+  body.quiet #mungLine { opacity: 1; }
   #omokGrid { display: grid; grid-template-columns: repeat(15, 1fr); width: min(390px, 100%); aspect-ratio: 1; margin: 10px auto 4px; background: #e2cc9c; border-radius: 8px; padding: 6px; box-sizing: border-box; }
   #omokGrid button { border: 0; padding: 0; background: linear-gradient(#a8885c, #a8885c) center / 1px 100% no-repeat, linear-gradient(#a8885c, #a8885c) center / 100% 1px no-repeat; cursor: pointer; position: relative; }
   #omokGrid button.k::after, #omokGrid button.w::after { content: ''; position: absolute; inset: 8%; border-radius: 50%; background: #2b2b2e; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
@@ -4348,8 +4347,8 @@ PARASOLS.forEach((c, i) => {
 });
 /* ───────── 심란할 때 바로 오는 바다 ─────────
    1) 홈 화면 아이콘(설치)으로 열면 이름을 묻지 않고 바로 들어간다
-   2) 화면을 길게 누르면 멍 모드: 글자와 버튼이 모두 사라지고 바다와 소리만. 다음에도 그대로 열린다
-   3) 멍 모드에서도 구석에 옅게 '지금 n명이 같은 바다를 보고 있어요' 한 줄 */
+   2) 아이콘으로 열면 파라솔 펴고 앉은 채로 시작 → 몇 초 뒤 글자가 사라지고 바다만 남는다
+   3) 앉아서 글자가 사라졌을 때도 구석에 옅게 '지금 n명이 같은 바다를 보고 있어요' 한 줄 */
 const STANDALONE = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true || /[?&]home=1/.test(location.search);
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('/sw.js').catch(() => {});
 let instEvt = null;
@@ -4357,7 +4356,7 @@ window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); instEv
 const instSheet = document.getElementById('instSheet');
 const IOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
 setTimeout(() => {                                   // 1분 반쯤 머문 사람에게 한 번만 권한다
-  if (STANDALONE || load('pm_inst', '') || !joined || document.querySelector('.sheet.on') || document.body.classList.contains('mung')) return;
+  if (STANDALONE || load('pm_inst', '') || !joined || document.querySelector('.sheet.on') || document.body.classList.contains('quiet')) return;
   if (!instEvt && !IOS) return;
   if (IOS) { document.getElementById('instNote').textContent = '아래쪽 공유 버튼(네모에 위 화살표)을 누르고 "홈 화면에 추가"를 고르면 돼요. 아이콘을 누르면 이름 묻지 않고 바로 바다가 열려요.'; document.getElementById('instYes').textContent = '알겠어요'; }
   instSheet.classList.add('on');
@@ -4367,26 +4366,11 @@ document.getElementById('instYes').addEventListener('click', async () => {
   save('pm_inst', 'yes'); instSheet.classList.remove('on');
   if (instEvt) { try { instEvt.prompt(); await instEvt.userChoice; } catch (e) {} instEvt = null; }
 });
-// 멍 모드
 const mungLine = document.getElementById('mungLine');
-function setMung(on, say) {
-  document.body.classList.toggle('mung', on); save('pm_mung', on ? '1' : '');
-  if (say) { document.body.classList.remove('mung'); toast(on ? '바다만 남길게요 · 다시 길게 누르면 돌아와요' : '다시 다 보여요'); if (on) setTimeout(() => { if (load('pm_mung', '')) document.body.classList.add('mung'); }, 2200); }
-}
-let lpTimer = 0, lpX = 0, lpY = 0;
-cv.addEventListener('pointerdown', e => { if (!joined) return; lpX = e.clientX; lpY = e.clientY; clearTimeout(lpTimer); lpTimer = setTimeout(() => setMung(!document.body.classList.contains('mung'), true), 650); });
-cv.addEventListener('pointermove', e => { if (Math.hypot(e.clientX - lpX, e.clientY - lpY) > 12) clearTimeout(lpTimer); });
-for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) cv.addEventListener(ev, () => clearTimeout(lpTimer));
-cv.addEventListener('contextmenu', e => e.preventDefault());
 setInterval(() => {
-  if (!document.body.classList.contains('mung')) return;
   const n = (joined ? 1 : 0) + peers.size;
   mungLine.textContent = n >= 2 ? `지금 ${n}명이 같은 바다를 보고 있어요` : '';
 }, 2000);
-setTimeout(() => {                                   // 한 번만 알려 주기
-  if (!joined || load('pm_mungtip', '') || document.body.classList.contains('mung')) return;
-  save('pm_mungtip', '1'); toast('화면을 길게 누르면 글자가 모두 사라지고 바다만 남아요');
-}, FAST ? 2500 : 45000);
 function enter() {
   if (joined) return;
   me.name = nick.value.replace(/\s+/g, ' ').trim().slice(0, 10) || randomName();
@@ -4397,12 +4381,11 @@ function enter() {
   startAudio(); if (AC && AC.state === 'suspended') AC.resume();
   showCount(); connect(); wake();
   setTimeout(() => hint.classList.add('gone'), 9000);
-  if (load('pm_mung', '')) document.body.classList.add('mung');
 }
 document.getElementById('go').addEventListener('click', enter);
 // 홈 화면 아이콘으로 연 단골: 이름을 묻지 않고 바로 바다로. 소리는 첫 터치에서 켜진다(브라우저 규칙)
 if (STANDALONE && load('pm_name', '')) setTimeout(() => {
-  enter();
+  enter(); setTimeout(() => { if (!me.sit) setSit(true); }, 2500);   // 몇 걸음 걸어 들어가 파라솔 펴고 앉기
   if (!AC || AC.state !== 'running') {
     const on = () => { startAudio(); if (AC && AC.state === 'suspended') AC.resume(); };
     window.addEventListener('pointerdown', on, { once: true });
