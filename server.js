@@ -21,6 +21,7 @@ const MAX_PER_IP = 8;
 const TYPES = { '.html': 'text/html; charset=utf-8', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml',
                 '.ico': 'image/x-icon', '.txt': 'text/plain; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
                 '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.wav': 'audio/wav', '.json': 'application/json; charset=utf-8' };
+TYPES['.json'] = 'application/manifest+json; charset=utf-8';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const num = (v, f) => (typeof v === 'number' && Number.isFinite(v) ? v : f);
@@ -329,7 +330,7 @@ const server = http.createServer((req, res) => {
     if (METAMOA_VERIFY && file.endsWith('index.html'))
       data = Buffer.from(data.toString('utf8').replace('<head>', `<head>\n<meta name="metamoa-site-verification" content="${METAMOA_VERIFY}">`));
     res.writeHead(200, { 'content-type': TYPES[path.extname(file)] || 'application/octet-stream',
-                         'cache-control': file.endsWith('.html') ? 'no-cache' : 'public, max-age=3600' });
+                         'cache-control': /\.(html|json)$|sw\.js$/.test(file) ? 'no-cache' : 'public, max-age=3600' });
     res.end(data);
   });
 });

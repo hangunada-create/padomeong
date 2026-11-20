@@ -13,6 +13,8 @@
 <meta property="og:type" content="website">
 <meta property="og:image" content="/og.png">
 <meta name="theme-color" content="#2f7fb5">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2714%27 fill=%27%233f9bd8%27/%3E%3Cpath d=%27M0 40c10-8 22-8 32 0s22 8 32 0v24H0z%27 fill=%27%23f1e2b8%27/%3E%3Cpath d=%27M0 40c10-8 22-8 32 0s22 8 32 0%27 fill=%27none%27 stroke=%27%23fff%27 stroke-width=%274%27/%3E%3C/svg%3E">
 <!-- 메타모아 소유자 인증 메타 태그를 받으면 이 줄 아래에 붙여 넣으세요 -->
 <style>
@@ -83,6 +85,11 @@
   #sendBtn, #kiteBtn, #lanternBtn, #fwBtn, #feedBtn, #toadBtn, #gcBtn { display: none; }
   #sendBtn.on, #kiteBtn.on, #lanternBtn.on, #fwBtn.on, #feedBtn.on, #toadBtn.on, #gcBtn.on { display: inline-block; }
   #acts { transition: opacity 1.5s; }
+  .hud { transition: opacity 1.8s; }
+  body.mung .hud { opacity: 0 !important; pointer-events: none !important; }
+  #mungLine { position: fixed; left: 16px; top: calc(max(14px, env(safe-area-inset-top)) + 4px); z-index: 25; color: rgba(255,255,255,.55); font-size: 12px;
+              text-shadow: 0 1px 3px rgba(0,0,0,.3); pointer-events: none; opacity: 0; transition: opacity 2s; }
+  body.mung #mungLine { opacity: 1; }
   #omokGrid { display: grid; grid-template-columns: repeat(15, 1fr); width: min(390px, 100%); aspect-ratio: 1; margin: 10px auto 4px; background: #e2cc9c; border-radius: 8px; padding: 6px; box-sizing: border-box; }
   #omokGrid button { border: 0; padding: 0; background: linear-gradient(#a8885c, #a8885c) center / 1px 100% no-repeat, linear-gradient(#a8885c, #a8885c) center / 100% 1px no-repeat; cursor: pointer; position: relative; }
   #omokGrid button.k::after, #omokGrid button.w::after { content: ''; position: absolute; inset: 8%; border-radius: 50%; background: #2b2b2e; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
@@ -206,6 +213,10 @@
 <textarea id="sandText" maxlength="16" placeholder="16자까지" style="height:56px"></textarea>
 <div class="note" id="sandNote"></div>
 <div class="row"><button class="sub" id="sandCancel">그만두기</button><button class="sub" id="sandReport" style="display:none">신고하기</button><button class="main" id="sandSend">모래에 쓰기</button></div></div>
+<div id="mungLine"></div>
+<div id="instSheet" class="sheet"><div class="k">심란할 때 바로 올 수 있게, 휴대폰 홈 화면에 이 바다를 둘까요?</div>
+<div class="note" id="instNote">아이콘을 누르면 이름 묻지 않고 바로 바다가 열려요.</div>
+<div class="row"><button class="sub" id="instNo">괜찮아요</button><button class="main" id="instYes">홈 화면에 두기</button></div></div>
 <div id="wrepSheet" class="sheet"><div class="k">모래에 남은 이 그림이 불쾌한가요?</div><div class="note" id="wrepNote">서로 다른 세 사람이 신고하면 바로 지워져요. 신고하면 내 화면에서는 곧바로 사라져요.</div>
 <div class="row"><button class="sub" id="wrepCancel">닫기</button><button class="main" id="wrepSend">신고하기</button></div></div>
 <div id="bottleSheet" class="sheet"><div class="k">파도가 밀어 온 유리병</div><div class="msg" id="bottleMsg"></div><div class="row"><button class="sub" id="bottleReport">이 글 신고하기</button><button class="main" id="bottleBack">다시 바다로 보내기</button></div></div>
@@ -4335,6 +4346,47 @@ PARASOLS.forEach((c, i) => {
   b.addEventListener('click', () => { me.color = i; [...sw.children].forEach((x, j) => x.classList.toggle('on', j === i)); });
   sw.appendChild(b);
 });
+/* ───────── 심란할 때 바로 오는 바다 ─────────
+   1) 홈 화면 아이콘(설치)으로 열면 이름을 묻지 않고 바로 들어간다
+   2) 화면을 길게 누르면 멍 모드: 글자와 버튼이 모두 사라지고 바다와 소리만. 다음에도 그대로 열린다
+   3) 멍 모드에서도 구석에 옅게 '지금 n명이 같은 바다를 보고 있어요' 한 줄 */
+const STANDALONE = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true || /[?&]home=1/.test(location.search);
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('/sw.js').catch(() => {});
+let instEvt = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); instEvt = e; });
+const instSheet = document.getElementById('instSheet');
+const IOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+setTimeout(() => {                                   // 1분 반쯤 머문 사람에게 한 번만 권한다
+  if (STANDALONE || load('pm_inst', '') || !joined || document.querySelector('.sheet.on') || document.body.classList.contains('mung')) return;
+  if (!instEvt && !IOS) return;
+  if (IOS) { document.getElementById('instNote').textContent = '아래쪽 공유 버튼(네모에 위 화살표)을 누르고 "홈 화면에 추가"를 고르면 돼요. 아이콘을 누르면 이름 묻지 않고 바로 바다가 열려요.'; document.getElementById('instYes').textContent = '알겠어요'; }
+  instSheet.classList.add('on');
+}, FAST ? 4000 : 90000);
+document.getElementById('instNo').addEventListener('click', () => { save('pm_inst', 'no'); instSheet.classList.remove('on'); });
+document.getElementById('instYes').addEventListener('click', async () => {
+  save('pm_inst', 'yes'); instSheet.classList.remove('on');
+  if (instEvt) { try { instEvt.prompt(); await instEvt.userChoice; } catch (e) {} instEvt = null; }
+});
+// 멍 모드
+const mungLine = document.getElementById('mungLine');
+function setMung(on, say) {
+  document.body.classList.toggle('mung', on); save('pm_mung', on ? '1' : '');
+  if (say) { document.body.classList.remove('mung'); toast(on ? '바다만 남길게요 · 다시 길게 누르면 돌아와요' : '다시 다 보여요'); if (on) setTimeout(() => { if (load('pm_mung', '')) document.body.classList.add('mung'); }, 2200); }
+}
+let lpTimer = 0, lpX = 0, lpY = 0;
+cv.addEventListener('pointerdown', e => { if (!joined) return; lpX = e.clientX; lpY = e.clientY; clearTimeout(lpTimer); lpTimer = setTimeout(() => setMung(!document.body.classList.contains('mung'), true), 650); });
+cv.addEventListener('pointermove', e => { if (Math.hypot(e.clientX - lpX, e.clientY - lpY) > 12) clearTimeout(lpTimer); });
+for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) cv.addEventListener(ev, () => clearTimeout(lpTimer));
+cv.addEventListener('contextmenu', e => e.preventDefault());
+setInterval(() => {
+  if (!document.body.classList.contains('mung')) return;
+  const n = (joined ? 1 : 0) + peers.size;
+  mungLine.textContent = n >= 2 ? `지금 ${n}명이 같은 바다를 보고 있어요` : '';
+}, 2000);
+setTimeout(() => {                                   // 한 번만 알려 주기
+  if (!joined || load('pm_mungtip', '') || document.body.classList.contains('mung')) return;
+  save('pm_mungtip', '1'); toast('화면을 길게 누르면 글자가 모두 사라지고 바다만 남아요');
+}, FAST ? 2500 : 45000);
 function enter() {
   if (joined) return;
   me.name = nick.value.replace(/\s+/g, ' ').trim().slice(0, 10) || randomName();
@@ -4345,8 +4397,17 @@ function enter() {
   startAudio(); if (AC && AC.state === 'suspended') AC.resume();
   showCount(); connect(); wake();
   setTimeout(() => hint.classList.add('gone'), 9000);
+  if (load('pm_mung', '')) document.body.classList.add('mung');
 }
 document.getElementById('go').addEventListener('click', enter);
+// 홈 화면 아이콘으로 연 단골: 이름을 묻지 않고 바로 바다로. 소리는 첫 터치에서 켜진다(브라우저 규칙)
+if (STANDALONE && load('pm_name', '')) setTimeout(() => {
+  enter();
+  if (!AC || AC.state !== 'running') {
+    const on = () => { startAudio(); if (AC && AC.state === 'suspended') AC.resume(); };
+    window.addEventListener('pointerdown', on, { once: true });
+  }
+}, 300);
 if (FAST) window.__pm = { mullet: () => mullet, glow: () => ({ glowK, pair: !!glowPair }), calm: () => calmOverride, sunset: () => sunTimes(now()).set, dbg: () => ({ edge: edgeD(waveAt(now()).reach), vd: me.vd, vx: me.vx, sit: me.sit, joined }), me, openOldBottle, onPicked, feet: () => feet, rememberWord, weekHint, castle: () => castles, items: () => items, setWX, buildCastle, addItem, spawnReset: () => { itemEpoch = -1; }, beaconWord, crabs: () => crabs, gull: () => gull, porpNow: () => { porpNext = 0; }, porp: () => porp, FIREWORKS, weekSentence, cst: () => cst, constelPts, lanterns, writings, dex: () => dex, high: () => HIGH_NOW, setSit, peers, xy: (x, d) => [xOf(x, d), yOf(d)], shots, aim: () => aimDrag, termToday, questionOf, qAnswers, flocks, gold: () => GOLD, hitQuestion, walkerNow, npc: () => npc, meteors, storyOf, ball: () => ballPos(now()), omok: () => omok, glassHave, mapHave, photoHave, mapPieceToday, openOldBottle, setOldBottle: () => { oldBottleAt = 0; }, giveAnchovy, flockG, stormStars: () => stormStars, toads, setNeck, onPicked, shellN: () => shellN };   // 시험용
 nick.addEventListener('keydown', e => { if (e.key === 'Enter') enter(); });
 })();
