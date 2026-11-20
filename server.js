@@ -595,9 +595,8 @@ wss.on('connection', (ws, req) => {
       sendRoom(me.room, { t: 'look', id, st: me.st, n: me.n }, id);
 
     } else if (m.t === 'fx') {                    // 남에게도 보이는 작은 몸짓: 멸치 던지기·두꺼비집·소라에 귀 대기
-      const k = ['feed', 'toad', 'shell', 'rest', 'rest0', 'restok'].includes(m.k) ? m.k : null; if (!k) return;
-      const gap = { feed: 300, toad: 3000, shell: 8000, rest: 10000, rest0: 1000, restok: 1000 }[k];
-      if (k === 'rest') bump('3분쉬기 시작'); else if (k === 'restok') bump('3분쉬기 끝까지');
+      const k = ['feed', 'toad', 'shell'].includes(m.k) ? m.k : null; if (!k) return;
+      const gap = { feed: 300, toad: 3000, shell: 8000 }[k];
       me.fxAt = me.fxAt || {}; if (t - (me.fxAt[k] || 0) < gap) return; me.fxAt[k] = t;
       const o = { t: 'fx', id, k };
       if (k === 'feed' || k === 'toad') { o.x = clamp(num(m.x, me.x), 40, WORLD_W - 40); o.d = clamp(num(m.d, me.d), D_MIN, D_MAX); }
