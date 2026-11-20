@@ -4311,7 +4311,9 @@ function wake() {
   clearTimeout(quietTimer);
   quietTimer = setTimeout(() => { if (joined && me.sit) document.body.classList.add('quiet'); }, 4500);
 }
-window.addEventListener('pointermove', wake);
+// 앉아서 화면이 비워진 뒤에는 마우스를 움직여도 그대로 두고, 누르거나 클릭할 때만 글자가 돌아온다
+window.addEventListener('pointermove', () => { if (!document.body.classList.contains('quiet')) wake(); });
+window.addEventListener('pointerdown', wake, true);
 
 const sndBtn = document.getElementById('sndBtn'), timeBtn = document.getElementById('timeBtn');
 sndBtn.addEventListener('click', () => { soundOn = !soundOn; sndBtn.textContent = soundOn ? '소리 켜짐' : '소리 꺼짐'; startAudio(); if (AC && AC.state === 'suspended') AC.resume(); });
