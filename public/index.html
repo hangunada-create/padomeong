@@ -463,42 +463,17 @@ function drawSky(pal, t, h) {
   }
   for (const c of clouds) {
     const cx = ((c.x + t * c.v * (1 + WXF.wind / 5)) % 1.3 - 0.15) * W, cy = c.y * hy, cw = c.w * Math.max(W, 700) * (1 + cl * 0.7);
-    const al = Math.min(0.92, Math.max(0.1, ca) * 0.62 * (1 + cl * 0.9));
-    drawCumulus(cx, cy, cw, c.puffs || (c.puffs = cloudPuffs(clouds.indexOf(c))), gv, al);
+    // 예전처럼 옅고 길쭉한 구름. 다만 똑같은 타원 넷이 아니라 크기·높이가 제각각인 작은 덩어리를 이어 붙여 가장자리가 울퉁불퉁하게
+    const i = clouds.indexOf(c), blobs = c.blobs || (c.blobs = Array.from({ length: 9 }, (_, k) => {
+      const u = (k + 0.5) / 9 - 0.5, mid = 1 - Math.abs(u) * 1.6;
+      return { u: u * 0.95 + (hash(i * 13 + k) - 0.5) * 0.05, rx: 0.07 + hash(i * 7 + k * 3) * 0.07 + Math.max(0, mid) * 0.04,
+               ry: 0.035 + hash(i * 5 + k * 11) * 0.03 + Math.max(0, mid) * 0.03, dy: (hash(i * 3 + k * 17) - 0.6) * 0.04 - Math.max(0, mid) * 0.025 };
+    }));
+    ctx.fillStyle = `rgba(${gv},${gv + 3},${gv + 8},${Math.min(0.9, Math.max(0.08, ca) * 0.55 * (1 + cl * 0.9))})`;
+    ctx.beginPath();
+    for (const b of blobs) { const x = cx + b.u * cw, y = cy + b.dy * cw; ctx.moveTo(x + b.rx * cw, y); ctx.ellipse(x, y, b.rx * cw, b.ry * cw, 0, 0, 6.3); }
+    ctx.fill();
   }
-}
-
-// 뭉게구름: 바닥은 평평하고 위로 몽글몽글 솟은 덩어리. 아래는 그늘지고 위쪽은 햇빛을 받아 밝다
-function cloudPuffs(i) {
-  const n = 6 + Math.floor(hash(i * 3.7) * 3), out = [];
-  for (let k = 0; k < n; k++) {
-    const u = (k + 0.5) / n - 0.5, dome = 1 - Math.abs(u) * 1.5;                     // 가운데가 높게
-    out.push({ u: u * 0.9 + (hash(i * 11 + k) - 0.5) * 0.06, r: 0.1 + 0.12 * Math.max(0.15, dome) + hash(i * 7 + k * 3) * 0.05,
-               lift: Math.max(0, dome) * (0.1 + hash(i * 5 + k) * 0.08) });
-  }
-  return out;
-}
-function drawCumulus(cx, cy, cw, puffs, gv, al) {
-  const base = cy + cw * 0.04;                                                         // 평평한 바닥선
-  const lit = Math.min(255, gv + 22), sh = Math.round(gv * 0.82);
-  ctx.save();
-  ctx.beginPath(); ctx.rect(cx - cw, base - cw, cw * 2, cw);                           // 바닥 아래는 잘라서 납작하게
-  ctx.clip();
-  const ring = (dx, dy, k, col, a) => {
-    ctx.fillStyle = `rgba(${col},${col + 3},${col + 8},${a})`;
-    ctx.beginPath();                                                                   // 한 경로로 칠해야 겹친 자리가 진해지지 않는다
-    for (const p of puffs) { const r = p.r * cw * k, x = cx + p.u * cw + dx, y = base - p.lift * cw - r * 0.55 + dy; ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, 6.3); }
-    ctx.fill('nonzero');
-  };
-  ring(0, 0, 1, sh, al);                                                               // 그늘진 몸통
-  ring(-cw * 0.015, -cw * 0.03, 0.86, gv, al * 0.9);                                   // 본래 빛깔
-  ring(-cw * 0.03, -cw * 0.055, 0.6, lit, al * 0.55);                                  // 볕 받은 위쪽
-  const g = ctx.createLinearGradient(0, base - cw * 0.12, 0, base);                    // 바닥 쪽 그늘
-  g.addColorStop(0, `rgba(${sh - 20},${sh - 16},${sh - 8},0)`); g.addColorStop(1, `rgba(${sh - 20},${sh - 16},${sh - 8},${al * 0.35})`);
-  ctx.beginPath();
-  for (const p of puffs) { const r = p.r * cw; ctx.moveTo(cx + p.u * cw + r, base - p.lift * cw - r * 0.55); ctx.arc(cx + p.u * cw, base - p.lift * cw - r * 0.55, r, 0, 6.3); }
-  ctx.clip(); ctx.fillStyle = g; ctx.fillRect(cx - cw, base - cw * 0.12, cw * 2, cw * 0.12);
-  ctx.restore();
 }
 
 /* ───────── 대반동에서 보이는 풍경: 고하도 · 목포대교 · 해상케이블카 · 스카이워크 ───────── */
