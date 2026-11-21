@@ -3400,7 +3400,7 @@ let mapHave = loadSet('pm_map');
 const mapSheet = document.getElementById('mapSheet'), mapCanvas = document.getElementById('mapCanvas'), mapNote = document.getElementById('mapNote');
 function mapPieceToday(ms) { const di = dayIdx(ms); return { i: ((di % 7) + 7) % 7, x: 300 + hash(di * 1.93 + 5) * 2500, d: 0.3 + hash(di * 3.71 + 2) * 0.3, di }; }
 let mapGot = '';
-function drawMapPiece(pn, t) {
+function drawMapPiece(pn, t, pal) {
   const p = mapPieceToday(t); if (mapGot === String(p.di)) return;
   const dist = Math.abs(me.x - p.x), near = dist < 650 && joined; if (!near) return;   // 꽤 가까이 오면 모래 위로 보이기 시작
   const s = sOf(p.d) * 1.36, x = xOf(p.x, p.d), y = yOf(p.d), a = clamp(0.6 + (1 - dist / 650) * 0.6, 0, 1);
@@ -3408,8 +3408,10 @@ function drawMapPiece(pn, t) {
   ctx.fillStyle = `rgba(255,248,215,${0.4 * a * (0.7 + 0.3 * Math.sin(pn / 500))})`; ctx.beginPath(); ctx.ellipse(x, y, 13 * s, 6 * s, 0, 0, 6.3); ctx.fill();   // 은은한 빛무리
   // 조각마다 실제 지도에서 맡은 한 줄(대반동 모래·목포대교·고하도·X 표시…)이 보이고, 찢긴 가장자리 모양도 다르다
   const fm = fullMapCanvas(), sw = fm.width / 7, sh = fm.height, pw = 5 * s, ph = 11 * s;   // 종이 반쪽 너비·높이
-  let sand = [214, 190, 150];                                                          // 조각 놓인 자리의 모래빛을 그대로 집어 와서 덮는다
-  try { const dp = cv.width / W, px = ctx.getImageData(Math.round(x * dp), Math.round((y + 4 * s) * dp), 1, 1).data; sand = [px[0], px[1], px[2]]; } catch (e) {}
+  // 조각 놓인 자리의 모래빛: 화면에서 읽어 오면(getImageData) 그리기가 크게 느려지므로, 모래 그라데이션을 같은 식으로 계산한다
+  const y0 = yOf(-0.3), kk = clamp((y + 4 * s - y0) / Math.max(1, H - y0), 0, 1);
+  const fac = kk < 0.35 ? lerp(0.9, 1, kk / 0.35) : lerp(1, 1.04, (kk - 0.35) / 0.65), hl = 0.3 * a;   // 위에 깔린 빛무리만큼 밝게
+  const sand = pal.sand.map(c => Math.round(lerp(Math.min(255, c * fac), 252, hl)));
   ctx.save(); ctx.globalAlpha = a; ctx.translate(x, y - 2 * s); ctx.rotate(-0.35 + p.i * 0.09); ctx.scale(1, 0.62);
   ctx.beginPath();
   for (let k = 0; k <= 6; k++) ctx.lineTo(-pw + k * pw / 3, -ph + (hash(p.i * 31 + k) - 0.5) * 2.4 * s);            // 위쪽 찢긴 선
@@ -4037,7 +4039,7 @@ function frame(pn) {
   scareTick(pn); crabTick(pn, t); drawCrabs(pn, nf);
   mulletTick(pn, dE); drawMullet(pn, nf);
   glowTick(pn, dt, nf > 0.5);
-  stormTick(t); drawStormStars(pn); glassTick(pn, t); drawSeaGlass(pn, t, wv); drawMapPiece(pn, t);
+  stormTick(t); drawStormStars(pn); glassTick(pn, t); drawSeaGlass(pn, t, wv); drawMapPiece(pn, t, pal);
   oldBottleTick(pn, dE); drawOldBottle(pn, nf); drawOmokBoard(pn); ballTick(pn); drawBall(pn);
   walkToTick(); feedTick(); hornTick(t); toadTick(pn, dE); gcTick(pal);
   drawToads(pn, t, wv, pal); drawFootprints(pn, t, wv);
