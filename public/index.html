@@ -3403,7 +3403,7 @@ let mapGot = '';
 function drawMapPiece(pn, t) {
   const p = mapPieceToday(t); if (mapGot === String(p.di)) return;
   const dist = Math.abs(me.x - p.x), near = dist < 650 && joined; if (!near) return;   // 꽤 가까이 오면 모래 위로 보이기 시작
-  const s = sOf(p.d) * 2.6, x = xOf(p.x, p.d), y = yOf(p.d), a = clamp(0.6 + (1 - dist / 650) * 0.6, 0, 1);
+  const s = sOf(p.d) * 1.7, x = xOf(p.x, p.d), y = yOf(p.d), a = clamp(0.6 + (1 - dist / 650) * 0.6, 0, 1);
   if (x < -30 || x > W + 30) return;
   ctx.fillStyle = `rgba(255,248,215,${0.4 * a * (0.7 + 0.3 * Math.sin(pn / 500))})`; ctx.beginPath(); ctx.ellipse(x, y, 13 * s, 6 * s, 0, 0, 6.3); ctx.fill();   // 은은한 빛무리
   ctx.save(); ctx.globalAlpha = a; ctx.translate(x, y); ctx.rotate(-0.3);
@@ -3416,7 +3416,7 @@ function drawMapPiece(pn, t) {
 }
 function hitMapPiece(cx, cy, t) {
   const p = mapPieceToday(t); if (mapGot === String(p.di) || Math.abs(me.x - p.x) > 650) return null;
-  const s = sOf(p.d) * 2.6; return Math.hypot(cx - xOf(p.x, p.d), cy - yOf(p.d)) < 9 * s + 8 ? p : null;
+  const s = sOf(p.d) * 1.7; return Math.hypot(cx - xOf(p.x, p.d), cy - yOf(p.d)) < 9 * s + 8 ? p : null;
 }
 function takeMapPiece(p) {
   mapGot = String(p.di);
