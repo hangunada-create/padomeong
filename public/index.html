@@ -3395,24 +3395,28 @@ function drawFastFerry(t, nf) {                    // 아침 쾌속선이 다리
 }
 
 /* ───────── 지도 조각: 하루에 한 조각, 모래 속 어딘가에 ─────────
-   가까이 가야만 반짝인다. 일곱 조각을 모으면 지도가 완성된다. */
+   가까이 가면 모래 위로 보이고 반짝인다(눌러서 줍는다). 일곱 조각을 모으면 지도가 완성된다. */
 let mapHave = loadSet('pm_map');
 const mapSheet = document.getElementById('mapSheet'), mapCanvas = document.getElementById('mapCanvas'), mapNote = document.getElementById('mapNote');
 function mapPieceToday(ms) { const di = dayIdx(ms); return { i: ((di % 7) + 7) % 7, x: 300 + hash(di * 1.93 + 5) * 2500, d: 0.3 + hash(di * 3.71 + 2) * 0.3, di }; }
 let mapGot = '';
 function drawMapPiece(pn, t) {
   const p = mapPieceToday(t); if (mapGot === String(p.di)) return;
-  const near = Math.abs(me.x - p.x) < 320 && joined; if (!near) return;
-  const s = sOf(p.d), x = xOf(p.x, p.d), y = yOf(p.d), a = clamp(1 - Math.abs(me.x - p.x) / 320, 0, 1);
+  const dist = Math.abs(me.x - p.x), near = dist < 650 && joined; if (!near) return;   // 꽤 가까이 오면 모래 위로 보이기 시작
+  const s = sOf(p.d) * 2.6, x = xOf(p.x, p.d), y = yOf(p.d), a = clamp(0.6 + (1 - dist / 650) * 0.6, 0, 1);
+  if (x < -30 || x > W + 30) return;
+  ctx.fillStyle = `rgba(255,248,215,${0.4 * a * (0.7 + 0.3 * Math.sin(pn / 500))})`; ctx.beginPath(); ctx.ellipse(x, y, 13 * s, 6 * s, 0, 0, 6.3); ctx.fill();   // 은은한 빛무리
   ctx.save(); ctx.globalAlpha = a; ctx.translate(x, y); ctx.rotate(-0.3);
-  ctx.fillStyle = '#efe2c4'; ctx.beginPath(); ctx.moveTo(-6 * s, 0); ctx.lineTo(4 * s, -5 * s); ctx.lineTo(7 * s, -1 * s); ctx.lineTo(-3 * s, 3 * s); ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = 'rgba(140,90,60,.6)'; ctx.lineWidth = 0.8 * s; ctx.beginPath(); ctx.moveTo(-3 * s, -0.5 * s); ctx.lineTo(4 * s, -3 * s); ctx.stroke();
+  ctx.fillStyle = 'rgba(90,70,40,.25)'; ctx.beginPath(); ctx.ellipse(1 * s, 2.5 * s, 7 * s, 2 * s, 0, 0, 6.3); ctx.fill();          // 그림자
+  ctx.fillStyle = '#f1e4c6'; ctx.beginPath(); ctx.moveTo(-6 * s, 0); ctx.lineTo(4 * s, -5 * s); ctx.lineTo(7 * s, -1 * s); ctx.lineTo(-3 * s, 3 * s); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = "rgba(110,70,40,.9)"; ctx.lineWidth = 0.7 * s; ctx.stroke();
+  ctx.strokeStyle = 'rgba(160,65,47,.8)'; ctx.setLineDash([1.2 * s, 1.2 * s]); ctx.beginPath(); ctx.moveTo(-3 * s, -0.5 * s); ctx.lineTo(4 * s, -3 * s); ctx.stroke(); ctx.setLineDash([]);   // 지도의 붉은 점선
   ctx.restore();
-  if (Math.sin(pn / 240) > 0.6) { ctx.fillStyle = `rgba(255,255,255,${0.9 * a})`; ctx.beginPath(); ctx.arc(x + 5 * s, y - 6 * s, 2 * s, 0, 6.3); ctx.fill(); }
+  if (Math.sin(pn / 240) > 0.3) { const k = (Math.sin(pn / 240) - 0.3) / 0.7; ctx.fillStyle = `rgba(255,255,255,${0.95 * a * k})`; ctx.beginPath(); ctx.arc(x + 5 * s, y - 6 * s, 1.6 * s * (0.6 + k), 0, 6.3); ctx.fill(); }
 }
 function hitMapPiece(cx, cy, t) {
-  const p = mapPieceToday(t); if (mapGot === String(p.di) || Math.abs(me.x - p.x) > 320) return null;
-  const s = sOf(p.d); return Math.hypot(cx - xOf(p.x, p.d), cy - yOf(p.d)) < 14 * s + 12 ? p : null;
+  const p = mapPieceToday(t); if (mapGot === String(p.di) || Math.abs(me.x - p.x) > 650) return null;
+  const s = sOf(p.d) * 2.6; return Math.hypot(cx - xOf(p.x, p.d), cy - yOf(p.d)) < 9 * s + 8 ? p : null;
 }
 function takeMapPiece(p) {
   mapGot = String(p.di);

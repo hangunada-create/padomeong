@@ -491,7 +491,7 @@ wss.on('connection', (ws, req) => {
   if (people.size >= MAX_PEOPLE || ipCount > MAX_PER_IP) return ws.close(1013, 'full');
   perIp.set(ip, ipCount);
 
-  let id = null, msgs = 0, windowStart = Date.now(), lastGesture = 0, lastSand = 0, lastBuild = 0;
+  let id = null, msgs = 0, windowStart = Date.now(), lastGesture = 0, lastSand = 0, lastDraw = 0, lastBuild = 0;
   const joinedAt = Date.now(); let sitSince = 0, sitTotal = 0;
   const mine = new Set(), seen = new Set();          // 이 연결이 띄운 병, 이미 받은 병
   ws.alive = Date.now();
@@ -558,11 +558,11 @@ wss.on('connection', (ws, req) => {
       send(ws, { t: 'mineR', r });
 
     } else if (m.t === 'dw') {                    // 모래에 그림 그리기 (손가락으로 그린 선, 파도가 지울 때까지)
-      if (t - lastSand < 20000) return send(ws, { t: 'wr', ok: false, msg: '조금 있다가 다시 그려요' });
+      if (t - lastDraw < 20000) return send(ws, { t: 'wr', ok: false, msg: '조금 있다가 다시 그려요' });   // 그리기는 쓰기와 따로 센다
       const pic = String(m.pic || '');
       if (pic.length < 3 || pic.length > 2400 || !/^\d{1,2},\d{1,2}( \d{1,2},\d{1,2})*(\|\d{1,2},\d{1,2}( \d{1,2},\d{1,2})*)*$/.test(pic) || pic.split('|').length > 40)
         return send(ws, { t: 'wr', ok: false, msg: '이 그림은 모래에 남길 수 없어요' });
-      lastSand = t; bump('모래그림');
+      lastDraw = t; bump('모래그림');
       const w = [nextW++, clamp(num(m.x, me.x), 40, WORLD_W - 40), clamp(num(m.d, me.d), -0.3, D_MAX), '', t, me.color, pic];
       const list = writings.get(me.room) || []; list.push(w); while (list.length > 40) list.shift();
       writings.set(me.room, list);
