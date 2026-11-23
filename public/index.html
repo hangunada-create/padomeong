@@ -3499,11 +3499,11 @@ function paintMapBase(g, w, h) {
   g.fillStyle = '#b9d3dc'; g.fillRect(0, h * 0.05, w, h * 0.55);                          // 바다
   g.fillStyle = '#e4d3a8'; g.beginPath(); g.moveTo(0, h * 0.6); for (let x = 0; x <= w; x += 10) g.lineTo(x, h * 0.6 + Math.sin(x / 40) * 6); g.lineTo(w, h); g.lineTo(0, h); g.fill();   // 대반동 모래
   g.fillStyle = '#9fb489'; g.beginPath(); g.ellipse(w * 0.62, h * 0.22, w * 0.3, h * 0.11, -0.1, 0, 6.3); g.fill();   // 고하도
-  g.strokeStyle = '#6b5a45'; g.lineWidth = 2; g.beginPath(); g.moveTo(w * 0.1, h * 0.6); g.lineTo(w * 0.45, h * 0.24); g.stroke();   // 목포대교
+  g.strokeStyle = '#6b5a45'; g.lineWidth = 2; g.beginPath(); g.moveTo(w * 0.96, h * 0.6); g.lineTo(w * 0.84, h * 0.26); g.stroke();   // 목포대교: 대반동에서 바다를 보면 오른쪽
   g.fillStyle = '#6b5a45'; g.font = '600 12px "Apple SD Gothic Neo","Noto Sans KR",sans-serif';
-  g.fillText('고하도', w * 0.55, h * 0.2); g.fillText('대반동', w * 0.06, h * 0.72); g.fillText('목포대교', w * 0.16, h * 0.4);
-  g.setLineDash([4, 5]); g.strokeStyle = '#a0412f'; g.lineWidth = 2; g.beginPath(); g.moveTo(w * 0.5, h * 0.75); g.quadraticCurveTo(w * 0.62, h * 0.45, w * 0.78, h * 0.24); g.stroke(); g.setLineDash([]);
-  g.strokeStyle = '#a0412f'; g.lineWidth = 3; g.beginPath(); g.moveTo(w * 0.76, h * 0.2); g.lineTo(w * 0.8, h * 0.28); g.moveTo(w * 0.8, h * 0.2); g.lineTo(w * 0.76, h * 0.28); g.stroke();
+  g.fillText('고하도', w * 0.55, h * 0.2); g.fillText('대반동', w * 0.06, h * 0.72); g.fillText('목포대교', w * 0.74, h * 0.47);
+  g.setLineDash([4, 5]); g.strokeStyle = '#a0412f'; g.lineWidth = 2; g.beginPath(); g.moveTo(w * 0.5, h * 0.75); g.quadraticCurveTo(w * 0.36, h * 0.47, w * 0.42, h * 0.27); g.stroke(); g.setLineDash([]);
+  g.strokeStyle = '#a0412f'; g.lineWidth = 3; g.beginPath(); g.moveTo(w * 0.40, h * 0.2); g.lineTo(w * 0.44, h * 0.28); g.moveTo(w * 0.44, h * 0.2); g.lineTo(w * 0.40, h * 0.28); g.stroke();
   g.strokeStyle = '#6b5a45'; g.lineWidth = 1.2; g.beginPath(); g.arc(w * 0.9, h * 0.82, 16, 0, 6.3); g.stroke(); g.fillText('N', w * 0.9 - 4, h * 0.82 - 20);
   g.restore();
 }
