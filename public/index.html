@@ -3498,18 +3498,38 @@ function paintMapBase(g, w, h) {
   g.fillStyle = '#efe2c4'; g.fillRect(0, 0, w, h);
   g.fillStyle = '#b9d3dc'; g.fillRect(0, h * 0.05, w, h * 0.55);                          // 바다
   g.fillStyle = '#e4d3a8'; g.beginPath(); g.moveTo(0, h * 0.6); for (let x = 0; x <= w; x += 10) g.lineTo(x, h * 0.6 + Math.sin(x / 40) * 6); g.lineTo(w, h); g.lineTo(0, h); g.fill();   // 대반동 모래
-  g.fillStyle = '#9fb489'; g.beginPath(); g.ellipse(w * 0.62, h * 0.22, w * 0.3, h * 0.11, -0.1, 0, 6.3); g.fill();   // 고하도
-  g.strokeStyle = '#6b5a45'; g.lineWidth = 2; g.beginPath(); g.moveTo(w * 0.96, h * 0.6); g.lineTo(w * 0.84, h * 0.26); g.stroke();   // 목포대교: 대반동에서 바다를 보면 오른쪽
+  // 고하도: 대반동에서 바다 쪽(남서)을 보면 길게 가로누운 섬. 동쪽 끝 '용머리'(왼쪽)가 물로 고개를 숙이고,
+  // 몸통은 오른쪽으로 길게 뻗어 서쪽 끝에서 목포대교와 만난다(용이 물속으로 들어가는 모양이라 '용섬'). 남쪽(먼 쪽)에 허사도가 붙어 있다.
+  const TOP = [[0.07, 0.33], [0.10, 0.27], [0.15, 0.23], [0.21, 0.225], [0.26, 0.20], [0.34, 0.18], [0.43, 0.175], [0.47, 0.15], [0.51, 0.115], [0.56, 0.125], [0.59, 0.16], [0.63, 0.165], [0.69, 0.17], [0.78, 0.19], [0.87, 0.215], [0.93, 0.24]];
+  const BOT = [[0.91, 0.275], [0.83, 0.27], [0.74, 0.285], [0.66, 0.28], [0.60, 0.30], [0.52, 0.305], [0.46, 0.31], [0.40, 0.305], [0.32, 0.31], [0.25, 0.32], [0.18, 0.34], [0.12, 0.355]];
+  const isl = () => { g.beginPath(); g.moveTo(TOP[0][0] * w, TOP[0][1] * h);
+    const pts = [...TOP, ...BOT, TOP[0]];
+    for (let k = 1; k < pts.length; k++) { const [a, b] = pts[k - 1], [c, d] = pts[k]; g.quadraticCurveTo(a * w, b * h, (a + c) / 2 * w, (b + d) / 2 * h); }
+    g.closePath(); };
+  g.fillStyle = '#9fb489'; isl(); g.fill();
+  g.strokeStyle = 'rgba(80,100,60,.55)'; g.lineWidth = 1; isl(); g.stroke();
+  g.strokeStyle = 'rgba(80,100,60,.35)'; g.lineWidth = 1.2; g.beginPath();            // 산줄기(용의 등)
+  g.moveTo(w * 0.15, h * 0.29); g.bezierCurveTo(w * 0.3, h * 0.22, w * 0.45, h * 0.27, w * 0.6, h * 0.215); g.quadraticCurveTo(w * 0.75, h * 0.2, w * 0.88, h * 0.245); g.stroke();
+  g.strokeStyle = '#6b5a45'; g.lineWidth = 2; g.beginPath(); g.moveTo(w * 0.97, h * 0.6); g.lineTo(w * 0.89, h * 0.255); g.stroke();   // 목포대교: 북항에서 고하도 서쪽 끝으로 (대반동에서 보면 오른쪽)
   g.fillStyle = '#6b5a45'; g.font = '600 12px "Apple SD Gothic Neo","Noto Sans KR",sans-serif';
-  g.fillText('고하도', w * 0.55, h * 0.2); g.fillText('대반동', w * 0.06, h * 0.72); g.fillText('목포대교', w * 0.74, h * 0.47);
-  g.setLineDash([4, 5]); g.strokeStyle = '#a0412f'; g.lineWidth = 2; g.beginPath(); g.moveTo(w * 0.5, h * 0.75); g.quadraticCurveTo(w * 0.36, h * 0.47, w * 0.42, h * 0.27); g.stroke(); g.setLineDash([]);
-  g.strokeStyle = '#a0412f'; g.lineWidth = 3; g.beginPath(); g.moveTo(w * 0.40, h * 0.2); g.lineTo(w * 0.44, h * 0.28); g.moveTo(w * 0.44, h * 0.2); g.lineTo(w * 0.40, h * 0.28); g.stroke();
-  g.strokeStyle = '#6b5a45'; g.lineWidth = 1.2; g.beginPath(); g.arc(w * 0.9, h * 0.82, 16, 0, 6.3); g.stroke(); g.fillText('N', w * 0.9 - 4, h * 0.82 - 20);
+  g.fillText('고하도', w * 0.55, h * 0.245); g.fillText('대반동', w * 0.06, h * 0.72); g.fillText('목포대교', w * 0.75, h * 0.47);
+  g.font = '11px "Apple SD Gothic Neo","Noto Sans KR",sans-serif'; g.fillText('용머리', w * 0.03, h * 0.42); g.fillText('허사도', w * 0.585, h * 0.12);
+  // X: 고하도 선착장 곁, 우리나라에서 처음 육지면(목화)을 기른 자리. 옛 그림 병의 '고하도의 목화밭'과 이어진다
+  g.setLineDash([4, 5]); g.strokeStyle = '#a0412f'; g.lineWidth = 2; g.beginPath(); g.moveTo(w * 0.46, h * 0.75); g.quadraticCurveTo(w * 0.33, h * 0.52, w * 0.37, h * 0.33); g.stroke(); g.setLineDash([]);
+  g.strokeStyle = '#a0412f'; g.lineWidth = 3; g.beginPath(); g.moveTo(w * 0.35, h * 0.27); g.lineTo(w * 0.39, h * 0.33); g.moveTo(w * 0.39, h * 0.27); g.lineTo(w * 0.35, h * 0.33); g.stroke();
+  g.fillStyle = '#a0412f'; g.font = '600 11px "Apple SD Gothic Neo","Noto Sans KR",sans-serif'; g.fillText('목화 첫 씨앗', w * 0.22, h * 0.40);
+  g.fillStyle = '#6b5a45'; g.font = '600 12px "Apple SD Gothic Neo","Noto Sans KR",sans-serif';
+  // 나침반: 이 지도는 대반동에서 남서쪽 바다를 바라본 모습이라, 북쪽은 아래 오른쪽(등 뒤 오른편)을 가리킨다
+  { const cx = w * 0.9, cy = h * 0.8, a = Math.PI / 4;
+    g.strokeStyle = '#6b5a45'; g.lineWidth = 1.2; g.beginPath(); g.arc(cx, cy, 16, 0, 6.3); g.stroke();
+    g.fillStyle = '#a0412f'; g.beginPath(); g.moveTo(cx + Math.cos(a) * 14, cy + Math.sin(a) * 14); g.lineTo(cx + Math.cos(a + 1.9) * 5, cy + Math.sin(a + 1.9) * 5); g.lineTo(cx + Math.cos(a - 1.9) * 5, cy + Math.sin(a - 1.9) * 5); g.fill();
+    g.fillStyle = '#6b5a45'; g.beginPath(); g.moveTo(cx - Math.cos(a) * 14, cy - Math.sin(a) * 14); g.lineTo(cx + Math.cos(a + 1.9) * 5, cy + Math.sin(a + 1.9) * 5); g.lineTo(cx + Math.cos(a - 1.9) * 5, cy + Math.sin(a - 1.9) * 5); g.fill();
+    g.font = '600 12px "Apple SD Gothic Neo","Noto Sans KR",sans-serif'; g.fillText('N', cx + Math.cos(a) * 22 - 4, cy + Math.sin(a) * 22 + 4); }
   g.restore();
 }
 function openMap() {
   drawMap();
-  mapNote.textContent = mapHave.size === 7 ? '일곱 조각이 다 모였어요. 점선은 대반동에서 고하도 쪽 X 표시로 이어져요.' : `지도 조각 ${mapHave.size}/7 · 하루에 한 조각씩 모래 속 어딘가에 묻혀요. 가까이 가야 반짝여요.`;
+  mapNote.textContent = mapHave.size === 7 ? '일곱 조각이 다 모였어요. 점선은 대반동에서 바다 건너 고하도 선착장 곁, 1904년 우리나라에서 처음 육지면(목화)을 길러 낸 자리로 이어져요. 이순신 장군이 명량 뒤 106일을 머문 수군 진영 터도 그 가까이에 있어요.' : `지도 조각 ${mapHave.size}/7 · 하루에 한 조각씩 모래 속 어딘가에 묻혀요. 가까이 가야 반짝여요.`;
   mapSheet.classList.add('on'); wake();
 }
 document.getElementById('mapClose').addEventListener('click', () => mapSheet.classList.remove('on'));
