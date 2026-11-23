@@ -387,6 +387,15 @@ function sunTimes(ms) {            // 목포(북위 34.81°, 동경 126.39°) �
   const rise = (720 - 4 * (lon + ha) - eq + 540) / 60, set = (720 - 4 * (lon - ha) - eq + 540) / 60;
   return (sunCache = { day, rise, set });
 }
+// 달까지 거리(km). Meeus의 간이식 주요 항 (몇백 km 오차). 보름 무렵 36만 2천 km 안쪽이면 슈퍼문
+function moonDist(ms) {
+  const d = ms / 864e5 + 2440587.5 - 2451545, R = Math.PI / 180;
+  const D = (297.8502 + 12.19074912 * d) * R, M = (357.5291 + 0.98560028 * d) * R, Mp = (134.9634 + 13.06499295 * d) * R;
+  return 385000.6 - 20905.4 * Math.cos(Mp) - 3699.1 * Math.cos(2 * D - Mp) - 2956.0 * Math.cos(2 * D) - 569.9 * Math.cos(2 * Mp)
+    + 48.9 * Math.cos(M) + 246.2 * Math.cos(2 * D - 2 * Mp) - 152.1 * Math.cos(2 * D - M - Mp) - 170.7 * Math.cos(2 * D + Mp)
+    - 204.6 * Math.cos(2 * D - M) - 129.6 * Math.cos(Mp - M) + 108.7 * Math.cos(D) + 104.8 * Math.cos(Mp + M);
+}
+const superMoon = ms => Math.abs(moonPhase(ms) - 0.5) < 0.04 && moonDist(ms) < 362000;
 function moonPhase(ms) { return (((ms / 864e5 + 2440587.5 - 2451550.1) / 29.530588853) % 1 + 1) % 1; }   // 0 삭, 0.5 보름
 function palette(h) {
   let i = 0; while (i < KEYS.length - 2 && h >= KEYS[i + 1][0]) i++;
@@ -440,9 +449,10 @@ function drawSky(pal, t, h) {
   ctx.globalAlpha = 1;
   // 달
   if (pal.stars > 0.3) {
-    const mx = W * 0.30, my = hy * 0.30, r = 20 * U;
+    // 가까울수록 크고 밝게 (실제 차이는 7% 남짓이라 눈에 띄게 두 배쯤 키워 보여 준다)
+    const f = 384400 / moonDist(now()), mx = W * 0.30, my = hy * 0.30, r = 20 * U * (1 + (f - 1) * 2);
     const glow = ctx.createRadialGradient(mx, my, 0, mx, my, r * 5);
-    glow.addColorStop(0, `rgba(230,236,255,${0.35 * pal.stars})`); glow.addColorStop(1, 'rgba(230,236,255,0)');
+    glow.addColorStop(0, `rgba(230,236,255,${Math.min(0.6, 0.35 * pal.stars * f ** 4)})`); glow.addColorStop(1, 'rgba(230,236,255,0)');
     ctx.fillStyle = glow; ctx.fillRect(mx - r * 5, my - r * 5, r * 10, r * 10);
     // 실제 달의 모양 (어두운 쪽은 희미하게)
     const ph = moonPhase(now()), k = Math.cos(ph * 2 * Math.PI);
@@ -3831,6 +3841,7 @@ function infoTick(t, tide) {
   eventEl.textContent = hs && hs.soon ? `곧 ${hs.hm}, 흑산도 가는 배가 목포항을 떠나요` : hs && hs.go ? '뱃고동 · 흑산도 가는 배가 떠나는 중' : fw && fw.on ? `목포 ${fw.name} 불꽃이 오르는 중` : fw ? `오늘 ${hm(fw.at)} 목포 ${fw.name} 불꽃` : sh.on ? '밤 9시, 해변에 빛이 지나가는 중' : sh.soon ? '곧 9시, 해변에 빛이 지나가요'
     : gold ? '노을 십 분 · 해가 지는 중'
     : ms && isNight ? `오늘 밤 ${ms.name} 유성우` : ms ? `오늘 밤 ${ms.name} 유성우가 와요`
+    : superMoon(t) ? (isNight ? '오늘 밤 슈퍼문 · 여느 보름달보다 조금 크고 밝아요' : '오늘 밤 슈퍼문이 떠요')
     : term ? `오늘은 ${term[0]}(${term[1]}) · ${term[2]}` : '';
   wxEl.textContent = WX && WX.t !== null ? `목포 ${Math.round(WX.t)}° · ${WX.d || wxDesc(WX.code | 0)} · 바람 ${Math.round(WX.ws)}m/s` : '';
 }
