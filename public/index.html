@@ -182,7 +182,7 @@
   <button id="sndBtn" class="chip">소리 켜짐</button>
 </div>
 <div id="hint" class="hud">모래사장을 눌러 걸어가 보세요 · 다른 사람을 누르면 손을 흔들어요</div>
-<div id="credit" class="hud"><span id="sndCredit" style="display:none">파도소리 Andrew Holman (freesound.org, CC0) · </span>물때 국립해양조사원 예보(목포) · 날씨 기상청</div>
+<div id="credit" class="hud"><span id="sndCredit" style="display:none">파도소리 Andrew Holman · 뱃고동 tierrafilm (freesound.org, CC0) · </span>물때 국립해양조사원 예보(목포) · 날씨 기상청</div>
 <div id="toast" class="hud"></div>
 <button id="bottleBtn" class="hud">유리병이 밀려왔어요 · 열어 보기</button>
 <div id="acts" class="hud">
@@ -3406,8 +3406,27 @@ function hornTick(t) {
     setTimeout(() => { if (!dex.horn) addItem('horn', st.e < 0.5 ? '목포항에서 뱃고동이 울렸어요 · 도감에 담았어요' : '목포항 쪽에서 뱃고동이 길게 이어져요 · 도감에 담았어요'); }, 3500);
   }
 }
-function playHorn() {
+// 녹음한 뱃고동(public/horn.mp3, tierrafilm · freesound.org · CC0)을 쓰고, 못 받으면 예전 합성음
+let hornBuf = null, hornLoading = null;
+function loadHorn() {
+  if (hornBuf || hornLoading || !AC) return hornLoading;
+  hornLoading = fetch('horn.mp3').then(r => r.ok ? r.arrayBuffer() : null).then(b => b && AC.decodeAudioData(b)).then(buf => { hornBuf = buf || null; return hornBuf; }).catch(() => null);
+  return hornLoading;
+}
+async function playHorn() {
   if (!AC || !soundOn || AC.state !== 'running') return;
+  const buf = hornBuf || await loadHorn();
+  if (buf) {
+    try {   // 목포항에서 대반동까지 건너오는 소리: 높은 소리를 조금 깎고 살짝 울리게
+      const src = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain(), dl = AC.createDelay(1), fb = AC.createGain(), wet = AC.createGain();
+      src.buffer = buf; f.type = 'lowpass'; f.frequency.value = 2400; g.gain.value = 0.75;
+      dl.delayTime.value = 0.32; fb.gain.value = 0.28; wet.gain.value = 0.35;
+      src.connect(f); f.connect(g); g.connect(AC.destination);
+      g.connect(dl); dl.connect(fb); fb.connect(dl); dl.connect(wet); wet.connect(AC.destination);
+      src.start();
+      return;
+    } catch (e) {}
+  }
   try {
     for (const [st, dur] of [[0, 2.4], [3.2, 1.4]]) {
       const t0 = AC.currentTime + st, g = AC.createGain(), f = AC.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 420;
