@@ -661,7 +661,7 @@ wss.on('connection', (ws, req) => {
       const l = [nextL++, text, t, me.color];
       list.push(l); while (list.length > 80) list.shift();
       send(ws, { t: 'lr', ok: true, l });
-      const s = JSON.stringify({ t: 'ln', l });
+      const s = JSON.stringify({ t: 'ln', l, id });            // 누가 띄웠는지: 다른 사람 화면에서도 그 사람 자리에서 떠오르게
       for (const p of people.values()) if (p.ws !== ws && p.ws.readyState === 1) p.ws.send(s);
 
     } else if (m.t === 'w') {                     // 모래에 글씨 쓰기 (파도가 지울 때까지만 남음)
