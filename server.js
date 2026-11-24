@@ -209,10 +209,14 @@ function statsReport(title) {
     `유리병 ${d.띄운병 || 0} · 모래 글씨 ${d.모래글씨 || 0} · 손 흔들기 ${d.손흔들기 || 0} · 완성 카드 ${d.완성카드 || 0}`,
   ].join('\n');
 }
-let reportedDay = '';
-setInterval(() => {
+// 하루 기록: 밤 11시 50분부터 보내기 시작해서, 텔레그램이 한 번 실패해도 11시 59분까지 1분마다 다시 보낸다
+let reportedDay = '', reporting = false;
+setInterval(async () => {
   const d = new Date(Date.now() + 9 * 3600e3);
-  if (d.getUTCHours() === 23 && d.getUTCMinutes() >= 55 && reportedDay !== kstDay()) { reportedDay = kstDay(); notifyOwner(statsReport('오늘 파도멍 기록'), null, true); }
+  if (d.getUTCHours() !== 23 || d.getUTCMinutes() < 50 || reportedDay === kstDay() || reporting) return;
+  reporting = true;
+  try { const r = await notifyOwner(statsReport('오늘 파도멍 기록'), null, true); if (r === '보냈어요' || r === 'TELEGRAM_BOT_TOKEN 없음') reportedDay = kstDay(); else console.log('[하루 기록] 다시 보낼게요:', r); }
+  finally { reporting = false; }
 }, 60e3).unref();
 let closing = false;
 async function reportAndExit(sig) {
