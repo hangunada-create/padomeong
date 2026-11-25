@@ -3420,7 +3420,7 @@ function openOmok() {
    토요일 하루 동안 대반동 물가(BOAT_X)에 작은 나룻배가 매여 있다. 타면 고하도 선착장으로 건너간다.
    고하도에 내리면 바로 앞에 '조선육지면발상지지' 비석, 그 뒤로 목화밭이 바람에 흔들린다. 고하도는 모두가 함께 쓰는 한 곳. */
 let SCENE = 'beach', boatWant = false, boatTold = '', stoneWant = false, stoneSeen = false;
-const BOAT_X = 2000, GX = 1600;
+const BOAT_X = 170, GX = 1600;     // 배는 대반동 왼쪽 끝 물가에
 const GCALM = ['바람이 지나가면 목화가 먼저 알아요', '비석 앞에서 잠깐 멈춰도 좋아요', '하얀 솜이 터지는 소리는 아주 작아요', '바다 건너 대반동이 보이는 섬이에요'];
 const boatDay = ms => kst(ms).wd === 6 || FAST || /gohado/.test(location.hash);   // #gohado: 요일과 상관없이 배가 보이는 미리보기
 const placeName = document.getElementById('placeName'), boatSheet = document.getElementById('boatSheet'), stoneSheet = document.getElementById('stoneSheet'), fadeEl = document.getElementById('fade');
@@ -3440,7 +3440,7 @@ function drawBeachBoat(pn, dE, nf) {
   if (!boatDay(now())) return;
   const b = boatSpot(), s = sOf(b.d) * 1.5, x = xOf(b.x, b.d), y = yOf(b.d);
   if (x < -120 || x > W + 120) return;
-  drawBoat(x, y, s, pn, nf, true); boatLabel(x, y, s, '고하도 가는 배');
+  drawBoat(x, y, s, pn, nf, true);
 }
 function hitBeachBoat(cx, cy, dE) {
   if (SCENE !== 'beach' || !boatDay(now())) return false;
@@ -3465,7 +3465,7 @@ function crossTo(where) {
       me.x = GX - 200; me.d = 0.92; me.tx = GX - 90; me.td = 0.7;
     } else {
       SCENE = 'beach'; document.body.classList.remove('gohado'); placeName.textContent = '파도멍 · 대반동'; document.getElementById('calmLine').textContent = CALM[0];
-      me.x = BOAT_X - 60; me.d = 0.25; me.tx = me.td = null;
+      me.x = BOAT_X + 70; me.d = 0.25; me.tx = me.td = null;
     }
     me.vx = me.x; me.vd = me.d; camX = me.x;
     if (ws && online) ws.send(JSON.stringify({ t: 'go', to: where, x: Math.round(me.x), d: +me.d.toFixed(3) })); else peers.clear();
@@ -3565,7 +3565,7 @@ function frameGohado(pn, dt, t) {
   all.sort((a, b) => a.vd - b.vd);
   for (const a of all) {
     if (a.stone) { drawStone(pn, nf); continue; }
-    if (a.gboat) { const s = sOf(GBOAT.d), x = xOf(GBOAT.x, GBOAT.d), y = yOf(GBOAT.d); drawBoat(x, y, s, pn, nf, false); boatLabel(x, y, s, '대반동으로'); continue; }
+    if (a.gboat) { const s = sOf(GBOAT.d), x = xOf(GBOAT.x, GBOAT.d), y = yOf(GBOAT.d); drawBoat(x, y, s, pn, nf, false); continue; }
     drawPerson(a, t, false, night); drawGift(a, pn, night); drawPersonFx(a, pn);
   }
   drawGestures(pn); drawBreath(t);
@@ -4584,7 +4584,7 @@ cv.addEventListener('pointerdown', e => {
   { const dE0 = edgeD(waveAt(now()).reach);
     if (hitBeachBoat(e.clientX, e.clientY, dE0)) {
       if (Math.abs(me.x - BOAT_X) < 160 && Math.abs(me.d - dE0) < 0.4) { boatSheet.classList.add('on'); wake(); }
-      else { if (me.sit) setSit(false); me.tx = BOAT_X - 40; me.td = clamp(Math.max(dE0, -0.2) + 0.1, D_MIN, D_MAX); boatWant = true; }
+      else { if (me.sit) setSit(false); me.tx = BOAT_X + 50; me.td = clamp(Math.max(dE0, -0.2) + 0.1, D_MIN, D_MAX); boatWant = true; }
       return;
     } }
   if (onShotDown(e)) return;
