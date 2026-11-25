@@ -85,6 +85,18 @@
   #sendBtn, #kiteBtn, #lanternBtn, #fwBtn, #feedBtn, #toadBtn, #gcBtn { display: none; }
   #sendBtn.on, #kiteBtn.on, #lanternBtn.on, #fwBtn.on, #feedBtn.on, #toadBtn.on, #gcBtn.on { display: inline-block; }
   #acts { transition: opacity 1.5s; }
+  #fade { position: fixed; inset: 0; background: #0b1426; opacity: 0; pointer-events: none; transition: opacity .9s; z-index: 40; }
+  #fade.on { opacity: 1; pointer-events: auto; }
+  body.gohado #acts .chip:not(#breathBtn):not(#backBtn):not(#act) { display: none !important; }
+  #backBtn { display: none; } body.gohado #backBtn { display: inline-block; }
+  body.gohado #stall { display: none !important; }
+  .stone { background: linear-gradient(#6f6a62, #57524b); color: #efe9dc; border-radius: 6px 6px 3px 3px; padding: 14px 10px; text-align: center; margin: 8px 0 10px;
+           font-family: "Noto Serif KR", "Apple SD Gothic Neo", serif; box-shadow: inset 0 0 0 3px rgba(0,0,0,.12); }
+  .stone .big { font-size: 21px; letter-spacing: .14em; writing-mode: vertical-rl; margin: 0 auto; height: 220px; text-shadow: 0 1px 0 rgba(0,0,0,.35); }
+  .stone .rd { font-size: 12px; opacity: .8; margin-top: 6px; }
+  #stoneSheet { max-height: 82vh; overflow-y: auto; }
+  #stoneSheet .sec { font-size: 13px; line-height: 1.6; margin: 10px 0 0; text-align: left; }
+  #stoneSheet .sec b { display: block; font-size: 12px; opacity: .65; margin-bottom: 2px; }
   .hud { transition: opacity 1.8s; }
   #mungLine { position: fixed; left: 16px; top: calc(max(14px, env(safe-area-inset-top)) + 4px); z-index: 25; color: rgba(255,255,255,.55); font-size: 12px;
               text-shadow: 0 1px 3px rgba(0,0,0,.3); pointer-events: none; opacity: 0; transition: opacity 2s; }
@@ -176,7 +188,7 @@
 <body>
 <canvas id="sea"></canvas>
 
-<div id="top" class="hud"><b>파도멍 · 대반동</b><div id="count">바닷가에 들어가는 중…</div><div id="calmLine">파도 소리에 귀 기울이기만 해도 좋아요</div><div id="ritual"></div><div id="wxLine"></div><div id="tideLine"></div><div id="eventLine"></div><div id="todayLine"></div></div>
+<div id="top" class="hud"><b id="placeName">파도멍 · 대반동</b><div id="count">바닷가에 들어가는 중…</div><div id="calmLine">파도 소리에 귀 기울이기만 해도 좋아요</div><div id="ritual"></div><div id="wxLine"></div><div id="tideLine"></div><div id="eventLine"></div><div id="todayLine"></div></div>
 <div id="tools" class="hud">
   <button id="timeBtn" class="chip">지금 시간</button>
   <button id="sndBtn" class="chip">소리 켜짐</button>
@@ -186,6 +198,7 @@
 <div id="toast" class="hud"></div>
 <button id="bottleBtn" class="hud">유리병이 밀려왔어요 · 열어 보기</button>
 <div id="acts" class="hud">
+  <button id="backBtn" class="chip">대반동으로 돌아가기</button>
   <button id="breathBtn" class="chip">숨 고르기</button>
   <button id="sandBtn" class="chip">모래 쓰기</button>
   <button id="drawBtn" class="chip">모래 그리기</button>
@@ -213,6 +226,18 @@
 <div class="note" id="sandNote"></div>
 <div class="row"><button class="sub" id="sandCancel">그만두기</button><button class="sub" id="sandReport" style="display:none">신고하기</button><button class="main" id="sandSend">모래에 쓰기</button></div></div>
 <div id="mungLine"></div>
+<div id="fade"></div>
+<div id="boatSheet" class="sheet"><div class="k">작은 배가 바다 건너 고하도 선착장으로 가요</div>
+<div class="note">일주일에 한 번, 토요일에만 대반동 물가에 와서 하루 종일 기다리는 배예요. 돌아오는 배는 언제든 탈 수 있어요.</div>
+<div class="row"><button class="sub" id="boatNo">다음에</button><button class="main" id="boatGo">건너가기</button></div></div>
+<div id="stoneSheet" class="sheet"><div class="k">고하도 선착장 곁의 비석</div>
+<div class="stone"><div class="big">朝鮮陸地綿發祥之地</div><div class="rd">조선육지면발상지지 · '조선 육지면이 처음 자란 땅'</div></div>
+<div class="sec"><b>뒷면에 새겨진 말</b>메이지 37년(1904년), 목포에 있던 일본 영사 와카마쓰 도사부로가 이곳 고하도에서 처음으로 육지면을 기르기 시작했다.</div>
+<div class="sec"><b>육지면</b>미국에서 온 면화예요. 문익점이 들여온 재래 목화보다 솜이 길고 많이 나서, 방직 공장이 급히 늘던 일본이 탐내던 원료였어요. 고하도에서 시험 재배가 성공하자 남쪽 들판으로 퍼져 나갔어요.</div>
+<div class="sec"><b>비석이 말하지 않는 것</b>목화와 쌀·소금이 목포항으로 모여 바다를 건너가면서 목포는 큰 항구가 되었어요. 같은 길을 따라 조선의 들판은 일본 공장의 원료 밭이 되어 갔어요. 그래서 이 비석은 '첫 성공'의 기념이면서, 수탈이 시작된 자리의 표시이기도 해요.</div>
+<div class="sec"><b>비석의 내력</b>1936년 이충무공 유적 모충각 곁에 세워졌고, 해방 뒤 치워졌다가 2008년 다시 세워졌어요. 곁의 숲길은 1597년 명량 싸움 뒤 이순신 장군이 진을 치고 겨울을 난 수군 진영 터로 이어져요.</div>
+<div class="sec"><b>뒤편의 목화밭</b>2013년부터 섬에 다시 목화를 심어, 가을이면 하얀 솜이 터져요.</div>
+<div class="row"><button class="main" id="stoneClose">닫기</button></div></div>
 <div id="instSheet" class="sheet"><div class="k">심란할 때 바로 올 수 있게, 휴대폰 홈 화면에 이 바다를 둘까요?</div>
 <div class="note" id="instNote">아이콘을 누르면 주소창 없이 화면 가득 바다가 열려요.</div>
 <div class="row"><button class="sub" id="instNo">괜찮아요</button><button class="main" id="instYes">홈 화면에 두기</button></div></div>
@@ -3391,6 +3416,166 @@ function openOmok() {
   renderOmok(); omokSheet.classList.add('on'); wake();
 }
 
+/* ───────── 고하도 가는 작은 배 ─────────
+   토요일 하루 동안 대반동 물가(BOAT_X)에 작은 나룻배가 매여 있다. 타면 고하도 선착장으로 건너간다.
+   고하도에 내리면 바로 앞에 '조선육지면발상지지' 비석, 그 뒤로 목화밭이 바람에 흔들린다. 고하도는 모두가 함께 쓰는 한 곳. */
+let SCENE = 'beach', boatWant = false, boatTold = '', stoneWant = false, stoneSeen = false;
+const BOAT_X = 2000, GX = 1600;
+const GCALM = ['바람이 지나가면 목화가 먼저 알아요', '비석 앞에서 잠깐 멈춰도 좋아요', '하얀 솜이 터지는 소리는 아주 작아요', '바다 건너 대반동이 보이는 섬이에요'];
+const boatDay = ms => kst(ms).wd === 6 || FAST;
+const placeName = document.getElementById('placeName'), boatSheet = document.getElementById('boatSheet'), stoneSheet = document.getElementById('stoneSheet'), fadeEl = document.getElementById('fade');
+function boatSpot() { return { x: BOAT_X, d: Math.max(edgeD(0.15), -0.2) - 0.05 }; }   // 물때만 따라 움직이고 파도엔 흔들리기만
+function drawBoat(x, y, s, pn, nf, moored) {      // 작은 나무 나룻배 (노 하나, 밧줄)
+  ctx.save(); ctx.translate(x, y + Math.sin(pn / 700) * 1.6 * s); ctx.rotate(Math.sin(pn / 900) * 0.03);
+  ctx.fillStyle = 'rgba(20,40,60,.18)'; ctx.beginPath(); ctx.ellipse(0, 6 * s, 46 * s, 6 * s, 0, 0, 6.3); ctx.fill();
+  ctx.fillStyle = nf > 0.5 ? '#3d2c20' : '#7a5232'; ctx.beginPath(); ctx.moveTo(-44 * s, -6 * s); ctx.quadraticCurveTo(0, -2 * s, 46 * s, -10 * s); ctx.lineTo(38 * s, 4 * s); ctx.quadraticCurveTo(0, 9 * s, -36 * s, 3 * s); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = nf > 0.5 ? '#5a4330' : '#a77a4f'; ctx.fillRect(-40 * s, -7 * s, 84 * s, 2.4 * s);
+  ctx.fillStyle = nf > 0.5 ? '#4b3828' : '#8d6640'; ctx.fillRect(-8 * s, -6 * s, 14 * s, 3 * s);
+  ctx.strokeStyle = nf > 0.5 ? '#6b5440' : '#c9a476'; ctx.lineWidth = 1.6 * s; ctx.beginPath(); ctx.moveTo(10 * s, -8 * s); ctx.lineTo(54 * s, 6 * s); ctx.stroke();
+  if (moored) { ctx.strokeStyle = 'rgba(120,100,70,.8)'; ctx.lineWidth = 0.9 * s; ctx.beginPath(); ctx.moveTo(-44 * s, -6 * s); ctx.quadraticCurveTo(-70 * s, 6 * s, -96 * s, 14 * s); ctx.stroke(); }
+  ctx.restore();
+}
+function boatLabel(x, y, s, txt) { ctx.fillStyle = 'rgba(255,255,255,.88)'; ctx.font = `600 ${Math.round(Math.max(11, 6 * s / U + 6))}px system-ui, "Apple SD Gothic Neo", sans-serif`; ctx.textAlign = 'center'; ctx.fillText(txt, x, y - 20 * s); }
+function drawBeachBoat(pn, dE, nf) {
+  if (!boatDay(now())) return;
+  const b = boatSpot(), s = sOf(b.d) * 1.5, x = xOf(b.x, b.d), y = yOf(b.d);
+  if (x < -120 || x > W + 120) return;
+  drawBoat(x, y, s, pn, nf, true); boatLabel(x, y, s, '고하도 가는 배');
+}
+function hitBeachBoat(cx, cy, dE) {
+  if (SCENE !== 'beach' || !boatDay(now())) return false;
+  const b = boatSpot(), s = sOf(b.d) * 1.5; return Math.abs(cx - xOf(b.x, b.d)) < 60 * s && Math.abs(cy - yOf(b.d)) < 34 * s;
+}
+function boatTick() {
+  if (SCENE !== 'beach' || !joined) return;
+  if (boatDay(now()) && boatTold !== dayKey(now())) { boatTold = dayKey(now()); setTimeout(() => toast('오늘은 토요일 · 물가에 고하도로 건너가는 작은 배가 와 있어요'), 4000); }
+  if (boatWant && Math.abs(me.x - BOAT_X) < 160 && me.tx == null) { boatWant = false; boatSheet.classList.add('on'); wake(); }
+}
+document.getElementById('boatNo').addEventListener('click', () => boatSheet.classList.remove('on'));
+document.getElementById('boatGo').addEventListener('click', () => { boatSheet.classList.remove('on'); crossTo('gohado'); });
+document.getElementById('backBtn').addEventListener('click', () => crossTo('beach'));
+document.getElementById('stoneClose').addEventListener('click', () => stoneSheet.classList.remove('on'));
+function crossTo(where) {
+  if (fadeEl.classList.contains('on')) return;
+  if (me.sit) setSit(false);
+  fadeEl.classList.add('on'); sfxSplash();
+  setTimeout(() => {
+    if (where === 'gohado') {
+      SCENE = 'gohado'; document.body.classList.add('gohado'); placeName.textContent = '파도멍 · 고하도'; document.getElementById('calmLine').textContent = GCALM[0];
+      me.x = GX - 200; me.d = 0.92; me.tx = GX - 90; me.td = 0.7;
+    } else {
+      SCENE = 'beach'; document.body.classList.remove('gohado'); placeName.textContent = '파도멍 · 대반동'; document.getElementById('calmLine').textContent = CALM[0];
+      me.x = BOAT_X - 60; me.d = 0.25; me.tx = me.td = null;
+    }
+    me.vx = me.x; me.vd = me.d; camX = me.x;
+    if (ws && online) ws.send(JSON.stringify({ t: 'go', to: where, x: Math.round(me.x), d: +me.d.toFixed(3) })); else peers.clear();
+    setTimeout(() => {
+      fadeEl.classList.remove('on');
+      toast(where === 'gohado' ? '고하도 선착장에 닿았어요 · 바로 앞에 비석이 하나 서 있어요' : '대반동으로 돌아왔어요');
+    }, 500);
+  }, 950);
+}
+function onMoved(m) { peers.clear(); for (const a of m.p || []) addPeer(a); myRoom = m.room; if (m.room !== 'G') { writings.length = 0; for (const w of m.w || []) addWriting(w); } showCount(); }
+
+// ---------- 고하도 장면 ----------
+const STONE = { x: GX, d: 0.52 }, GBOAT = { x: GX - 250, d: 0.97 };
+function stoneRect() { const s = sOf(STONE.d), x = xOf(STONE.x, STONE.d), y = yOf(STONE.d); return { x, y, s, w: 26 * s, h: 100 * s }; }
+function hitStone(cx, cy) { const r = stoneRect(); return Math.abs(cx - r.x) < r.w * 1.8 && cy > r.y - r.h - 12 * r.s && cy < r.y + 8 * r.s; }
+function hitGBoat(cx, cy) { const s = sOf(GBOAT.d); return Math.abs(cx - xOf(GBOAT.x, GBOAT.d)) < 55 * s && Math.abs(cy - yOf(GBOAT.d)) < 30 * s; }
+function openStone() { stoneSheet.classList.add('on'); stoneSheet.scrollTop = 0; stoneSeen = true; wake(); }
+function gohadoTap(e) {
+  if (hitStone(e.clientX, e.clientY)) {
+    if (Math.abs(me.x - STONE.x) > 300 || Math.abs(me.d - STONE.d) > 0.3) { if (me.sit) setSit(false); me.tx = STONE.x - 90; me.td = 0.66; stoneWant = true; return; }
+    openStone(); return;
+  }
+  if (hitGBoat(e.clientX, e.clientY)) { crossTo('beach'); return; }
+  const who = hitPeer(e.clientX, e.clientY);
+  if (who !== null) { if (ws && online) ws.send(JSON.stringify({ t: 'g', to: who })); return; }
+  resetStill();
+  if (me.sit) return;
+  const wx = camX + (e.clientX - W / 2) / sOf(me.d), d = (e.clientY / H - 0.56) / 0.40;
+  me.tx = clamp(wx, GX - 520, GX + 520); me.td = clamp(d, 0.58, 0.98);
+}
+function drawCotton(pn, t, nf) {
+  const wind = 0.5 + Math.min(1.5, (WXF.wind || 3) / 6);
+  const leaf = nf > 0.5 ? [40, 58, 46] : [78, 120, 66], boll = nf > 0.5 ? 'rgb(160,168,186)' : 'rgb(252,252,248)';
+  for (let r = 0; r < 15; r++) {                       // 먼 줄에서 앞줄로
+    const d = lerp(-0.5, 0.34, r / 14), s = sOf(d), y = yOf(d), step = Math.max(10, 30 * s);
+    const sh = 0.7 + 0.3 * r / 14;
+    ctx.strokeStyle = `rgb(${leaf.map(c => Math.round(c * sh)).join(',')})`; ctx.lineWidth = Math.max(0.8, 1.5 * s);
+    ctx.fillStyle = `rgb(${leaf.map(c => Math.round(c * (sh + 0.1))).join(',')})`;
+    const bolls = [], off = (((W / 2 - camX * s) % step) + step) % step;
+    for (let x = off - step; x < W + step; x += step) {
+      const wx = Math.round(camX + (x - W / 2) / s), sw = (Math.sin(t / 900 * wind + wx * 0.013 + r * 0.7) * 0.16 + Math.sin(t / 2300 + wx * 0.004) * 0.07) * wind;
+      const hgt = (20 + 8 * hash(wx * 0.7 + r)) * s, tx = x + Math.sin(sw) * hgt, ty = y - Math.cos(sw) * hgt;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(x + (tx - x) * 0.3, y - hgt * 0.6, tx, ty); ctx.stroke();
+      if (r > 4) { ctx.beginPath(); ctx.ellipse(x + (tx - x) * 0.5 - 4 * s, y - hgt * 0.5, 5 * s, 2.2 * s, -0.5 + sw, 0, 6.3); ctx.ellipse(x + (tx - x) * 0.6 + 4 * s, y - hgt * 0.62, 5 * s, 2.2 * s, 0.5 + sw, 0, 6.3); ctx.fill(); }
+      bolls.push([tx, ty, s]);
+      if (hash(wx * 1.3 + r * 7) > 0.45) bolls.push([x + (tx - x) * 0.7 + 4 * s, y - hgt * 0.7, s * 0.8]);
+    }
+    ctx.fillStyle = boll;
+    for (const [bx, by, bs] of bolls) {                // 하얀 목화솜: 세 덩이가 뭉친 모양
+      const rr = Math.max(1.2, 3.6 * bs);
+      ctx.beginPath(); ctx.arc(bx - rr * 0.6, by, rr, 0, 6.3); ctx.arc(bx + rr * 0.6, by, rr, 0, 6.3); ctx.arc(bx, by - rr * 0.6, rr, 0, 6.3); ctx.fill();
+    }
+  }
+}
+function drawGohadoBack(t, nf) {
+  const hy = horizonY();
+  // 섬의 등줄기(용의 등): 두 겹 산 그림자
+  [[0, nf > 0.5 ? [22, 34, 40] : [110, 146, 122]], [1, nf > 0.5 ? [30, 44, 46] : [82, 120, 90]]].forEach(([k, c]) => {
+    ctx.fillStyle = `rgb(${c.join(',')})`; ctx.beginPath(); ctx.moveTo(0, hy + 6);
+    for (let x = 0; x <= W + 8; x += 8) {
+      const wx = (x - W / 2) * (k ? 0.9 : 0.6) + camX * (k ? 0.25 : 0.12) + k * 400;
+      ctx.lineTo(x, hy - U * ((k ? 22 : 40) * (0.55 + 0.45 * Math.sin(wx / 230 + k) * Math.sin(wx / 540 + 1.3 * k)) + (k ? 4 : 14)));
+    }
+    ctx.lineTo(W, hy + 6); ctx.closePath(); ctx.fill();
+  });
+  const g = ctx.createLinearGradient(0, hy, 0, H);
+  const top = nf > 0.5 ? [34, 40, 34] : [120, 134, 86], mid = nf > 0.5 ? [46, 44, 36] : [146, 124, 88], bot = nf > 0.5 ? [58, 54, 46] : [194, 176, 138];
+  g.addColorStop(0, `rgb(${top.join(',')})`); g.addColorStop(0.5, `rgb(${mid.join(',')})`); g.addColorStop(1, `rgb(${bot.join(',')})`);
+  ctx.fillStyle = g; ctx.fillRect(0, hy, W, H - hy);
+  // 앞쪽 바다 한 자락: 돌아가는 배가 닿는 곳
+  const bx = xOf(GBOAT.x + 90, 0.9), sy = yOf(0.88);
+  ctx.fillStyle = nf > 0.5 ? '#1c2c44' : '#5f9bb8'; ctx.beginPath(); ctx.moveTo(-10, sy - 6 * U); ctx.quadraticCurveTo(bx, sy - 10 * U, bx + 80 * U, H); ctx.lineTo(-10, H); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = Math.max(1, U);
+  for (let i = 0; i < 4; i++) { const yy = sy + 6 * U + i * 12 * U + Math.sin(t / 700 + i) * 2 * U; ctx.beginPath(); ctx.moveTo(-10, yy); ctx.lineTo(bx - 20 * U - i * 6 * U, yy); ctx.stroke(); }
+}
+function drawStone(pn, nf) {
+  const { x, y, s, w, h } = stoneRect();
+  ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.beginPath(); ctx.ellipse(x + 6 * s, y + 2 * s, w * 2, 4 * s, 0, 0, 6.3); ctx.fill();
+  ctx.fillStyle = nf > 0.5 ? '#3c3a36' : '#8a847a'; ctx.fillRect(x - w * 1.5, y - 8 * s, w * 3, 8 * s);
+  const sg = ctx.createLinearGradient(x - w, 0, x + w, 0); sg.addColorStop(0, nf > 0.5 ? '#45433f' : '#7d776d'); sg.addColorStop(0.5, nf > 0.5 ? '#55524d' : '#9a938a'); sg.addColorStop(1, nf > 0.5 ? '#3a3834' : '#6c665d');
+  ctx.fillStyle = sg; ctx.beginPath(); ctx.moveTo(x - w, y - 8 * s); ctx.lineTo(x - w, y - h + 4 * s); ctx.quadraticCurveTo(x, y - h - 4 * s, x + w, y - h + 4 * s); ctx.lineTo(x + w, y - 8 * s); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = nf > 0.5 ? 'rgba(20,20,20,.6)' : 'rgba(40,36,30,.55)';
+  for (let i = 0; i < 9; i++) ctx.fillRect(x - 3 * s, y - h + 14 * s + i * 8.4 * s, 6 * s, 5 * s);
+  if (!stoneSeen) { const a = 0.5 + 0.5 * Math.sin(pn / 400); ctx.fillStyle = `rgba(255,255,255,${0.9 * a})`; ctx.beginPath(); ctx.arc(x + w * 0.7, y - h * 0.8, 2.4 * s, 0, 6.3); ctx.fill(); }
+}
+function frameGohado(pn, dt, t) {
+  stepMe(dt);
+  me.x = clamp(me.x, GX - 520, GX + 520); me.d = clamp(me.d, 0.56, 0.99);
+  stepPeers(dt);
+  camX += (clamp(me.vx, GX - 120, GX + 160) - camX) * (1 - Math.pow(0.02, dt));
+  const pal = weatherPal(palette(hourNow())), nf = nightF(pal), night = nf > 0.5;
+  drawSky(pal, t, hourNow()); drawMeteors(pn, t, pal); drawConstel(pn, pal);
+  drawGohadoBack(t, nf);
+  drawCotton(pn, t, nf);
+  const all = [...peers.values()]; if (joined) all.push(me);
+  all.push({ stone: true, vd: STONE.d }, { gboat: true, vd: GBOAT.d });
+  all.sort((a, b) => a.vd - b.vd);
+  for (const a of all) {
+    if (a.stone) { drawStone(pn, nf); continue; }
+    if (a.gboat) { const s = sOf(GBOAT.d), x = xOf(GBOAT.x, GBOAT.d), y = yOf(GBOAT.d); drawBoat(x, y, s, pn, nf, false); boatLabel(x, y, s, '대반동으로'); continue; }
+    drawPerson(a, t, false, night); drawGift(a, pn, night); drawPersonFx(a, pn);
+  }
+  drawGestures(pn); drawBreath(t);
+  if (stoneWant && me.tx == null) { stoneWant = false; openStone(); }
+  if (pal.shade > 0.01) { const sh = ctx.createLinearGradient(0, horizonY(), 0, H); sh.addColorStop(0, `rgba(8,14,44,${pal.shade * 0.25})`); sh.addColorStop(1, `rgba(8,14,44,${pal.shade})`); ctx.fillStyle = sh; ctx.fillRect(0, horizonY(), W, H); }
+  drawPrecip(pn, t);
+  if (toastEl.classList.contains('on')) placeToast();
+  requestAnimationFrame(frame);
+}
+
 /* ───────── 뱃고동: 목포항에서 흑산도·홍도 가는 쾌속선이 떠나는 시각 ───────── */
 function hornTimes(ms) { const mo = kst(ms).mo; return mo >= 3 && mo <= 9 ? [[7, 50], [13, 0]] : [[7, 50]]; }
 let hornDone = '';
@@ -4094,6 +4279,7 @@ function frameGate(pn) {
 function frame(pn) {
   frameGate(pn);
   const dt = Math.min(0.05, (pn - last) / 1000); last = pn;
+  if (SCENE === 'gohado') { try { frameGohado(pn, dt, now()); } catch (err) { console.error(err); requestAnimationFrame(frame); } return; }
   const t = now(), tide = tideInfo(t);
   tideL += (tide.L - tideL) * Math.min(1, dt * 0.5);
   const wv = waveAt(t), dE = edgeD(wv.reach);
@@ -4126,7 +4312,7 @@ function frame(pn) {
   glowTick(pn, dt, nf > 0.5);
   stormTick(t); drawStormStars(pn); glassTick(pn, t); drawSeaGlass(pn, t, wv); drawMapPiece(pn, t, pal);
   oldBottleTick(pn, dE); drawOldBottle(pn, nf); drawOmokBoard(pn); ballTick(pn); drawBall(pn);
-  walkToTick(); feedTick(); hornTick(t); toadTick(pn, dE); gcTick(pal);
+  walkToTick(); feedTick(); hornTick(t); boatTick(); toadTick(pn, dE); gcTick(pal);
   drawToads(pn, t, wv, pal); drawFootprints(pn, t, wv);
   gullTick(pn, pal.stars < 0.6); drawGull(pn);
   if (t - highAt > 5000) { highAt = t; HIGH_NOW = nearHigh(t); }
@@ -4137,6 +4323,7 @@ function frame(pn) {
   }
   if (HIGH_NOW && joined && !highTold && !(me.sit && !RAINY()) && me.vd < dE + wobble(me.vx, t) + 0.012) { highTold = true; addItem('hightide', dex.hightide ? '만조의 물이 발목까지 올라왔어요' : '만조의 물이 발목까지 올라왔어요 · 도감에 담았어요'); }
   drawProjections(t, nf);
+  drawBeachBoat(pn, dE, nf);
   drawBottles(pn, t, dE, nf);
 
   const all = [...peers.values()]; if (joined) all.push(me);
@@ -4292,13 +4479,13 @@ const countEl = document.getElementById('count');
 // 숫자 밑에 한 줄: 할 일이 아니라 머물러도 된다는 말. 2분마다 천천히 바뀐다
 const CALM = ['파도 소리에 귀 기울이기만 해도 좋아요', '아무것도 하지 않아도 괜찮은 바닷가예요', '숨을 파도에 맞춰 천천히 쉬어 보세요', '물이 들고 나는 걸 그냥 바라봐도 좋아요', '휴대폰을 세워 두고 소리만 들어도 좋아요'];
 (() => { const el = document.getElementById('calmLine'); let k = 0;
-  setInterval(() => { if (calmOverride) return; el.style.opacity = 0; setTimeout(() => { k = (k + 1) % CALM.length; el.textContent = CALM[k]; el.style.opacity = ''; }, 1200); }, 120000); })();
+  setInterval(() => { if (calmOverride) return; el.style.opacity = 0; setTimeout(() => { k = (k + 1) % CALM.length; el.textContent = SCENE === 'gohado' ? GCALM[k % GCALM.length] : CALM[k]; el.style.opacity = ''; }, 1200); }, 120000); })();
 let ws = null, online = false, retry = 2000, lastSent = '', lastSentAt = 0;
 function showCount() {
   if (!joined) return;
   const n = peers.size + 1;
   const where = online && roomCount > 1 ? `${myRoom}번 해변 · ` : '';
-  countEl.textContent = online ? where + (n > 1 ? `지금 ${n}명이 파도를 보고 있어요` : '지금은 혼자 보는 바다예요') : '혼자 보는 바다 (연결 없음)';
+  countEl.textContent = SCENE === 'gohado' ? (n > 1 ? `지금 ${n}명이 목화밭 곁에 있어요` : '지금은 혼자 걷는 목화밭이에요') : online ? where + (n > 1 ? `지금 ${n}명이 파도를 보고 있어요` : '지금은 혼자 보는 바다예요') : '혼자 보는 바다 (연결 없음)';
 }
 function addPeer(a) {
   const [id, x, d, sit, color, name, k, g, st, n] = a;
@@ -4327,7 +4514,9 @@ function connect() {
       if (m.ball) onBall(m.ball);
       if (m.ob) onOmok(m.ob);
       askBottleNews();
+      if (SCENE === 'gohado') ws.send(JSON.stringify({ t: 'go', to: 'gohado', x: Math.round(me.x), d: +me.d.toFixed(3) }));
     } else if (m.t === 'in') addPeer(m.p);
+    else if (m.t === 'moved') onMoved(m);
     else if (m.t === 'out') peers.delete(m.id);
     else if (m.t === 'g') onGesture(m.from, m.to);
     else if (m.t === 'b') onBottle(m);
@@ -4391,6 +4580,13 @@ cv.addEventListener('pointerdown', e => {
   if (document.querySelector('.sheet.on')) return;
   if (stallOpen) { stallDismissed = true; stallOpen = false; stallEl.classList.remove('on'); }
   if (!joined) return;
+  if (SCENE === 'gohado') { gohadoTap(e); return; }
+  { const dE0 = edgeD(waveAt(now()).reach);
+    if (hitBeachBoat(e.clientX, e.clientY, dE0)) {
+      if (Math.abs(me.x - BOAT_X) < 160 && Math.abs(me.d - dE0) < 0.4) { boatSheet.classList.add('on'); wake(); }
+      else { if (me.sit) setSit(false); me.tx = BOAT_X - 40; me.td = clamp(Math.max(dE0, -0.2) + 0.1, D_MIN, D_MAX); boatWant = true; }
+      return;
+    } }
   if (onShotDown(e)) return;
   if (hitWalker(e.clientX, e.clientY)) { talkWalker(); return; }
   if (hitQuestion(e.clientX, e.clientY) && Math.abs(me.x - QSPOT.x) < 420 && Math.abs(me.d - QSPOT.d) < 0.35) { openAnswer(); return; }
@@ -4521,6 +4717,7 @@ function enter() {
   setTimeout(() => hint.classList.add('gone'), 9000);
 }
 document.getElementById('go').addEventListener('click', enter);
+if (FAST) window.__gh = { cross: crossTo, me: () => me, cam: v => { camX = v; }, peers: () => peers.size, st: () => [SCENE, myRoom, stoneSheet.classList.contains('on'), boatSheet.classList.contains('on')], stone: () => { const r = stoneRect(); return [r.x, r.y - r.h / 2]; }, boat: () => { const dE = edgeD(waveAt(now()).reach), b = boatSpot(); return [xOf(b.x, b.d), yOf(b.d)]; } };
 if (FAST) window.__pm = { mullet: () => mullet, glow: () => ({ glowK, pair: !!glowPair }), calm: () => calmOverride, sunset: () => sunTimes(now()).set, dbg: () => ({ edge: edgeD(waveAt(now()).reach), vd: me.vd, vx: me.vx, sit: me.sit, joined }), me, openOldBottle, onPicked, feet: () => feet, rememberWord, weekHint, castle: () => castles, items: () => items, setWX, buildCastle, addItem, spawnReset: () => { itemEpoch = -1; }, beaconWord, crabs: () => crabs, gull: () => gull, porpNow: () => { porpNext = 0; }, porp: () => porp, FIREWORKS, weekSentence, cst: () => cst, constelPts, lanterns, writings, dex: () => dex, high: () => HIGH_NOW, setSit, peers, xy: (x, d) => [xOf(x, d), yOf(d)], shots, aim: () => aimDrag, termToday, questionOf, qAnswers, flocks, gold: () => GOLD, hitQuestion, walkerNow, npc: () => npc, meteors, storyOf, ball: () => ballPos(now()), omok: () => omok, glassHave, mapHave, photoHave, mapPieceToday, openOldBottle, setOldBottle: () => { oldBottleAt = 0; }, giveAnchovy, flockG, stormStars: () => stormStars, toads, setNeck, onPicked, shellN: () => shellN };   // 시험용
 nick.addEventListener('keydown', e => { if (e.key === 'Enter') enter(); });
 })();

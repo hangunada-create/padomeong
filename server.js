@@ -467,9 +467,10 @@ function sendAll(obj) {
   for (const p of people.values()) if (p.ws.readyState === 1) p.ws.send(s);
 }
 let lastRoomCount = 1;
+const beachRooms = () => [...rooms.keys()].filter(r => r !== 'G').length;
 function roomsChanged() {        // 해변 수가 바뀌면 모두에게 알려 "○번 해변" 표시를 맞춘다
-  if (rooms.size === lastRoomCount) return;
-  lastRoomCount = rooms.size; sendAll({ t: 'today', today: todayView(), rooms: rooms.size });
+  if (beachRooms() === lastRoomCount) return;
+  lastRoomCount = beachRooms(); sendAll({ t: 'today', today: todayView(), rooms: lastRoomCount });
 }
 function pickRoom() {
   for (let r = 1; ; r++) { const set = rooms.get(r); if (!set || set.size < ROOM_CAP) return r; }
@@ -520,7 +521,7 @@ wss.on('connection', (ws, req) => {
       const d = day(); d.최대동시접속 = Math.max(d.최대동시접속, people.size);
       if (!isBot) { const tk = String(m.tok || '').replace(/[^a-z0-9]/gi, '').slice(0, 24); bump('입장'); countPerson(tag + ':' + tk); noteVisit(tk); }
       const cs = castleOf(room);
-      send(ws, { t: 'hi', id, now: Date.now(), room, rooms: rooms.size, p: list, w: writings.get(room) || [], today: todayView(), wx: weather, castle: cs.map(c => [c.lvl, c.gen]), ball: ballOf(room), ob: omokView(omokOf(room)), ln: lanternList(), qa: qaList().slice(-40), sn: sunsetCount() });
+      send(ws, { t: 'hi', id, now: Date.now(), room, rooms: beachRooms(), p: list, w: writings.get(room) || [], today: todayView(), wx: weather, castle: cs.map(c => [c.lvl, c.gen]), ball: ballOf(room), ob: omokView(omokOf(room)), ln: lanternList(), qa: qaList().slice(-40), sn: sunsetCount() });
       sendRoom(room, { t: 'in', p: [id, me.x, me.d, me.sit, me.color, me.name, me.k, me.g, me.st, me.n] }, id);
       roomsChanged();
       return;
@@ -598,6 +599,22 @@ wss.on('connection', (ws, req) => {
     } else if (m.t === 'look') {                  // 앉을 것·목걸이 바꾸기
       me.st = ['mat', 'chair'].includes(m.st) ? m.st : me.st; me.n = m.n ? 1 : 0;
       sendRoom(me.room, { t: 'look', id, st: me.st, n: me.n }, id);
+
+    } else if (m.t === 'go') {                    // 작은 배를 타고 대반동 ↔ 고하도 (고하도는 모두가 함께 쓰는 한 곳 'G')
+      const next = m.to === 'gohado' ? 'G' : (me.room === 'G' ? pickRoom() : me.room);
+      if (next === me.room) return;
+      const from = me.room, set0 = rooms.get(from);
+      if (set0) { set0.delete(id); if (!set0.size && from !== 1 && from !== 'G') { rooms.delete(from); writings.delete(from); } }
+      sendRoom(from, { t: 'out', id });
+      me.room = next; me.x = clamp(num(m.x, me.x), 40, WORLD_W - 40); me.d = clamp(num(m.d, me.d), D_MIN, D_MAX); me.sit = 0; me.k = 0;
+      if (!rooms.has(next)) rooms.set(next, new Set());
+      const list = [];
+      for (const pid of rooms.get(next)) { const p = people.get(pid); if (p) list.push([pid, p.x, p.d, p.sit, p.color, p.name, p.k, p.g, p.st, p.n]); }
+      rooms.get(next).add(id);
+      send(ws, { t: 'moved', room: next, p: list, w: writings.get(next) || [] });
+      sendRoom(next, { t: 'in', p: [id, me.x, me.d, me.sit, me.color, me.name, me.k, me.g, me.st, me.n] }, id);
+      if (next === 'G') bump('고하도 건너감');
+      roomsChanged();
 
     } else if (m.t === 'fx') {                    // 남에게도 보이는 작은 몸짓: 멸치 던지기·두꺼비집·소라에 귀 대기
       const k = ['feed', 'toad', 'shell'].includes(m.k) ? m.k : null; if (!k) return;
@@ -749,7 +766,7 @@ setInterval(() => {
 
 // 30초마다 오늘 숫자를 모두에게, 15분 넘은 모래 글씨는 정리
 setInterval(() => {
-  if (people.size) sendAll({ t: 'today', today: todayView(), rooms: rooms.size, wx: weather });
+  if (people.size) sendAll({ t: 'today', today: todayView(), rooms: beachRooms(), wx: weather });
   const t = Date.now();
   for (const [room, list] of writings) writings.set(room, list.filter(w => t - w[4] < 15 * 60e3));
 }, 30000);
