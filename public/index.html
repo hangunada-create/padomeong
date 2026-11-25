@@ -3473,7 +3473,7 @@ function openOmok() {
   renderOmok(); omokSheet.classList.add('on'); wake();
 }
 
-/* ───────── 문지기 ─────────
+/* ───────── 나그네 ─────────
    이름 없는 사람 하나가 늘 같은 자리, 떠밀려 온 통나무에 앉아 바다를 본다. 넓은 밀짚모자와 긴 쪽빛 겉옷.
    손님이 아니라 이 바닷가의 일부라서 인원수에 세지 않고 이름도 없다. 누르면 모자챙을 천천히 끄덕인다. */
 const KEEPER = { x: 470, d: 0.36 };
@@ -4627,7 +4627,7 @@ function showCount() {
   if (!joined) return;
   const n = peers.size + 1;
   const where = online && roomCount > 1 ? `${myRoom}번 해변 · ` : '';
-  countEl.textContent = SCENE === 'gohado' ? (n > 1 ? `지금 ${n}명이 목화밭 곁에 있어요` : '지금은 혼자 걷는 목화밭이에요') : online ? where + (n > 1 ? `지금 ${n}명이 파도를 보고 있어요` : '지금은 문지기와 둘이 보는 바다예요') : '문지기와 둘이 보는 바다 (연결 없음)';
+  countEl.textContent = SCENE === 'gohado' ? (n > 1 ? `지금 ${n}명이 목화밭 곁에 있어요` : '지금은 혼자 걷는 목화밭이에요') : online ? where + (n > 1 ? `지금 ${n}명이 파도를 보고 있어요` : '지금은 나그네와 둘이 보는 바다예요') : '나그네와 둘이 보는 바다 (연결 없음)';
 }
 function addPeer(a) {
   const [id, x, d, sit, color, name, k, g, st, n] = a;
