@@ -3557,9 +3557,10 @@ function gohadoTap(e) {
 function drawCotton(pn, t, nf) {
   const wind = 0.5 + Math.min(1.5, (WXF.wind || 3) / 6);
   const leaf = nf > 0.5 ? [40, 58, 46] : [78, 120, 66], boll = nf > 0.5 ? 'rgb(160,168,186)' : 'rgb(252,252,248)';
-  for (let r = 0; r < 15; r++) {                       // 먼 줄에서 앞줄로
-    const d = lerp(-0.5, 0.34, r / 14), s = sOf(d), y = yOf(d), step = Math.max(10, 30 * s);
-    const sh = 0.7 + 0.3 * r / 14;
+  const R = 24;
+  for (let r = 0; r < R; r++) {                        // 먼 줄에서 앞줄로, 촘촘하게
+    const d = lerp(-0.5, 0.36, r / (R - 1)), s = sOf(d), y = yOf(d), step = Math.max(6, 19 * s);
+    const sh = 0.7 + 0.3 * r / (R - 1);
     ctx.strokeStyle = `rgb(${leaf.map(c => Math.round(c * sh)).join(',')})`; ctx.lineWidth = Math.max(0.8, 1.5 * s);
     ctx.fillStyle = `rgb(${leaf.map(c => Math.round(c * (sh + 0.1))).join(',')})`;
     const bolls = [], off = (((W / 2 - camX * s) % step) + step) % step;
@@ -3567,13 +3568,15 @@ function drawCotton(pn, t, nf) {
       const wx = Math.round(camX + (x - W / 2) / s), sw = (Math.sin(t / 900 * wind + wx * 0.013 + r * 0.7) * 0.16 + Math.sin(t / 2300 + wx * 0.004) * 0.07) * wind;
       const hgt = (20 + 8 * hash(wx * 0.7 + r)) * s, tx = x + Math.sin(sw) * hgt, ty = y - Math.cos(sw) * hgt;
       ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(x + (tx - x) * 0.3, y - hgt * 0.6, tx, ty); ctx.stroke();
-      if (r > 4) { ctx.beginPath(); ctx.ellipse(x + (tx - x) * 0.5 - 4 * s, y - hgt * 0.5, 5 * s, 2.2 * s, -0.5 + sw, 0, 6.3); ctx.ellipse(x + (tx - x) * 0.6 + 4 * s, y - hgt * 0.62, 5 * s, 2.2 * s, 0.5 + sw, 0, 6.3); ctx.fill(); }
+      if (r > 8) { ctx.beginPath(); ctx.ellipse(x + (tx - x) * 0.5 - 4 * s, y - hgt * 0.5, 5 * s, 2.2 * s, -0.5 + sw, 0, 6.3); ctx.ellipse(x + (tx - x) * 0.6 + 4 * s, y - hgt * 0.62, 5 * s, 2.2 * s, 0.5 + sw, 0, 6.3); ctx.fill(); }
       bolls.push([tx, ty, s]);
-      if (hash(wx * 1.3 + r * 7) > 0.45) bolls.push([x + (tx - x) * 0.7 + 4 * s, y - hgt * 0.7, s * 0.8]);
+      bolls.push([x + (tx - x) * 0.7 + 5 * s, y - hgt * 0.72, s * 0.9]);
+      if (hash(wx * 1.3 + r * 7) > 0.35) bolls.push([x + (tx - x) * 0.6 - 5 * s, y - hgt * 0.6, s * 0.85]);
+      if (hash(wx * 2.1 + r * 3) > 0.6) bolls.push([x + (tx - x) * 0.45 + 3 * s, y - hgt * 0.42, s * 0.75]);
     }
     ctx.fillStyle = boll;
     for (const [bx, by, bs] of bolls) {                // 하얀 목화솜: 세 덩이가 뭉친 모양
-      const rr = Math.max(1.2, 3.6 * bs);
+      const rr = Math.max(1.5, 4.3 * bs);
       ctx.beginPath(); ctx.arc(bx - rr * 0.6, by, rr, 0, 6.3); ctx.arc(bx + rr * 0.6, by, rr, 0, 6.3); ctx.arc(bx, by - rr * 0.6, rr, 0, 6.3); ctx.fill();
     }
   }
