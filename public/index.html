@@ -3520,7 +3520,7 @@ function crossTo(where) {
   setTimeout(() => {
     if (where === 'gohado') {
       SCENE = 'gohado'; document.body.classList.add('gohado'); placeName.textContent = '파도멍 · 고하도'; document.getElementById('calmLine').textContent = GCALM[0];
-      me.x = GX - 200; me.d = 0.92; me.tx = GX - 90; me.td = 0.7;
+      me.x = GX - 710; me.d = 0.93; me.tx = GX - 640; me.td = 0.86;
     } else {
       SCENE = 'beach'; document.body.classList.remove('gohado'); placeName.textContent = '파도멍 · 대반동'; document.getElementById('calmLine').textContent = CALM[0];
       me.x = BOAT_X + 70; me.d = 0.25; me.tx = me.td = null;
@@ -3529,14 +3529,14 @@ function crossTo(where) {
     if (ws && online) ws.send(JSON.stringify({ t: 'go', to: where, x: Math.round(me.x), d: +me.d.toFixed(3) })); else peers.clear();
     setTimeout(() => {
       fadeEl.classList.remove('on'); boatSound('land');
-      toast(where === 'gohado' ? '고하도 선착장에 닿았어요 · 바로 앞에 비석이 하나 서 있어요' : '대반동으로 돌아왔어요');
+      toast(where === 'gohado' ? '고하도 선착장에 닿았어요 · 오른쪽 목화밭 길을 따라 걸어가면 비석이 하나 서 있어요' : '대반동으로 돌아왔어요');
     }, 2650);                 // 노 젓는 소리가 끝날 즈음 닿는다
   }, 950);
 }
 function onMoved(m) { peers.clear(); for (const a of m.p || []) addPeer(a); myRoom = m.room; if (m.room !== 'G') { writings.length = 0; for (const w of m.w || []) addWriting(w); } showCount(); }
 
 // ---------- 고하도 장면 ----------
-const STONE = { x: GX, d: 0.52 }, GBOAT = { x: GX - 250, d: 0.97 };
+const STONE = { x: GX, d: 0.52 }, GBOAT = { x: GX - 760, d: 0.97 };     // 선착장은 왼쪽 끝, 비석은 밭 쪽으로 한참 걸어 들어간 곳
 function stoneRect() { const s = sOf(STONE.d), x = xOf(STONE.x, STONE.d), y = yOf(STONE.d); return { x, y, s, w: 26 * s, h: 100 * s }; }
 function hitStone(cx, cy) { const r = stoneRect(); return Math.abs(cx - r.x) < r.w * 1.8 && cy > r.y - r.h - 12 * r.s && cy < r.y + 8 * r.s; }
 function hitGBoat(cx, cy) { const s = sOf(GBOAT.d); return Math.abs(cx - xOf(GBOAT.x, GBOAT.d)) < 55 * s && Math.abs(cy - yOf(GBOAT.d)) < 30 * s; }
@@ -3552,7 +3552,7 @@ function gohadoTap(e) {
   resetStill();
   if (me.sit) return;
   const wx = camX + (e.clientX - W / 2) / sOf(me.d), d = (e.clientY / H - 0.56) / 0.40;
-  me.tx = clamp(wx, GX - 520, GX + 520); me.td = clamp(d, 0.58, 0.98);
+  me.tx = clamp(wx, GX - 740, GX + 520); me.td = clamp(d, 0.58, 0.98);
 }
 function drawCotton(pn, t, nf) {
   const wind = 0.5 + Math.min(1.5, (WXF.wind || 3) / 6);
@@ -3610,10 +3610,10 @@ function drawStone(pn, nf) {
   if (!stoneSeen) { const a = 0.5 + 0.5 * Math.sin(pn / 400); ctx.fillStyle = `rgba(255,255,255,${0.9 * a})`; ctx.beginPath(); ctx.arc(x + w * 0.7, y - h * 0.8, 2.4 * s, 0, 6.3); ctx.fill(); }
 }
 function frameGohado(pn, dt, t) {
-  stepMe(dt);
-  me.x = clamp(me.x, GX - 520, GX + 520); me.d = clamp(me.d, 0.56, 0.99);
+  stepMe(dt * 0.65);                 // 목화밭 길은 천천히 걷는다
+  me.x = clamp(me.x, GX - 740, GX + 520); me.d = clamp(me.d, 0.56, 0.99);
   stepPeers(dt);
-  camX += (clamp(me.vx, GX - 120, GX + 160) - camX) * (1 - Math.pow(0.02, dt));
+  camX += (clamp(me.vx, GX - 590, GX + 160) - camX) * (1 - Math.pow(0.02, dt));
   const pal = weatherPal(palette(hourNow())), nf = nightF(pal), night = nf > 0.5;
   drawSky(pal, t, hourNow()); drawMeteors(pn, t, pal); drawConstel(pn, pal);
   drawGohadoBack(t, nf);
