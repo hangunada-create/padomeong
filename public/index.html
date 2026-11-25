@@ -85,7 +85,7 @@
   #sendBtn, #kiteBtn, #lanternBtn, #fwBtn, #feedBtn, #toadBtn, #gcBtn { display: none; }
   #sendBtn.on, #kiteBtn.on, #lanternBtn.on, #fwBtn.on, #feedBtn.on, #toadBtn.on, #gcBtn.on { display: inline-block; }
   #acts { transition: opacity 1.5s; }
-  #fade { position: fixed; inset: 0; background: #0b1426; opacity: 0; pointer-events: none; transition: opacity .9s; z-index: 40; }
+  #fade { position: fixed; inset: 0; background: #0b1426; color: rgba(255,255,255,.75); display: flex; align-items: center; justify-content: center; font-size: 15px; letter-spacing: .05em; opacity: 0; pointer-events: none; transition: opacity .9s; z-index: 40; }
   #fade.on { opacity: 1; pointer-events: auto; }
   body.gohado #acts .chip:not(#breathBtn):not(#backBtn):not(#act) { display: none !important; }
   #backBtn { display: none; } body.gohado #backBtn { display: inline-block; }
@@ -194,7 +194,7 @@
   <button id="sndBtn" class="chip">소리 켜짐</button>
 </div>
 <div id="hint" class="hud">모래사장을 눌러 걸어가 보세요 · 다른 사람을 누르면 손을 흔들어요</div>
-<div id="credit" class="hud"><span id="sndCredit" style="display:none">파도소리 Andrew Holman · 뱃고동 tierrafilm (freesound.org, CC0) · </span>물때 국립해양조사원 예보(목포) · 날씨 기상청</div>
+<div id="credit" class="hud"><span id="sndCredit" style="display:none">파도소리 Andrew Holman · 뱃고동 tierrafilm (CC0) · 배 소리 joedeshon, juskiddink (CC BY) · freesound.org · </span>물때 국립해양조사원 예보(목포) · 날씨 기상청</div>
 <div id="toast" class="hud"></div>
 <button id="bottleBtn" class="hud">유리병이 밀려왔어요 · 열어 보기</button>
 <div id="acts" class="hud">
@@ -3147,7 +3147,18 @@ function sfxSplash() {                     // 촤악: 짧은 물보라 소리
   } catch (e) {}
 }
 
-/* 배에 오르는 소리: 나무 발판 두 걸음 → 배가 기우뚱 삐걱 → 뱃전에 찰랑이는 물 → 노 젓는 소리 두 번
+/* 녹음한 배 소리(public/boat-board.mp3, boat-land.mp3): 나무 선착장 발소리 joedeshon · 노 젓는 소리 juskiddink (freesound.org, CC BY 4.0/3.0)
+   못 받으면 아래 합성음으로 */
+const boatBufs = {};
+function boatSound(kind) {
+  if (!AC || !soundOn || AC.state !== 'running') return;
+  const play = buf => { const src = AC.createBufferSource(), g = AC.createGain(); g.gain.value = 0.9; src.buffer = buf; src.connect(g); g.connect(AC.destination); src.start(); };
+  if (boatBufs[kind]) return play(boatBufs[kind]);
+  fetch(`boat-${kind}.mp3`).then(r => r.ok ? r.arrayBuffer() : Promise.reject()).then(b => AC.decodeAudioData(b))
+    .then(buf => { boatBufs[kind] = buf; play(buf); }).catch(() => sfxBoard(kind === 'land'));
+}
+function preloadBoat() { if (!AC) return; for (const k of ['board', 'land']) if (!boatBufs[k]) fetch(`boat-${k}.mp3`).then(r => r.ok ? r.arrayBuffer() : Promise.reject()).then(b => AC.decodeAudioData(b)).then(buf => { boatBufs[k] = buf; }).catch(() => {}); }
+/* 배에 오르는 소리(합성 예비): 나무 발판 두 걸음 → 배가 기우뚱 삐걱 → 뱃전에 찰랑이는 물 → 노 젓는 소리 두 번
    휴대폰 스피커에서도 들리도록 300Hz 위쪽 소리 중심으로 만든다 */
 function sfxBoard(arrive) {
   if (!AC || !soundOn || AC.state !== 'running') return;
@@ -3495,7 +3506,7 @@ function hitBeachBoat(cx, cy, dE) {
 function boatTick() {
   if (SCENE !== 'beach' || !joined) return;
   if (boatDay(now()) && boatTold !== dayKey(now())) { boatTold = dayKey(now()); setTimeout(() => toast('오늘은 토요일 · 물가에 고하도로 건너가는 작은 배가 와 있어요'), 4000); }
-  if (boatWant && Math.abs(me.x - BOAT_X) < 160 && me.tx == null) { boatWant = false; boatSheet.classList.add('on'); wake(); }
+  if (boatWant && Math.abs(me.x - BOAT_X) < 160 && me.tx == null) { boatWant = false; boatSheet.classList.add('on'); wake(); preloadBoat(); }
 }
 document.getElementById('boatNo').addEventListener('click', () => boatSheet.classList.remove('on'));
 document.getElementById('boatGo').addEventListener('click', () => { boatSheet.classList.remove('on'); crossTo('gohado'); });
@@ -3503,8 +3514,9 @@ document.getElementById('backBtn').addEventListener('click', () => crossTo('beac
 document.getElementById('stoneClose').addEventListener('click', () => stoneSheet.classList.remove('on'));
 function crossTo(where) {
   if (fadeEl.classList.contains('on')) return;
-  if (me.sit) setSit(false);
-  fadeEl.classList.add('on'); sfxBoard(false);
+  if (me.sit) setSit(false); preloadBoat();
+  fadeEl.textContent = where === 'gohado' ? '고하도로 건너가는 중…' : '대반동으로 돌아가는 중…';
+  fadeEl.classList.add('on'); boatSound('board');
   setTimeout(() => {
     if (where === 'gohado') {
       SCENE = 'gohado'; document.body.classList.add('gohado'); placeName.textContent = '파도멍 · 고하도'; document.getElementById('calmLine').textContent = GCALM[0];
@@ -3516,9 +3528,9 @@ function crossTo(where) {
     me.vx = me.x; me.vd = me.d; camX = me.x;
     if (ws && online) ws.send(JSON.stringify({ t: 'go', to: where, x: Math.round(me.x), d: +me.d.toFixed(3) })); else peers.clear();
     setTimeout(() => {
-      fadeEl.classList.remove('on'); sfxBoard(true);
+      fadeEl.classList.remove('on'); boatSound('land');
       toast(where === 'gohado' ? '고하도 선착장에 닿았어요 · 바로 앞에 비석이 하나 서 있어요' : '대반동으로 돌아왔어요');
-    }, 1700);                 // 노 젓는 소리가 끝날 즈음 닿는다
+    }, 2650);                 // 노 젓는 소리가 끝날 즈음 닿는다
   }, 950);
 }
 function onMoved(m) { peers.clear(); for (const a of m.p || []) addPeer(a); myRoom = m.room; if (m.room !== 'G') { writings.length = 0; for (const w of m.w || []) addWriting(w); } showCount(); }
@@ -4629,7 +4641,7 @@ cv.addEventListener('pointerdown', e => {
   if (SCENE === 'gohado') { gohadoTap(e); return; }
   { const dE0 = edgeD(waveAt(now()).reach);
     if (hitBeachBoat(e.clientX, e.clientY, dE0)) {
-      if (Math.abs(me.x - BOAT_X) < 160 && Math.abs(me.d - dE0) < 0.4) { boatSheet.classList.add('on'); wake(); }
+      if (Math.abs(me.x - BOAT_X) < 160 && Math.abs(me.d - dE0) < 0.4) { boatSheet.classList.add('on'); wake(); preloadBoat(); }
       else { if (me.sit) setSit(false); me.tx = BOAT_X + 50; me.td = clamp(Math.max(dE0, -0.2) + 0.1, D_MIN, D_MAX); boatWant = true; }
       return;
     } }
