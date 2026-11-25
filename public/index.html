@@ -247,7 +247,7 @@
 <div id="letterSheet" class="sheet"><div class="k">한 줄을 유리병에 담아 띄워요. 누가 쓴 건지는 아무도 몰라요.</div><textarea id="letterText" maxlength="80" placeholder="이 바다에 남기고 싶은 한 줄"></textarea><div class="note" id="letterNote"></div><div class="row"><button class="sub" id="letterCancel">그만두기</button><button class="main" id="letterSend">바다에 띄우기</button></div></div>
 <div id="lanternSheet" class="sheet"><div class="k">보름달 뜬 밤, 작은 등에 한 줄을 적어 띄워요. 등은 바다를 건너 수평선까지 날아가요.</div><textarea id="lanternText" maxlength="20" placeholder="20자까지" style="height:56px"></textarea><div class="note" id="lanternNote"></div><div class="row"><button class="sub" id="lanternCancel">그만두기</button><button class="main" id="lanternSend">등 띄우기</button></div></div>
 <div id="wishSheet" class="sheet"><div class="k">별똥별이 지기 전에 소원을 빌어요. 소원은 어디에도 남지 않아요.</div><textarea id="wishText" maxlength="30" placeholder="적어도 되고, 마음속으로 빌어도 돼요" style="height:56px"></textarea><div class="row"><button class="sub" id="wishQuiet">마음속으로 빌기</button><button class="main" id="wishSend">빌기</button></div></div>
-<div id="omokSheet" class="sheet"><div class="k">모래 오목 · 다섯 알을 먼저 잇는 쪽이 이겨요. 같은 해변 사람들과 함께 둬요.</div><div id="omokGrid"></div><div class="note" id="omokNote"></div><div class="row"><button class="sub" id="omokNew">새 판</button><button class="main" id="omokClose">닫기</button></div></div>
+<div id="omokSheet" class="sheet"><div class="k">모래 오목 · 다섯 알을 먼저 잇는 쪽이 이겨요. 같은 해변 사람과 둬도 되고, 맞은편이 비어 있으면 파도가 둬 줘요.</div><div id="omokGrid"></div><div class="note" id="omokNote"></div><div class="row"><button class="sub" id="omokNew">새 판</button><button class="main" id="omokClose">닫기</button></div></div>
 <div id="mapSheet" class="sheet"><div class="k">낡은 지도</div><canvas id="mapCanvas" class="pic" width="560" height="360"></canvas><div class="note" id="mapNote"></div><div class="row"><button class="main" id="mapClose">닫기</button></div></div>
 <div id="photoSheet" class="sheet"><div class="k">짙은 갈색 병 속에 빛바랜 그림 한 장이 말려 있었어요</div><canvas id="photoCanvas" class="pic" width="560" height="380"></canvas><div class="note" id="photoNote"></div><div class="row"><button class="main" id="photoClose">닫기</button></div></div>
 <div id="doneSheet" class="sheet"><div class="k">도감 완성 카드</div><img id="doneImg" class="pic" alt="도감 완성 카드"><div class="note" id="doneNote">그림을 길게 누르거나 '그림으로 저장'을 누르면 간직할 수 있어요</div>
@@ -3448,7 +3448,7 @@ function renderOmok() {
   [...omokGrid.children].forEach((c, i) => { c.className = omok.b[i] === '1' ? 'k' : omok.b[i] === '2' ? 'w' : ''; });
   const name = k => omok.p[k - 1] || '빈자리';
   omokNote.textContent = omok.win ? `${omok.win === 1 ? '흑' : '백'}(${name(omok.win)})이 이겼어요 · 잠시 뒤 파도가 판을 쓸어 가요`
-    : `흑 ${name(1)} · 백 ${name(2)} · 지금 ${omok.turn === 1 ? '흑' : '백'} 차례 · 빈자리면 누구나 앉을 수 있어요`;
+    : `흑 ${name(1)} · 백 ${name(2)} · 지금 ${omok.turn === 1 ? '흑' : '백'} 차례 · ${omok.p.includes('파도') ? '파도가 맞은편에 앉아 있어요 · 누가 오면 비켜 줘요' : '빈자리면 누구나 앉을 수 있어요'}`;
 }
 function drawOmokBoard(pn) {
   const s = sOf(OMOK.d), x = xOf(OMOK.x, OMOK.d), y = yOf(OMOK.d);
@@ -3471,6 +3471,33 @@ function hitOmok(cx, cy) {
 function openOmok() {
   if (Math.abs(me.x - OMOK.x) > 400 || Math.abs(me.d - OMOK.d) > 0.35) { me.tx = OMOK.x; me.td = OMOK.d + 0.12; return; }
   renderOmok(); omokSheet.classList.add('on'); wake();
+}
+
+/* ───────── 다녀간 사람의 그림자 ─────────
+   오늘 누군가 1분 넘게 앉았다 간 자리에, 흐릿한 앉은 그림자가 잠깐 떠올랐다 사라진다. 한 번에 세 자리까지.
+   사람 수에는 세지 않고, 그 자리에 지금 누가 있으면 보이지 않는다. */
+let traces = [];
+function drawTraces(pn, nf) {
+  if (!traces.length || RAINY()) return;
+  const CYC = 75000, n = traces.length, slots = Math.min(3, n), k0 = Math.floor(pn / CYC);
+  for (let j = 0; j < slots; j++) {
+    const idx = Math.floor(hash(k0 * 7.3 + j * 13.1) * n + j) % n, tr = traces[idx];
+    const ph = ((pn + j * CYC / slots) % CYC) / CYC;                       // 자리마다 엇갈려 떠오른다
+    const a = ph < 0.15 ? ph / 0.15 : ph < 0.55 ? 1 : ph < 0.75 ? 1 - (ph - 0.55) / 0.2 : 0;
+    if (a <= 0) continue;
+    const [wx, d] = tr, s = sOf(d), x = xOf(wx, d), y = yOf(d);
+    if (x < -40 || x > W + 40) continue;
+    let near = Math.abs(me.vx - wx) < 70 && Math.abs(me.vd - d) < 0.12;
+    for (const p of peers.values()) if (Math.abs(p.vx - wx) < 70 && Math.abs(p.vd - d) < 0.12) near = true;
+    if (near) continue;
+    const al = a * (nf > 0.5 ? 0.26 : 0.3), br = Math.sin(pn / 1400 + idx) * 0.6 * s;
+    ctx.save(); ctx.globalAlpha = al; ctx.fillStyle = nf > 0.5 ? '#cfd8f0' : '#ffffff';
+    ctx.beginPath(); ctx.ellipse(x, y - 3 * s, 11 * s, 4 * s, 0, 0, 6.3); ctx.fill();                       // 무릎·엉덩이
+    ctx.beginPath(); ctx.moveTo(x - 7 * s, y - 4 * s); ctx.quadraticCurveTo(x - 9 * s, y - 20 * s + br, x - 3 * s, y - 25 * s + br);
+    ctx.lineTo(x + 3 * s, y - 25 * s + br); ctx.quadraticCurveTo(x + 9 * s, y - 20 * s + br, x + 7 * s, y - 4 * s); ctx.closePath(); ctx.fill();   // 등
+    ctx.beginPath(); ctx.arc(x, y - 30 * s + br, 5.2 * s, 0, 6.3); ctx.fill();                                // 머리
+    ctx.restore();
+  }
 }
 
 /* ───────── 고하도 가는 작은 배 ─────────
@@ -4385,6 +4412,7 @@ function frame(pn) {
   if (HIGH_NOW && joined && !highTold && !(me.sit && !RAINY()) && me.vd < dE + wobble(me.vx, t) + 0.012) { highTold = true; addItem('hightide', dex.hightide ? '만조의 물이 발목까지 올라왔어요' : '만조의 물이 발목까지 올라왔어요 · 도감에 담았어요'); }
   drawProjections(t, nf);
   drawBeachBoat(pn, dE, nf);
+  drawTraces(pn, nf);
   drawBottles(pn, t, dE, nf);
 
   const all = [...peers.values()]; if (joined) all.push(me);
@@ -4566,6 +4594,7 @@ function connect() {
       online = true; clockOffset = m.now - Date.now(); myId = m.id; myRoom = m.room; roomCount = m.rooms || 1;
       peers.clear(); for (const a of m.p || []) addPeer(a);
       writings.length = 0; for (const w of m.w || []) addWriting(w);
+      traces = (m.tr || []).slice(-40);
       if (m.today) setToday(m.today);
       if (m.wx) setWX(m.wx);
       (Array.isArray(m.castle && m.castle[0]) ? m.castle : []).forEach((c, i) => onCastle({ i, lvl: c[0], gen: c[1], init: 1 }));
@@ -4578,6 +4607,7 @@ function connect() {
       if (SCENE === 'gohado') ws.send(JSON.stringify({ t: 'go', to: 'gohado', x: Math.round(me.x), d: +me.d.toFixed(3) }));
     } else if (m.t === 'in') addPeer(m.p);
     else if (m.t === 'moved') onMoved(m);
+    else if (m.t === 'tr') { traces.push(m.r); if (traces.length > 40) traces.shift(); }
     else if (m.t === 'out') peers.delete(m.id);
     else if (m.t === 'g') onGesture(m.from, m.to);
     else if (m.t === 'b') onBottle(m);

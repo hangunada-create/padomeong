@@ -440,6 +440,67 @@ function omokWin(b, i) {
   return false;
 }
 
+// 다녀간 사람의 자리: 1분 넘게 앉았다 간 자리를 하루 동안 기억 (흐릿한 그림자로만 보인다)
+let traces = load('traces.json', []);
+const traceList = () => { const t = Date.now(); traces = traces.filter(r => t - r.at < 864e5).slice(-40); return traces.map(r => [r.x, r.d, r.c]); };
+function noteTrace(me, sitMs) {
+  if (!me || me.bot || me.room === 'G' || sitMs < 60000) return;
+  const r = { x: Math.round(me.x), d: +me.d.toFixed(3), c: me.color, at: Date.now() };
+  if (traces.some(o => Math.abs(o.x - r.x) < 30 && Math.abs(o.d - r.d) < 0.05)) return;
+  traces.push(r); traceList(); save('traces.json', traces);
+  const msg = JSON.stringify({ t: 'tr', r: [r.x, r.d, r.c] });
+  for (const [room, set] of rooms) if (room !== 'G') for (const pid of set) { const p = people.get(pid); if (p && p.ws && p.ws.readyState === 1) p.ws.send(msg); }
+}
+
+// 모래 오목의 '파도': 맞은편 자리가 비어 있으면 파도가 대신 둔다 (사람이 앉으면 비켜 준다)
+const WAVE = { id: 'wave', name: '파도' };
+function waveMove(b, me) {
+  const op = me === '1' ? '2' : '1', N = ON;
+  if (!b.includes('1') && !b.includes('2')) return 112;
+  const lineScore = (i, c) => {
+    const r = Math.floor(i / N), q = i % N; let sc = 0;
+    for (const [dr, dq] of [[0, 1], [1, 0], [1, 1], [1, -1]]) {
+      let n = 1, open = 0;
+      for (const sg of [1, -1]) {
+        let k = 1;
+        for (; k < 5; k++) { const rr = r + dr * k * sg, qq = q + dq * k * sg; if (rr < 0 || rr >= N || qq < 0 || qq >= N || b[rr * N + qq] !== c) break; n++; }
+        const rr = r + dr * k * sg, qq = q + dq * k * sg; if (rr >= 0 && rr < N && qq >= 0 && qq < N && b[rr * N + qq] === '0') open++;
+      }
+      sc += n >= 5 ? 1e6 : n === 4 ? (open === 2 ? 5e4 : open ? 4000 : 0) : n === 3 ? (open === 2 ? 3000 : open ? 300 : 0) : n === 2 ? (open === 2 ? 120 : open ? 20 : 0) : open;
+    }
+    return sc;
+  };
+  let best = [], bs = -1;
+  for (let i = 0; i < N * N; i++) {
+    if (b[i] !== '0') continue;
+    const r = Math.floor(i / N), q = i % N; let near = false;
+    for (let dr = -2; dr <= 2 && !near; dr++) for (let dq = -2; dq <= 2; dq++) { const rr = r + dr, qq = q + dq; if (rr >= 0 && rr < N && qq >= 0 && qq < N && b[rr * N + qq] !== '0') { near = true; break; } }
+    if (!near) continue;
+    const sc = lineScore(i, me) * 1.1 + lineScore(i, op) * 0.95 + Math.random() * 30;   // 조금 흐트러진 수: 이길 만한 상대
+    if (sc > bs) { bs = sc; best = [i]; }
+  }
+  return best[0];
+}
+function waveTurn(room) {
+  const o = omokOf(room); if (o.win) return;
+  const seat = o.p[o.turn - 1];
+  if (seat && seat.id !== WAVE.id && people.has(seat.id) && Date.now() - seat.at < 180000) return;   // 사람이 앉아 있다
+  const other = o.p[2 - o.turn]; if (!other || other.id === WAVE.id) return;                          // 사람과 두는 판에서만
+  const crowd = (rooms.get(room) || new Set()).size;
+  clearTimeout(o.waveT);
+  o.waveT = setTimeout(() => {
+    if (omokOf(room) !== o || o.win) return;
+    const st = o.p[o.turn - 1];
+    if (st && st.id !== WAVE.id && people.has(st.id) && Date.now() - st.at < 180000) return;
+    const i = waveMove(o.b, String(o.turn)); if (i === undefined) return;
+    o.p[o.turn - 1] = { id: WAVE.id, name: WAVE.name, at: Date.now() };
+    o.b[i] = String(o.turn); o.last = Date.now();
+    if (omokWin(o.b, i)) { o.win = o.turn; setTimeout(() => { if (omokOf(room) === o && o.win) { omoks.delete(room); sendRoom(room, omokView(omokOf(room))); } }, 20000); }
+    else if (!o.b.includes('0')) omoks.delete(room); else o.turn = 3 - o.turn;
+    sendRoom(room, omokView(o));
+  }, crowd > 1 ? 9000 : 1400 + Math.random() * 1600);   // 다른 사람이 있으면 그 사람이 앉을 틈을 넉넉히 준다
+}
+
 // 노을 십 분을 함께 본 사람, 오늘의 질문에 달린 답 (한국 날짜가 바뀌면 비움, 저장하지 않음)
 const dayKeyNow = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
 const sunsetSeen = { key: '', ids: new Set() };
@@ -521,7 +582,7 @@ wss.on('connection', (ws, req) => {
       const d = day(); d.최대동시접속 = Math.max(d.최대동시접속, people.size);
       if (!isBot) { const tk = String(m.tok || '').replace(/[^a-z0-9]/gi, '').slice(0, 24); bump('입장'); countPerson(tag + ':' + tk); noteVisit(tk); }
       const cs = castleOf(room);
-      send(ws, { t: 'hi', id, now: Date.now(), room, rooms: beachRooms(), p: list, w: writings.get(room) || [], today: todayView(), wx: weather, castle: cs.map(c => [c.lvl, c.gen]), ball: ballOf(room), ob: omokView(omokOf(room)), ln: lanternList(), qa: qaList().slice(-40), sn: sunsetCount() });
+      send(ws, { t: 'hi', id, now: Date.now(), room, rooms: beachRooms(), p: list, w: writings.get(room) || [], today: todayView(), wx: weather, castle: cs.map(c => [c.lvl, c.gen]), ball: ballOf(room), ob: omokView(omokOf(room)), ln: lanternList(), qa: qaList().slice(-40), sn: sunsetCount(), tr: traceList() });
       sendRoom(room, { t: 'in', p: [id, me.x, me.d, me.sit, me.color, me.name, me.k, me.g, me.st, me.n] }, id);
       roomsChanged();
       return;
@@ -534,7 +595,7 @@ wss.on('connection', (ws, req) => {
       me.d = clamp(num(m.d, me.d), D_MIN, D_MAX);
       const sit = m.sit ? 1 : 0;
       if (sit && !me.sit) sitSince = t;
-      if (!sit && me.sit && sitSince) { sitTotal += t - sitSince; sitSince = 0; }
+      if (!sit && me.sit && sitSince) { sitTotal += t - sitSince; noteTrace(me, t - sitSince); sitSince = 0; }
       me.sit = sit; me.k = m.k ? 1 : 0;
       dirty.add(id);
 
@@ -649,6 +710,7 @@ wss.on('connection', (ws, req) => {
       } else if (!o.b.includes('0')) { omoks.delete(me.room); }
       else o.turn = 3 - o.turn;
       sendRoom(me.room, omokView(o));
+      if (!o.win && o.b.includes('0')) waveTurn(me.room);
 
     } else if (m.t === 'or') {                    // 새 판 (끝났거나, 오래 멈췄거나, 앉아 있던 사람이 원할 때)
       const o = omokOf(me.room);
@@ -732,7 +794,7 @@ wss.on('connection', (ws, req) => {
   ws.on('close', () => {
     const c = (perIp.get(ip) || 1) - 1; if (c <= 0) perIp.delete(ip); else perIp.set(ip, c);
     if (id !== null) {
-      const t = Date.now(), me = people.get(id); if (sitSince) sitTotal += t - sitSince;
+      const t = Date.now(), me = people.get(id); if (sitSince) { sitTotal += t - sitSince; if (me && me.sit) noteTrace(me, t - sitSince); }
       recordVisit((t - joinedAt) / 1000, sitTotal / 1000);
       people.delete(id); dirty.delete(id);
       if (me) {
