@@ -3422,7 +3422,7 @@ function openOmok() {
 let SCENE = 'beach', boatWant = false, boatTold = '', stoneWant = false, stoneSeen = false;
 const BOAT_X = 2000, GX = 1600;
 const GCALM = ['바람이 지나가면 목화가 먼저 알아요', '비석 앞에서 잠깐 멈춰도 좋아요', '하얀 솜이 터지는 소리는 아주 작아요', '바다 건너 대반동이 보이는 섬이에요'];
-const boatDay = ms => kst(ms).wd === 6 || FAST;
+const boatDay = ms => kst(ms).wd === 6 || FAST || /gohado/.test(location.hash);   // #gohado: 요일과 상관없이 배가 보이는 미리보기
 const placeName = document.getElementById('placeName'), boatSheet = document.getElementById('boatSheet'), stoneSheet = document.getElementById('stoneSheet'), fadeEl = document.getElementById('fade');
 function boatSpot() { return { x: BOAT_X, d: Math.max(edgeD(0.15), -0.2) - 0.05 }; }   // 물때만 따라 움직이고 파도엔 흔들리기만
 function drawBoat(x, y, s, pn, nf, moored) {      // 작은 나무 나룻배 (노 하나, 밧줄)
