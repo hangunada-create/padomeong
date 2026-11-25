@@ -4627,7 +4627,7 @@ function showCount() {
   if (!joined) return;
   const n = peers.size + 1;
   const where = online && roomCount > 1 ? `${myRoom}번 해변 · ` : '';
-  countEl.textContent = SCENE === 'gohado' ? (n > 1 ? `지금 ${n}명이 목화밭 곁에 있어요` : '지금은 혼자 걷는 목화밭이에요') : online ? where + (n > 1 ? `지금 ${n}명이 파도를 보고 있어요` : '지금은 혼자 보는 바다예요') : '혼자 보는 바다 (연결 없음)';
+  countEl.textContent = SCENE === 'gohado' ? (n > 1 ? `지금 ${n}명이 목화밭 곁에 있어요` : '지금은 혼자 걷는 목화밭이에요') : online ? where + (n > 1 ? `지금 ${n}명이 파도를 보고 있어요` : '지금은 문지기와 둘이 보는 바다예요') : '문지기와 둘이 보는 바다 (연결 없음)';
 }
 function addPeer(a) {
   const [id, x, d, sit, color, name, k, g, st, n] = a;
