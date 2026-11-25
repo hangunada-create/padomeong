@@ -3473,6 +3473,58 @@ function openOmok() {
   renderOmok(); omokSheet.classList.add('on'); wake();
 }
 
+/* ───────── 문지기 ─────────
+   이름 없는 사람 하나가 늘 같은 자리, 떠밀려 온 통나무에 앉아 바다를 본다. 넓은 밀짚모자와 긴 쪽빛 겉옷.
+   손님이 아니라 이 바닷가의 일부라서 인원수에 세지 않고 이름도 없다. 누르면 모자챙을 천천히 끄덕인다. */
+const KEEPER = { x: 470, d: 0.36 };
+let keeperNod = 0, keeperSaid = 0;
+const KEEPER_LINES = ['(모자챙을 천천히 끄덕인다)', '(바다 쪽으로 고개를 돌린다)', '(손을 무릎에 얹은 채 가만히 있다)', '(조금 옆으로 비켜 앉는다)'];
+function keeperRect() { const s = sOf(KEEPER.d) * 1.9, x = xOf(KEEPER.x, KEEPER.d), y = yOf(KEEPER.d); return { s, x, y }; }
+function hitKeeper(cx, cy) { const { s, x, y } = keeperRect(); return Math.abs(cx - x) < 22 * s && cy > y - 44 * s && cy < y + 6 * s; }
+function tapKeeper() {
+  keeperNod = performance.now();
+  if (performance.now() - keeperSaid > 8000) { keeperSaid = performance.now(); toast(KEEPER_LINES[Math.floor(Math.random() * KEEPER_LINES.length)]); }
+}
+function drawKeeper(pn, t, nf) {
+  const { s, x, y } = keeperRect();
+  if (x < -60 * s || x > W + 60 * s) return;
+  const rain = RAINY(), nod = keeperNod && pn - keeperNod < 1600 ? Math.sin((pn - keeperNod) / 1600 * Math.PI) : 0;
+  const br = Math.sin(pn / 2100) * 0.5 * s, dark = nf > 0.5;
+  ctx.save();
+  ctx.fillStyle = 'rgba(30,26,20,.22)'; ctx.beginPath(); ctx.ellipse(x + 4 * s, y + 1 * s, 26 * s, 4 * s, 0, 0, 6.3); ctx.fill();
+  // 떠밀려 온 통나무
+  ctx.fillStyle = dark ? '#4a4038' : '#8c7860'; ctx.beginPath(); ctx.ellipse(x, y - 4 * s, 24 * s, 4.5 * s, -0.04, 0, 6.3); ctx.fill();
+  ctx.fillStyle = dark ? '#5c5046' : '#a89276'; ctx.beginPath(); ctx.ellipse(x + 23 * s, y - 5 * s, 2.4 * s, 4 * s, 0, 0, 6.3); ctx.fill();
+  // 기대 둔 지팡이
+  ctx.strokeStyle = dark ? '#5a4a3a' : '#7b6246'; ctx.lineWidth = 1.4 * s; ctx.beginPath(); ctx.moveTo(x + 15 * s, y - 1 * s); ctx.lineTo(x + 9 * s, y - 40 * s); ctx.stroke();
+  // 긴 쪽빛 겉옷: 앉은 등과 무릎
+  const coat = dark ? '#1f2a40' : '#34466b', coatHi = dark ? '#2b3854' : '#465a84';
+  ctx.fillStyle = coat; ctx.beginPath();
+  ctx.moveTo(x - 12 * s, y - 3 * s); ctx.quadraticCurveTo(x - 14 * s, y - 22 * s + br, x - 6 * s, y - 30 * s + br);
+  ctx.lineTo(x + 5 * s, y - 30 * s + br); ctx.quadraticCurveTo(x + 13 * s, y - 20 * s + br, x + 12 * s, y - 3 * s); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = coatHi; ctx.fillRect(x - 1 * s, y - 28 * s + br, 1.4 * s, 24 * s);
+  // 머리와 넓은 밀짚모자 (얼굴은 챙 그늘에 가려 보이지 않는다)
+  const hy = y - 34 * s + br + nod * 2.2 * s;
+  ctx.fillStyle = dark ? '#3a3028' : '#6b5440'; ctx.beginPath(); ctx.arc(x, hy, 5 * s, 0, 6.3); ctx.fill();
+  if (rain) { ctx.fillStyle = dark ? '#26324a' : '#3d5078'; ctx.beginPath(); ctx.arc(x, hy - 1 * s, 7 * s, Math.PI, 0); ctx.lineTo(x + 7 * s, hy + 4 * s); ctx.lineTo(x - 7 * s, hy + 4 * s); ctx.fill(); }
+  else {
+    ctx.save(); ctx.translate(x, hy - 3 * s); ctx.rotate(nod * 0.12);
+    ctx.fillStyle = dark ? '#8a7a58' : '#d8c08a'; ctx.beginPath(); ctx.ellipse(0, 0, 13 * s, 3 * s, 0, 0, 6.3); ctx.fill();
+    ctx.fillStyle = dark ? '#7a6a4a' : '#c8ae76'; ctx.beginPath(); ctx.ellipse(0, -2.5 * s, 6 * s, 4 * s, 0, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = dark ? '#4a3e30' : '#7a5a3a'; ctx.fillRect(-6 * s, -2.4 * s, 12 * s, 1.2 * s);
+    ctx.restore();
+  }
+  // 밤에는 발치에 작은 등불
+  if (dark) {
+    const lx = x - 18 * s, ly = y - 2 * s, f = 0.85 + Math.sin(pn / 230) * 0.08 + Math.sin(pn / 97) * 0.04;
+    const g = ctx.createRadialGradient(lx, ly - 4 * s, 0, lx, ly - 4 * s, 26 * s); g.addColorStop(0, `rgba(255,200,120,${0.35 * f})`); g.addColorStop(1, 'rgba(255,200,120,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(lx, ly - 4 * s, 26 * s, 0, 6.3); ctx.fill();
+    ctx.fillStyle = '#2a2420'; ctx.fillRect(lx - 2.5 * s, ly - 8 * s, 5 * s, 7 * s);
+    ctx.fillStyle = `rgba(255,214,140,${f})`; ctx.fillRect(lx - 1.6 * s, ly - 7 * s, 3.2 * s, 5 * s);
+  }
+  ctx.restore();
+}
+
 /* ───────── 다녀간 사람의 그림자 ─────────
    오늘 누군가 1분 넘게 앉았다 간 자리에, 흐릿한 앉은 그림자가 잠깐 떠올랐다 사라진다. 한 번에 세 자리까지.
    사람 수에는 세지 않고, 그 자리에 지금 누가 있으면 보이지 않는다. */
@@ -4417,7 +4469,7 @@ function frame(pn) {
 
   const all = [...peers.values()]; if (joined) all.push(me);
   npcTick(t); if (npc) all.push({ npc: true, vd: NPC.d });
-  all.push({ stall: true, vd: STALL.d }, { fire: true, vd: FIRE.d }); CASTLES.forEach((C, i) => all.push({ castle: true, ci: i, vd: C.d }));
+  all.push({ stall: true, vd: STALL.d }, { fire: true, vd: FIRE.d }, { keeper: true, vd: KEEPER.d }); CASTLES.forEach((C, i) => all.push({ castle: true, ci: i, vd: C.d }));
   all.sort((a, b) => a.vd - b.vd);
   const night = nf > 0.5;
   for (const a of all) {
@@ -4425,6 +4477,7 @@ function frame(pn) {
     if (a.castle) { drawCastle(pn, a.ci); continue; }
     if (a.fire) { drawFire(pn, nf); continue; }
     if (a.npc) { drawWalker(pn, t, night); continue; }
+    if (a.keeper) { drawKeeper(pn, t, nf); continue; }
     drawPerson(a, t, a.vd < dE + wobble(a.vx, t) + 0.012, night);
     drawGift(a, pn, night); drawPersonFx(a, pn);
   }
@@ -4672,6 +4725,7 @@ cv.addEventListener('pointerdown', e => {
   if (stallOpen) { stallDismissed = true; stallOpen = false; stallEl.classList.remove('on'); }
   if (!joined) return;
   if (SCENE === 'gohado') { gohadoTap(e); return; }
+  if (hitKeeper(e.clientX, e.clientY)) { tapKeeper(); return; }
   { const dE0 = edgeD(waveAt(now()).reach);
     if (hitBeachBoat(e.clientX, e.clientY, dE0)) {
       if (Math.abs(me.x - BOAT_X) < 160 && Math.abs(me.d - dE0) < 0.4) { boatSheet.classList.add('on'); wake(); preloadBoat(); }
@@ -4808,7 +4862,7 @@ function enter() {
   setTimeout(() => hint.classList.add('gone'), 9000);
 }
 document.getElementById('go').addEventListener('click', enter);
-if (FAST) window.__gh = { cross: crossTo, me: () => me, cam: v => { camX = v; }, peers: () => peers.size, st: () => [SCENE, myRoom, stoneSheet.classList.contains('on'), boatSheet.classList.contains('on')], stone: () => { const r = stoneRect(); return [r.x, r.y - r.h / 2]; }, boat: () => { const dE = edgeD(waveAt(now()).reach), b = boatSpot(); return [xOf(b.x, b.d), yOf(b.d)]; } };
+if (FAST) window.__gh = { keeper: () => { const r = keeperRect(); return [r.x, r.y]; }, cross: crossTo, me: () => me, cam: v => { camX = v; }, peers: () => peers.size, st: () => [SCENE, myRoom, stoneSheet.classList.contains('on'), boatSheet.classList.contains('on')], stone: () => { const r = stoneRect(); return [r.x, r.y - r.h / 2]; }, boat: () => { const dE = edgeD(waveAt(now()).reach), b = boatSpot(); return [xOf(b.x, b.d), yOf(b.d)]; } };
 if (FAST) window.__pm = { mullet: () => mullet, glow: () => ({ glowK, pair: !!glowPair }), calm: () => calmOverride, sunset: () => sunTimes(now()).set, dbg: () => ({ edge: edgeD(waveAt(now()).reach), vd: me.vd, vx: me.vx, sit: me.sit, joined }), me, openOldBottle, onPicked, feet: () => feet, rememberWord, weekHint, castle: () => castles, items: () => items, setWX, buildCastle, addItem, spawnReset: () => { itemEpoch = -1; }, beaconWord, crabs: () => crabs, gull: () => gull, porpNow: () => { porpNext = 0; }, porp: () => porp, FIREWORKS, weekSentence, cst: () => cst, constelPts, lanterns, writings, dex: () => dex, high: () => HIGH_NOW, setSit, peers, xy: (x, d) => [xOf(x, d), yOf(d)], shots, aim: () => aimDrag, termToday, questionOf, qAnswers, flocks, gold: () => GOLD, hitQuestion, walkerNow, npc: () => npc, meteors, storyOf, ball: () => ballPos(now()), omok: () => omok, glassHave, mapHave, photoHave, mapPieceToday, openOldBottle, setOldBottle: () => { oldBottleAt = 0; }, giveAnchovy, flockG, stormStars: () => stormStars, toads, setNeck, onPicked, shellN: () => shellN };   // 시험용
 nick.addEventListener('keydown', e => { if (e.key === 'Enter') enter(); });
 })();
