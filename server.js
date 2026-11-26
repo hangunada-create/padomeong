@@ -146,6 +146,7 @@ function checkBottle(text) {
   return { text: s };
 }
 const lastBottleBy = new Map();   // 가림값 → 마지막으로 띄운 시각
+const lastReplyBy = new Map();    // 가림값 → 마지막으로 답장한 시각
 
 /* ───────── 통계 (숫자만 모음) ───────── */
 const stats = load('stats.json', {});   // { 'YYYY-MM-DD': {...} }
@@ -316,7 +317,7 @@ const server = http.createServer((req, res) => {
       notifyOwner('파도멍 서버에서 보낸 시험 알림이에요 🐚', null).then(r => json(res, 200, { 결과: r, 대화방: tgChat || '(아직 못 찾음)', 안내: tgChat && !process.env.TELEGRAM_CHAT_ID ? '이 대화방 번호를 TELEGRAM_CHAT_ID 환경변수에 넣어 두면 서버가 다시 켜져도 바로 보내요' : undefined }));
       return;
     }
-    if (p === '/admin/bottles') return json(res, 200, bottles.list.slice().reverse().map(b => ({ id: b.id, 글: b.text, 날짜: new Date(b.ts).toISOString(), 신고: b.reports.length, 숨김: !!b.hidden })));
+    if (p === '/admin/bottles') return json(res, 200, bottles.list.slice().reverse().map(b => ({ id: b.id, 글: b.text, 날짜: new Date(b.ts).toISOString(), 신고: b.reports.length, 숨김: !!b.hidden, 처음온사람에게: !!b.nw, 답장: (b.replies || []).map(x => (x.hidden ? '(숨김) ' : '') + x.text) })));
     if (p === '/admin/hide' || p === '/admin/show') {
       const b = bottles.list.find(b => b.id === Number(u.searchParams.get('id')));
       if (!b) return json(res, 404, { 안내: '없는 병이에요' });
@@ -618,10 +619,33 @@ wss.on('connection', (ws, req) => {
       const was = c.lvl; c.lvl = 0; c.gen++; c.by.clear();
       sendRoom(me.room, { t: 'cs', i, lvl: 0, gen: c.gen, fell: was });
 
-    } else if (m.t === 'mine' && Array.isArray(m.ids)) {   // 내가 띄운 병이 몇 명에게 닿았는지
-      const r = {};
-      for (const bid of m.ids.slice(0, 30)) { const b = bottles.list.find(b => b.id === Number(bid)); if (b) r[b.id] = b.reads || 0; }
-      send(ws, { t: 'mineR', r });
+    } else if (m.t === 'mine' && Array.isArray(m.ids)) {   // 내가 띄운 병이 몇 명에게 닿았는지, 답장 (병 열쇠가 맞을 때만)
+      const r = {}, rp = {}, keys = Array.isArray(m.keys) ? m.keys : [];
+      m.ids.slice(0, 30).forEach((bid, k) => {
+        const b = bottles.list.find(b => b.id === Number(bid)); if (!b) return;
+        r[b.id] = b.reads || 0;
+        if (b.key && keys[k] === b.key && b.replies) rp[b.id] = b.replies.map((x, i) => [i, x.hidden ? '' : x.text]).filter(x => x[1]);
+      });
+      send(ws, { t: 'mineR', r, rp });
+
+    } else if (m.t === 'br') {                    // 받은 병에 답장 (한 병에 한 사람 한 번, 답장은 병을 띄운 사람에게만 간다)
+      const b = bottles.list.find(b => b.id === Number(m.id));
+      if (!b || !seen.has(b.id) || mine.has(b.id) || b.hidden) return send(ws, { t: 'br', ok: false, msg: '이 병에는 답장할 수 없어요' });
+      if (!b.key) return send(ws, { t: 'br', ok: false, msg: '이 병은 너무 오래 떠다녀서 쓴 사람에게 돌아갈 수 없어요' });
+      b.rtags = b.rtags || [];
+      if (b.rtags.includes(tag)) return send(ws, { t: 'br', ok: false, msg: '이 병에는 이미 답장을 보냈어요' });
+      const wait = 3 * 60e3 - (t - (lastReplyBy.get(tag) || 0));
+      if (wait > 0) return send(ws, { t: 'br', ok: false, msg: `조금 쉬었다가 보내요 (${Math.ceil(wait / 60e3)}분 뒤)` });
+      const r = checkBottle(m.text); if (typeof r === 'string') return send(ws, { t: 'br', ok: false, msg: r });
+      b.replies = b.replies || []; if (b.replies.length >= 5) return send(ws, { t: 'br', ok: false, msg: '이 병에는 답장이 벌써 가득해요' });
+      b.replies.push({ text: r.text, ts: t, hidden: false }); b.rtags.push(tag); lastReplyBy.set(tag, t);
+      save('bottles.json', bottles); bump('답장');
+      send(ws, { t: 'br', ok: true });
+
+    } else if (m.t === 'rrep') {                  // 내게 온 답장 신고: 병 열쇠가 맞으면 바로 숨김
+      const b = bottles.list.find(b => b.id === Number(m.id)), x = b && b.replies && b.replies[m.k | 0];
+      if (!x || !b.key || m.key !== b.key) return;
+      x.hidden = true; save('bottles.json', bottles); bump('신고');
 
     } else if (m.t === 'dw') {                    // 모래에 그림 그리기 (손가락으로 그린 선, 파도가 지울 때까지)
       if (t - lastDraw < 20000) return send(ws, { t: 'wr', ok: false, msg: '조금 있다가 다시 그려요' });   // 그리기는 쓰기와 따로 센다
@@ -759,23 +783,24 @@ wss.on('connection', (ws, req) => {
       sendRoom(me.room, { t: 'w', w });
 
     } else if (m.t === 'bq') {                    // 유리병 하나 받기
-      const pool = bottles.list.filter(b => !b.hidden && !mine.has(b.id) && !seen.has(b.id));
+      let pool = bottles.list.filter(b => !b.hidden && !mine.has(b.id) && !seen.has(b.id));
+      if (m.first) { pool = pool.filter(b => b.nw); if (!pool.length) return send(ws, { t: 'b', id: null, first: 1 }); }   // 처음 온 사람에게: '처음 오는 사람에게' 쓴 병만
       if (!pool.length) { bump('빈병'); return send(ws, { t: 'b', id: null }); }
       // 최근 병이 조금 더 자주 오되, 오래된 병도 계속 떠다니게
       const b = pool[Math.floor(Math.pow(Math.random(), 0.7) * pool.length)];
       seen.add(b.id); bump('받은병'); b.reads = (b.reads || 0) + 1; save('bottles.json', bottles);
-      send(ws, { t: 'b', id: b.id, text: b.text });
+      send(ws, { t: 'b', id: b.id, text: b.text, first: m.first ? 1 : 0, can: b.key && !(b.rtags || []).includes(tag) ? 1 : 0 });
 
     } else if (m.t === 'bs') {                    // 유리병 띄우기
       const wait = 10 * 60e3 - (t - (lastBottleBy.get(tag) || 0));
       if (wait > 0) return send(ws, { t: 'bs', ok: false, msg: `조금 쉬었다가 띄워요 (${Math.ceil(wait / 60e3)}분 뒤)` });
       const r = checkBottle(m.text);
       if (typeof r === 'string') return send(ws, { t: 'bs', ok: false, msg: r });
-      const b = { id: bottles.next++, text: r.text, ts: t, reports: [], hidden: false };
+      const b = { id: bottles.next++, text: r.text, ts: t, reports: [], hidden: false, nw: m.nw ? 1 : 0, key: crypto.randomBytes(8).toString('hex') };
       bottles.list.push(b); while (bottles.list.length > MAX_BOTTLES) bottles.list.shift();
       mine.add(b.id); lastBottleBy.set(tag, t);
       save('bottles.json', bottles); bump('띄운병');
-      send(ws, { t: 'bs', ok: true, id: b.id });
+      send(ws, { t: 'bs', ok: true, id: b.id, key: b.key });
 
     } else if (m.t === 'wrep') {                  // 모래 글씨·그림 신고: 서로 다른 세 사람이 신고하면 바로 지운다
       const list = writings.get(me.room) || [], i = list.findIndex(w => w[0] === Number(m.id)); if (i < 0) return;
