@@ -90,6 +90,8 @@
   body.gohado #acts .chip:not(#breathBtn):not(#backBtn):not(#act) { display: none !important; }
   #backBtn { display: none; } body.gohado #backBtn { display: inline-block; }
   body.gohado #stall { display: none !important; }
+  #noteBtn { display: none; } body.hasnote #noteBtn { display: inline-block; } body.gohado #noteBtn { display: none !important; }
+  #noteList .it { padding: 8px 0; border-bottom: 1px dashed rgba(0,0,0,.12); } #noteList .it b { display: block; font-size: 13px; opacity: .7; }
   .stone { background: linear-gradient(#6f6a62, #57524b); color: #efe9dc; border-radius: 6px 6px 3px 3px; padding: 14px 10px; text-align: center; margin: 8px 0 10px;
            font-family: "Noto Serif KR", "Apple SD Gothic Neo", serif; box-shadow: inset 0 0 0 3px rgba(0,0,0,.12); }
   .stone .big { font-size: 21px; letter-spacing: .14em; writing-mode: vertical-rl; margin: 0 auto; height: 220px; text-shadow: 0 1px 0 rgba(0,0,0,.35); }
@@ -211,6 +213,7 @@
   <button id="gcBtn" class="chip">끼룩</button>
   <button id="dexBtn" class="chip">도감</button>
   <button id="cardBtn" class="chip">엽서</button>
+  <button id="noteBtn" class="chip">수첩</button>
 </div>
 <div id="dexSheet" class="sheet"><div class="k">물이 빠지면 무언가 드러나요</div><div class="guide" id="dexGuide">? 칸을 누르면 실마리가 나와요. 날씨와 물때, 달과 별을 따라 천천히 모여요.<br>도감은 지금 이 기기, 이 브라우저에 담겨요. 다른 기기나 시크릿 창에서는 따로 모이고, 방문 기록을 지우면 사라져요.<br>다 모으면 완성 카드를 받아 간직하고, 노점에 알릴 수 있어요.<span class="gift2">🎁 도감을 다 모은 분께 이음수산 생선회와 작은 굿즈를 보내 드립니다. (선착순 10명)</span></div><div id="dexGrid"></div><div class="note" id="dexNote"></div><div id="dexExtra"></div>
 <div class="row"><span></span><button class="main" id="dexClose">닫기</button></div></div>
@@ -227,6 +230,8 @@
 <div class="row"><button class="sub" id="sandCancel">그만두기</button><button class="sub" id="sandReport" style="display:none">신고하기</button><button class="main" id="sandSend">모래에 쓰기</button></div></div>
 <div id="mungLine"></div>
 <div id="fade"></div>
+<div id="clueSheet" class="sheet" style="max-height:86vh;overflow-y:auto"><div class="k" id="clueHead"></div><canvas id="clueCanvas" width="320" height="120" style="width:100%;max-width:320px;display:block;margin:8px auto"></canvas><div class="msg" id="clueMsg" style="font-size:15px"></div><div class="note" id="clueNote"></div><div class="row"><button class="main" id="clueClose">수첩에 적어 두기</button></div></div>
+<div id="noteSheet" class="sheet"><div class="k">수첩 · 대반동에서 주운 것들</div><div id="noteList" style="font-size:14px;line-height:1.6;max-height:52vh;overflow-y:auto"></div><div class="note" id="noteHint"></div><div class="row"><button class="main" id="noteClose">닫기</button></div></div>
 <div id="boatSheet" class="sheet"><div class="k">작은 배가 바다 건너 고하도 선착장으로 가요</div>
 <div class="note">일주일에 한 번, 토요일에만 대반동 물가에 와서 하루 종일 기다리는 배예요. 돌아오는 배는 언제든 탈 수 있어요.</div>
 <div class="row"><button class="sub" id="boatNo">다음에</button><button class="main" id="boatGo">건너가기</button></div></div>
@@ -3548,6 +3553,7 @@ function keeperRect() { const s = sOf(KEEPER.d) * 1.9, x = xOf(KEEPER.x, KEEPER.
 function hitKeeper(cx, cy) { const { s, x, y } = keeperRect(); return cx > x - 24 * s && cx < x + 36 * s && cy > y - 44 * s && cy < y + 6 * s; }
 function tapKeeper() {
   keeperNod = performance.now();
+  if (keeperClue()) return;
   if (performance.now() - keeperSaid > 8000) { keeperSaid = performance.now(); toast(KEEPER_LINES[Math.floor(Math.random() * KEEPER_LINES.length)]); }
 }
 function drawKeeper(pn, t, nf) {               // 옆으로 비스듬히 앉아 바다와 사람 쪽을 번갈아 보는 나그네, 곁에 하얀 강아지
@@ -3609,6 +3615,97 @@ function drawKeeper(pn, t, nf) {               // 옆으로 비스듬히 앉아 
   }
   ctx.restore();
 }
+
+/* ───────── 대반동의 숨은 이야기: 맞이하고 배웅하는 곶, 떠났다 돌아온 모래 ─────────
+   단서는 하나씩 차례로 나타난다. 지금 찾을 단서 하나만 모래 위에서 희미하게 반짝인다.
+   1 젖은 배표 → 2 나그네의 몸짓 → 3 물 빠진 왼쪽 끝의 짐표 → 4 오른쪽 끝 녹슨 표지판 → 5 측량 말뚝 → 6 해 질 녘 나그네의 수첩.
+   사실 부분: 목포시 관광 안내(섬사람들이 대반동 곶에 첫인사, 용머리 너머까지 배웅), 대반동 해수욕장 운영 중단과 연안정비 뒤 돌아온 모래사장. */
+const CLUES = [
+  { k: 'ticket', x: 620, d: 0.3, head: '모래에 반쯤 묻힌 젖은 종이', name: '젖은 배표 반쪽',
+    msg: '배표 반쪽이에요. "목포 → 하의…"까지만 읽히고 날짜는 번져서 보이지 않아요. 섬으로 들어가는 배표 같아요. 누가 이 바닷가에서 떨어뜨렸을까요?',
+    hint: '섬으로 가는 배표… 이 바닷가에 늘 앉아 있는 사람이라면 뭔가 알지도 몰라요.' },
+  { k: 'gaze', keeper: true, head: '나그네에게 배표를 보여 주었어요', name: '나그네가 바라본 곳',
+    msg: '나그네는 배표를 한참 보더니, 고하도 끝 용머리 쪽 바다를 손끝으로 가리켰어요. 그리고 그쪽을 오래 바라보았어요.',
+    hint: '용머리 쪽, 해변 왼쪽 끝. 물이 빠지면 드러나는 모래를 걸어 봐요.' },
+  { k: 'tag', x: 300, low: true, head: '물 빠진 모래 위의 작은 나무 조각', name: '나무 짐표',
+    msg: '끈이 달린 나무 짐표예요. 먹으로 "하의도행 · 미역 두 단"이라고 적혀 있어요. 섬에서 배를 타고 목포로 나왔다가, 다시 섬으로 돌아가던 짐이에요.',
+    hint: '모래사장 오른쪽 끝에 반쯤 묻힌 쇳조각이 있대요.' },
+  { k: 'sign', x: 2960, d: 0.3, head: '모래에 비스듬히 박힌 녹슨 철판', name: '녹슨 표지판 조각',
+    msg: '녹이 슨 철판 조각이에요. 페인트가 벗겨졌지만 "…반동 해수욕…" 몇 글자가 남아 있어요. 이 바닷가가 한때 해수욕장이었다는 표시예요. 그런데 왜 이렇게 묻혀 있을까요?',
+    hint: '표지판이 있던 자리 가까이, 빨간 끈을 맨 나무 말뚝을 찾아봐요.' },
+  { k: 'stake', x: 2800, d: 0.2, head: '빨간 끈을 맨 나무 말뚝', name: '측량 말뚝',
+    msg: '빨간 끈이 바람에 나부끼는 나무 말뚝이에요. 바다와 모래의 경계를 새로 그을 때 박는 측량 말뚝이에요. 누군가 이 모래사장을 다시 만들었다는 뜻이에요.',
+    hint: '해 질 녘, 나그네에게 다시 가 봐요.' },
+  { k: 'book', keeper: true, sunset: true, head: '해 질 녘, 나그네가 낡은 수첩 한 장을 건넸어요', name: '나그네의 수첩 마지막 장', last: true,
+    msg: '섬에서 목포로 나오는 배가 이 곶에 닿으면, 뱃멀미에 누워 있던 섬사람들이 일어나 육지에 첫인사를 했대요. 섬으로 돌아갈 때는 배가 고하도 용머리를 돌아 보이지 않을 때까지 대반동이 지켜봐 준다고 해서, 섬사람들은 이곳에 정이 깊대요.\n\n이 바닷가는 모래가 자꾸 빠져나가는 자리라 한동안 해수욕장 문을 닫았어요. 그러다 바닷가를 다시 고르는 공사로 모래사장이 놓이고, 사람들이 다시 찾아오기 시작했어요.\n\n사람도 모래도 떠났다가 돌아오는 자리예요. 언제 와도, 언제 떠나도 괜찮아요. 이 바다가 맞이하고 배웅해 줄 테니까요.',
+    note: '앞의 두 이야기는 실제예요. 섬사람과 대반동 이야기는 목포시 관광 안내에, 해수욕장이 문을 닫았다가 연안정비 뒤 모래사장이 돌아온 일은 목포시와 지역 신문 기사에 나와요. 배표·짐표·나그네는 이 바닷가에서 지어낸 것이에요.' }
+];
+let clueN = +load('pm_clue', '0') || 0;
+const clueSheet = document.getElementById('clueSheet'), noteSheet = document.getElementById('noteSheet');
+document.body.classList.toggle('hasnote', clueN > 0);
+const isDusk = () => { const st = sunTimes(now()), h = hourNow(); return FAST || (h > st.set - 0.75 && h < st.set + 0.5); };
+function cluePos(c) { return c.low ? { x: c.x, d: Math.max(edgeD(0.15), -0.3) + 0.06 } : { x: c.x, d: c.d }; }
+function clueVisible() {
+  const c = CLUES[clueN]; if (!c || c.keeper || SCENE !== 'beach') return null;
+  if (c.low && tideL > 0.38 && !FAST) return null;                      // 물이 빠져야 드러난다
+  return c;
+}
+function drawClue(pn, nf) {
+  const c = clueVisible(); if (!c) return;
+  const p = cluePos(c), s = sOf(p.d), x = xOf(p.x, p.d), y = yOf(p.d);
+  if (x < -40 || x > W + 40) return;
+  const dark = nf > 0.5;
+  ctx.save(); ctx.translate(x, y);
+  if (c.k === 'ticket') { ctx.rotate(-0.25); ctx.fillStyle = dark ? '#8a8676' : '#efe6cf'; ctx.fillRect(-7 * s, -3 * s, 14 * s, 5 * s); ctx.fillStyle = dark ? '#5a6a80' : '#7d9cc2'; ctx.fillRect(-7 * s, -3 * s, 3 * s, 5 * s); }
+  if (c.k === 'tag') { ctx.rotate(0.3); ctx.fillStyle = dark ? '#6a5640' : '#b48a5a'; ctx.fillRect(-5 * s, -3 * s, 10 * s, 6 * s); ctx.strokeStyle = dark ? '#8a7a60' : '#e8dcc0'; ctx.lineWidth = 0.8 * s; ctx.beginPath(); ctx.moveTo(-5 * s, 0); ctx.quadraticCurveTo(-10 * s, 3 * s, -13 * s, 1 * s); ctx.stroke(); }
+  if (c.k === 'sign') { ctx.rotate(-0.35); ctx.fillStyle = dark ? '#5a3a28' : '#a4582e'; ctx.fillRect(-12 * s, -10 * s, 20 * s, 10 * s); ctx.fillStyle = dark ? '#6a6a70' : '#d8d4c8'; ctx.fillRect(-10 * s, -8 * s, 9 * s, 3 * s); ctx.fillStyle = dark ? '#7a5a3a' : '#c9a876'; ctx.beginPath(); ctx.ellipse(0, 0, 16 * s, 3 * s, 0.35, 0, 6.3); ctx.fill(); }
+  if (c.k === 'stake') { ctx.fillStyle = dark ? '#5a4a38' : '#a88456'; ctx.fillRect(-1.6 * s, -22 * s, 3.2 * s, 22 * s); const fl = Math.sin(pn / 260) * 3 * s;
+    ctx.strokeStyle = '#d23a2e'; ctx.lineWidth = 1.4 * s; ctx.beginPath(); ctx.moveTo(0, -20 * s); ctx.quadraticCurveTo(6 * s, -20 * s + fl, 11 * s, -17 * s - fl); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0, -19 * s); ctx.quadraticCurveTo(5 * s, -15 * s - fl, 9 * s, -13 * s + fl); ctx.stroke(); }
+  ctx.restore();
+  const a = 0.5 + 0.5 * Math.sin(pn / 330);                               // 여기 뭔가 있다는 반짝임
+  ctx.fillStyle = `rgba(255,250,220,${0.75 * a})`; ctx.beginPath(); ctx.arc(x + 5 * s, y - 6 * s - (c.k === 'stake' ? 14 * s : 0), 1.8 * s + a * s, 0, 6.3); ctx.fill();
+}
+function hitClue(cx, cy) {
+  const c = clueVisible(); if (!c) return null;
+  const p = cluePos(c), s = sOf(p.d); return Math.abs(cx - xOf(p.x, p.d)) < 26 * s + 8 && cy > yOf(p.d) - 30 * s - 8 && cy < yOf(p.d) + 10 * s ? c : null;
+}
+function tapClue(c) { const p = cluePos(c); goPick(p.x, p.d, () => foundClue(c)); }
+function keeperClue() {                    // 나그네를 눌렀을 때: 지금 단서가 나그네 차례면
+  const c = CLUES[clueN]; if (!c || !c.keeper) return false;
+  if (c.sunset && !isDusk()) { toast('(나그네가 해를 한 번 올려다보고, 아직은 아니라는 듯 고개를 젓는다)'); return true; }
+  setTimeout(() => foundClue(c), 700); return true;
+}
+function drawClueArt(c) {
+  const cv = document.getElementById('clueCanvas'), g = cv.getContext('2d'), w = cv.width, h = cv.height;
+  g.clearRect(0, 0, w, h); g.fillStyle = '#e9dcc0'; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 500; i++) { g.fillStyle = `rgba(120,90,50,${Math.random() * 0.12})`; g.fillRect(Math.random() * w, Math.random() * h, 1.5, 1.5); }
+  g.save(); g.translate(w / 2, h / 2); g.font = '600 15px "Apple SD Gothic Neo","Noto Sans KR",serif'; g.textAlign = 'center';
+  if (c.k === 'ticket') { g.rotate(-0.06); g.fillStyle = '#f7f0dc'; g.fillRect(-110, -34, 200, 68); g.fillStyle = '#7d9cc2'; g.fillRect(-110, -34, 34, 68); g.fillStyle = '#3a3a3a'; g.fillText('목포  →  하의', 30, -4); g.fillStyle = 'rgba(80,100,140,.25)'; g.beginPath(); g.ellipse(40, 16, 52, 10, 0, 0, 6.3); g.fill(); g.strokeStyle = '#c8bba0'; g.setLineDash([4, 4]); g.beginPath(); g.moveTo(90, -34); g.lineTo(90, 34); g.stroke(); }
+  if (c.k === 'gaze') { g.strokeStyle = '#6b5a45'; g.lineWidth = 2; g.beginPath(); g.moveTo(-140, 20); g.quadraticCurveTo(-60, -10, 20, 18); g.quadraticCurveTo(60, 30, 140, 22); g.stroke(); g.fillStyle = '#6b5a45'; g.beginPath(); g.moveTo(-140, 20); g.quadraticCurveTo(-110, -18, -70, 8); g.lineTo(-70, 20); g.fill(); g.fillText('용머리', -100, 44); g.font = '22px serif'; g.fillText('→', 60, -16); }
+  if (c.k === 'tag') { g.rotate(0.05); g.fillStyle = '#c49a68'; g.fillRect(-70, -30, 140, 60); g.fillStyle = '#e9dcc0'; g.beginPath(); g.arc(-56, 0, 6, 0, 6.3); g.fill(); g.fillStyle = '#2a2018'; g.fillText('하의도행', 10, -4); g.font = '13px serif'; g.fillText('미역 두 단', 10, 18); }
+  if (c.k === 'sign') { g.rotate(-0.08); g.fillStyle = '#a4582e'; g.fillRect(-120, -36, 240, 72); g.fillStyle = 'rgba(230,226,214,.9)'; g.fillRect(-100, -20, 120, 36); g.fillStyle = '#2f5d8a'; g.font = '700 18px "Apple SD Gothic Neo",sans-serif'; g.fillText('…반동 해수욕', -40, 6); for (let i = 0; i < 40; i++) { g.fillStyle = `rgba(120,50,20,${Math.random() * 0.5})`; g.beginPath(); g.arc(Math.random() * 240 - 120, Math.random() * 72 - 36, Math.random() * 6, 0, 6.3); g.fill(); } }
+  if (c.k === 'stake') { g.fillStyle = '#a88456'; g.fillRect(-6, -46, 12, 92); g.strokeStyle = '#d23a2e'; g.lineWidth = 4; g.beginPath(); g.moveTo(0, -36); g.quadraticCurveTo(30, -44, 54, -30); g.stroke(); g.beginPath(); g.moveTo(0, -32); g.quadraticCurveTo(26, -22, 46, -14); g.stroke(); }
+  if (c.k === 'book') { g.rotate(-0.03); g.fillStyle = '#f4ead2'; g.fillRect(-90, -48, 180, 96); g.strokeStyle = 'rgba(120,100,70,.35)'; for (let i = -30; i < 44; i += 14) { g.beginPath(); g.moveTo(-76, i); g.lineTo(76, i); g.stroke(); } g.fillStyle = '#4a3a30'; g.font = 'italic 14px serif'; g.fillText('맞이하고, 배웅하고', 0, -8); g.fillText('떠났다가, 돌아오고', 0, 18); }
+  g.restore();
+}
+function foundClue(c) {
+  if (CLUES[clueN] !== c) return;
+  clueN++; save('pm_clue', String(clueN)); document.body.classList.add('hasnote');
+  drawClueArt(c);
+  document.getElementById('clueHead').textContent = c.head;
+  document.getElementById('clueMsg').textContent = c.msg; document.getElementById('clueMsg').style.whiteSpace = 'pre-line';
+  const nx = CLUES[clueN];
+  document.getElementById('clueNote').textContent = c.last ? c.note : `수첩에 적었어요 (${clueN}/${CLUES.length}) · ${c.hint}`;
+  document.getElementById('clueClose').textContent = c.last ? '수첩을 덮기' : '수첩에 적어 두기';
+  clueSheet.classList.add('on'); wake(); void nx;
+}
+document.getElementById('clueClose').addEventListener('click', () => clueSheet.classList.remove('on'));
+document.getElementById('noteBtn').addEventListener('click', () => {
+  document.getElementById('noteList').innerHTML = CLUES.slice(0, clueN).map(c => `<div class="it"><b>${c.name}</b>${c.msg.split('\n\n')[0]}</div>`).join('');
+  document.getElementById('noteHint').textContent = clueN >= CLUES.length ? '이야기를 다 찾았어요. 언제 와도, 언제 떠나도 괜찮아요.' : `다음 단서 · ${CLUES[clueN - 1].hint}`;
+  noteSheet.classList.add('on'); wake();
+});
+document.getElementById('noteClose').addEventListener('click', () => noteSheet.classList.remove('on'));
 
 /* ───────── 다녀간 사람의 자리 ─────────
    오늘 누군가 1분 넘게 앉았다 간 자리에, 모래가 살짝 눌린 자국과 떠나간 발자국 몇 개가 남아 있다.
@@ -4553,6 +4650,7 @@ function frame(pn) {
   drawProjections(t, nf);
   drawBeachBoat(pn, dE, nf);
   drawTraces(pn, nf);
+  drawClue(pn, nf);
   drawBottles(pn, t, dE, nf);
 
   const all = [...peers.values()]; if (joined) all.push(me);
@@ -4815,6 +4913,7 @@ cv.addEventListener('pointerdown', e => {
   if (!joined) return;
   if (SCENE === 'gohado') { gohadoTap(e); return; }
   if (hitKeeper(e.clientX, e.clientY)) { tapKeeper(); return; }
+  { const c = hitClue(e.clientX, e.clientY); if (c) { tapClue(c); return; } }
   { const dE0 = edgeD(waveAt(now()).reach);
     if (hitBeachBoat(e.clientX, e.clientY, dE0)) {
       if (Math.abs(me.x - BOAT_X) < 160 && Math.abs(me.d - dE0) < 0.4) { boatSheet.classList.add('on'); wake(); preloadBoat(); }
@@ -4951,7 +5050,7 @@ function enter() {
   setTimeout(() => hint.classList.add('gone'), 9000);
 }
 document.getElementById('go').addEventListener('click', enter);
-if (FAST) window.__gh = { news: () => askBottleNews(), bt: () => bottle && { st: bottle.state, first: bottle.first, reply: bottle.reply, text: bottle.text, can: bottle.can }, keeper: () => { const r = keeperRect(); return [r.x, r.y]; }, cross: crossTo, me: () => me, cam: v => { camX = v; }, peers: () => peers.size, st: () => [SCENE, myRoom, stoneSheet.classList.contains('on'), boatSheet.classList.contains('on')], stone: () => { const r = stoneRect(); return [r.x, r.y - r.h / 2]; }, boat: () => { const dE = edgeD(waveAt(now()).reach), b = boatSpot(); return [xOf(b.x, b.d), yOf(b.d)]; } };
+if (FAST) window.__gh = { clue: () => clueN, clueXY: () => { const c = clueVisible(); if (!c) return null; const p = cluePos(c); return [xOf(p.x, p.d), yOf(p.d)]; }, goto: (x, d) => { me.x = me.vx = x; me.d = me.vd = d; me.tx = me.td = null; camX = x; }, news: () => askBottleNews(), bt: () => bottle && { st: bottle.state, first: bottle.first, reply: bottle.reply, text: bottle.text, can: bottle.can }, keeper: () => { const r = keeperRect(); return [r.x, r.y]; }, cross: crossTo, me: () => me, cam: v => { camX = v; }, peers: () => peers.size, st: () => [SCENE, myRoom, stoneSheet.classList.contains('on'), boatSheet.classList.contains('on')], stone: () => { const r = stoneRect(); return [r.x, r.y - r.h / 2]; }, boat: () => { const dE = edgeD(waveAt(now()).reach), b = boatSpot(); return [xOf(b.x, b.d), yOf(b.d)]; } };
 if (FAST) window.__pm = { mullet: () => mullet, glow: () => ({ glowK, pair: !!glowPair }), calm: () => calmOverride, sunset: () => sunTimes(now()).set, dbg: () => ({ edge: edgeD(waveAt(now()).reach), vd: me.vd, vx: me.vx, sit: me.sit, joined }), me, openOldBottle, onPicked, feet: () => feet, rememberWord, weekHint, castle: () => castles, items: () => items, setWX, buildCastle, addItem, spawnReset: () => { itemEpoch = -1; }, beaconWord, crabs: () => crabs, gull: () => gull, porpNow: () => { porpNext = 0; }, porp: () => porp, FIREWORKS, weekSentence, cst: () => cst, constelPts, lanterns, writings, dex: () => dex, high: () => HIGH_NOW, setSit, peers, xy: (x, d) => [xOf(x, d), yOf(d)], shots, aim: () => aimDrag, termToday, questionOf, qAnswers, flocks, gold: () => GOLD, hitQuestion, walkerNow, npc: () => npc, meteors, storyOf, ball: () => ballPos(now()), omok: () => omok, glassHave, mapHave, photoHave, mapPieceToday, openOldBottle, setOldBottle: () => { oldBottleAt = 0; }, giveAnchovy, flockG, stormStars: () => stormStars, toads, setNeck, onPicked, shellN: () => shellN };   // 시험용
 nick.addEventListener('keydown', e => { if (e.key === 'Enter') enter(); });
 })();
