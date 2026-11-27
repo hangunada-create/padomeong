@@ -1348,7 +1348,8 @@ document.getElementById('sandSend').addEventListener('click', () => {
     return;
   }
   const d = clamp(me.d - 0.06, -0.3, 1);
-  if (ws && online) ws.send(JSON.stringify({ t: 'w', text: v, x: Math.round(me.x), d: +d.toFixed(3) }));
+  const secret = WEEK_SENTENCES.some(ws_ => v.replace(/\s/g, '') === ws_.map(x => x[1]).join(''));   // 등대 문장은 쓴 사람 화면에만 남긴다
+  if (ws && online && !secret) ws.send(JSON.stringify({ t: 'w', text: v, x: Math.round(me.x), d: +d.toFixed(3) }));
   else { addWriting([-Date.now(), me.x, d, v, now(), me.color], true); closeSand(); }
 });
 /* 모래 그리기 그림판 */
