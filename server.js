@@ -773,7 +773,7 @@ wss.on('connection', (ws, req) => {
 
     } else if (m.t === 'w') {                     // 모래에 글씨 쓰기 (파도가 지울 때까지만 남음)
       if (t - lastSand < 20000) return send(ws, { t: 'wr', ok: false, msg: '조금 있다가 다시 써요' });
-      const text = checkSand(m.text, typeof m.text === 'string' && /^[.\-·•\s/]+$/.test(m.text.trim()) ? 40 : 24);   // 모스 부호는 40자까지
+      const text = checkSand(m.text, 24);
       if (!text) return send(ws, { t: 'wr', ok: false, msg: '이 글씨는 모래에 남길 수 없어요' });
       lastSand = t; bump('모래글씨');
       const w = [nextW++, clamp(num(m.x, me.x), 40, WORLD_W - 40), clamp(num(m.d, me.d), -0.3, D_MAX), text, t, me.color];
