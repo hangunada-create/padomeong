@@ -1889,7 +1889,7 @@ const HINTS = {
   gullflock: '노점에서 멸치를 얻어 갈매기에게 던져 보세요', seaglass: '물 빠진 모래에서 일곱 빛깔 바다 유리를 모아 보세요', omok: '모래 위 오목판에서 한 판을 끝까지',
   horn: '목포항에서 쾌속선이 떠나는 시각, 바닷가에 있어 보세요', mapdone: '하루에 한 조각씩, 모래 속 지도 조각을 일곱 날 모아 보세요', oldphoto: '물가에 밀려온 짙은 갈색 병을 찾아보세요. 하루 한 병, 옛 목포 일곱 장을 다 모으면 도감에 담겨요',
   wish: '밤하늘에 별똥별이 지나가면 그 자리를 눌러 보세요', walker: '아침 7시, 낮 12시 반, 저녁 6시에 해변을 걷는 사람이 있어요', sunset: '해 지는 시각에 십 분 동안 머물러 보세요',
-  myfire: '저녁 바다에서 불꽃 단추를 당겨 쏘아 보세요', sentence: '등대가 밤마다 한 낱말씩 깜빡여요(월~일, 일곱 낱말이 한 문장). 같은 문장은 4주마다 돌아오니 천천히 모아도 돼요. 다 모이면 그 문장이 돌아온 주에 노점 앞 모래에 써 보세요',
+  myfire: '저녁 바다에서 불꽃 단추를 당겨 쏘아 보세요', sentence: '등대가 밤마다 한 낱말씩 깜빡여요(월~일, 일곱 낱말이 한 문장). 같은 문장은 4주마다 돌아오니 천천히 모아도 돼요. 다 모이면 언제든 그 문장을 오목판에서 노점 사이 모래에 써 보세요',
 };
 function dexHint(id) {
   const t = now(), day = 864e5, md = ms => { const d = new Date(ms + 9 * 3600e3); return `${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일`; };
@@ -2338,16 +2338,16 @@ function weekHint() {
   const si = sentIdx(now()), got = weekHeard.s[si] || {};
   if (!Object.keys(got).length) return '';
   const s = weekSentence(now()), n = Object.keys(got).length;
-  return (n >= 7 ? '이번 주 등대 문장을 다 모았어요 · 노점 앞 모래에 써 보세요 · ' : `이번 주 등대 문장 ${n}/7 · `) + s.map((w, i) => (got[i] ? w[1] : '○')).join(' ');
+  return (n >= 7 ? '이번 주 등대 문장을 다 모았어요 · 오목판에서 노점 사이 모래에 써 보세요 · ' : `이번 주 등대 문장 ${n}/7 · `) + s.map((w, i) => (got[i] ? w[1] : '○')).join(' ');
 }
 let stallSpecial = 0, sentenceDone = -1, stallForce = 0;
 function checkSentence(w, live) {
-  if (!live || Math.abs(w.x - STALL.x) > 420) return;
-  const flat = String(w.text).replace(/\s/g, ''), s = weekSentence(now());
-  if (flat !== s.map(x => x[1]).join('')) return;
+  if (!live || w.x < OMOK.x - 90) return;                       // 오목판부터 노점까지, 그 사이 모래면 된다
+  const flat = String(w.text).replace(/\s/g, '');
+  if (!WEEK_SENTENCES.some(s => flat === s.map(x => x[1]).join(''))) return;   // 네 문장 중 어느 것이든, 아무 주에나
   const { wk } = weekOf(now());
   if (sentenceDone === wk) return; sentenceDone = wk;
-  const here = joined && Math.abs(me.x - STALL.x) < 700;
+  const here = joined && me.x > OMOK.x - 500;
   stallSpecial = performance.now() + 60000;
   if (here) { stallDismissed = false; stallForce = performance.now() + 25000; if (stallOpen) stallShow(); }
   if (here) setTimeout(() => addItem('sentence', '노점 주인이 답했어요 · 도감에 담았어요'), 900);
