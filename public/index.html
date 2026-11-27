@@ -6,12 +6,16 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="파도멍">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>파도멍 — 목포 대반동 바닷가</title>
-<meta name="description" content="목포 대반동 바닷가에 파라솔 하나 들고 와서 앉아, 목포대교 너머로 파도가 오가는 모습과 소리를 함께 보는 곳.">
-<meta property="og:title" content="파도멍">
+<title>대반동 파도멍 — 목포 대반동 바닷가에서 함께 파도 보기</title>
+<meta name="description" content="대반동 파도멍: 목포 대반동 바닷가에 앉아 목포대교 너머로 오가는 파도를 다른 사람들과 함께 보는 작은 웹 공간. 로그인·앱 설치·결제 없이 들어와 앉아 있으면 돼요.">
+<link rel="canonical" href="https://padomeong.onrender.com/">
+<meta property="og:url" content="https://padomeong.onrender.com/">
+<meta property="og:site_name" content="대반동 파도멍">
+<!-- 네이버 서치어드바이저 / 구글 서치콘솔 소유 확인 메타 태그를 받으면 이 줄 아래에 붙여 넣으세요 -->
+<meta property="og:title" content="대반동 파도멍">
 <meta property="og:description" content="목포 대반동 바닷가에 파라솔 하나 들고 와서 앉아, 파도가 오가는 걸 함께 봅니다.">
 <meta property="og:type" content="website">
-<meta property="og:image" content="/og.png">
+<meta property="og:image" content="https://padomeong.onrender.com/og.png">
 <meta name="theme-color" content="#2f7fb5">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -188,6 +192,14 @@
 </style>
 </head>
 <body>
+<!-- 검색엔진과 화면 낭독기를 위한 소개 (화면에는 보이지 않음) -->
+<div id="about" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap">
+<h1>대반동 파도멍</h1>
+<p>대반동 파도멍은 전라남도 목포 대반동 바닷가를 옮겨 놓은 웹 공간이에요. 목포대교와 고하도가 보이는 모래사장에 앉아, 실제 목포의 물때와 날씨에 맞춰 밀려오고 빠지는 파도를 다른 사람들과 함께 봐요.</p>
+<p>로그인도, 앱 설치도, 결제도 없어요. 들어와서 앉아 있기만 해도 괜찮아요. 유리병에 한 줄을 적어 띄우면 다른 누군가에게 닿고, 받은 병에는 답장을 할 수 있어요. 바닷가에는 늘 같은 자리에서 바다를 보는 나그네가 있고, 모래 위에는 대반동에 얽힌 이야기의 단서가 숨어 있어요.</p>
+<p>토요일에는 고하도로 건너가는 작은 배가 와요. 고하도에서는 조선육지면발상지 비석과 목화밭을 볼 수 있어요.</p>
+<p>목포 자유시장의 이상한 생선가게 이음수산이 만들었어요.</p>
+</div>
 <canvas id="sea"></canvas>
 
 <div id="top" class="hud"><b id="placeName">파도멍 · 대반동</b><div id="count">바닷가에 들어가는 중…</div><div id="calmLine">파도 소리에 귀 기울이기만 해도 좋아요</div><div id="ritual"></div><div id="wxLine"></div><div id="tideLine"></div><div id="eventLine"></div><div id="todayLine"></div></div>

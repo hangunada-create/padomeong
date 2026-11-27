@@ -20,7 +20,7 @@ const MAX_PEOPLE = 500;        // 한 바닷가에 동시에 있을 수 있는 �
 const MAX_PER_IP = 8;
 const TYPES = { '.html': 'text/html; charset=utf-8', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml',
                 '.ico': 'image/x-icon', '.txt': 'text/plain; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
-                '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.wav': 'audio/wav', '.json': 'application/json; charset=utf-8' };
+                '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.wav': 'audio/wav', '.json': 'application/json; charset=utf-8', '.xml': 'application/xml; charset=utf-8' };
 TYPES['.json'] = 'application/manifest+json; charset=utf-8';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
