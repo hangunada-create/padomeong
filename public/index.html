@@ -3643,13 +3643,13 @@ function drawKeeper(pn, t, nf) {               // 바다를 보고 앉은 나그
    사실 부분: 목포시 관광 안내(섬사람들이 대반동 곶에 첫인사, 용머리 너머까지 배웅), 대반동 해수욕장 운영 중단과 연안정비 뒤 돌아온 모래사장. */
 const CLUES = [
   { k: 'ticket', x: 620, d: 0.3, head: '모래에 반쯤 묻힌 젖은 종이', name: '젖은 배표 반쪽',
-    msg: '배표 반쪽이에요. "목포 → 하의…"까지만 읽히고 날짜는 번져서 보이지 않아요. 섬으로 들어가는 배표 같아요. 누가 이 바닷가에서 떨어뜨렸을까요?',
+    msg: '배표 반쪽이에요. "목포 → 도초…"까지만 읽히고 날짜는 번져서 보이지 않아요. 섬으로 들어가는 배표 같아요. 누가 이 바닷가에서 떨어뜨렸을까요?',
     hint: '섬으로 가는 배표… 이 바닷가에 늘 앉아 있는 사람이라면 뭔가 알지도 몰라요.' },
   { k: 'gaze', keeper: true, head: '나그네에게 배표를 보여 주었어요', name: '나그네가 바라본 곳',
-    msg: '나그네는 배표를 한참 보더니, 고하도 끝 용머리 쪽 바다를 손끝으로 가리켰어요. 그리고 그쪽을 오래 바라보았어요.',
-    hint: '용머리 쪽, 해변 왼쪽 끝. 물이 빠지면 드러나는 모래를 걸어 봐요.' },
+    msg: '나그네는 배표를 한참 보더니, 모래 위에 손가락으로 뱃길을 그렸어요. 목포항을 나선 배들은 모두 이 대반동 곶 앞을 스치고, 목포대교 아래를 지나, 고하도 끝 용머리를 돌아 도초도·안좌도·장산도·만재도, 멀리 제주까지 흩어진대요. 섬으로 가는 배라면 누구든 이 곶 앞을 지나는 거예요. 그리고 나그네는 용머리 쪽을 오래 바라보았어요.',
+    hint: '뱃길이 돌아 나가는 용머리 쪽, 해변 왼쪽 끝. 물이 빠지면 드러나는 모래를 걸어 봐요.' },
   { k: 'tag', x: 300, low: true, head: '물 빠진 모래 위의 작은 나무 조각', name: '나무 짐표',
-    msg: '끈이 달린 나무 짐표예요. 먹으로 "하의도행 · 미역 두 단"이라고 적혀 있어요. 섬에서 배를 타고 목포로 나왔다가, 다시 섬으로 돌아가던 짐이에요.',
+    msg: '끈이 달린 나무 짐표예요. 먹으로 "도초도행 · 미역 두 단"이라고 적혀 있어요. 섬에서 배를 타고 목포로 나왔다가, 다시 섬으로 돌아가던 짐이에요.',
     hint: '모래사장 오른쪽 끝에 반쯤 묻힌 쇳조각이 있대요.' },
   { k: 'sign', x: 2960, d: 0.3, head: '모래에 비스듬히 박힌 녹슨 철판', name: '녹슨 표지판 조각',
     msg: '녹이 슨 철판 조각이에요. 페인트가 벗겨졌지만 "…반동 해수욕…" 몇 글자가 남아 있어요. 이 바닷가가 한때 해수욕장이었다는 표시예요. 그런데 왜 이렇게 묻혀 있을까요?',
@@ -3696,14 +3696,37 @@ function keeperClue() {                    // 나그네를 눌렀을 때: 지금
   if (c.sunset && !isDusk()) { toast('(나그네가 해를 한 번 올려다보고, 아직은 아니라는 듯 고개를 젓는다)'); return true; }
   setTimeout(() => foundClue(c), 700); return true;
 }
+function drawRouteMap(g, w, h) {          // 대반동 앞 뱃길: 목포항에서 나온 배가 대반동 곶 앞, 목포대교 아래, 용머리를 돌아 섬으로
+  const X = v => v * w / 320, Y = v => v * h / 220;
+  g.fillStyle = '#cfe4ef'; g.fillRect(0, 0, w, h);
+  g.fillStyle = '#efe7d4'; g.strokeStyle = '#b9a988'; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(X(232), 0); g.lineTo(X(320), 0); g.lineTo(X(320), Y(220)); g.lineTo(X(300), Y(220));        // 동쪽 뭍: 유달산 아래 대반동 곶
+  g.quadraticCurveTo(X(262), Y(185), X(268), Y(150)); g.quadraticCurveTo(X(236), Y(118), X(242), Y(92)); g.quadraticCurveTo(X(224), Y(60), X(232), 0); g.closePath(); g.fill(); g.stroke();
+  g.beginPath(); g.moveTo(X(70), Y(220)); g.lineTo(X(92), Y(150)); g.quadraticCurveTo(X(96), Y(128), X(101), Y(126));   // 고하도와 용머리
+  g.quadraticCurveTo(X(108), Y(130), X(112), Y(150)); g.quadraticCurveTo(X(132), Y(182), X(176), Y(220)); g.closePath(); g.fill(); g.stroke();
+  g.strokeStyle = '#e9c35a'; g.lineWidth = Math.max(2, X(5)); g.beginPath(); g.moveTo(X(124), 0); g.quadraticCurveTo(X(100), Y(110), X(86), Y(220)); g.stroke();   // 목포대교
+  g.setLineDash([X(4), X(3)]); g.lineWidth = 1.2; g.strokeStyle = '#4d6f8f';
+  const ends = [[0, Y(60), '만재도'], [0, Y(80), '도초도'], [0, Y(100), '안좌도'], [0, Y(158), '장산도'], [0, Y(180), '제주']];
+  ends.forEach(([ex, ey], i) => { g.beginPath(); g.moveTo(X(320), Y(176 + i * 7)); g.bezierCurveTo(X(240), Y(150 + i * 4), X(200), Y(104 + i * 3), X(150), Y(102 + i * 3)); g.bezierCurveTo(X(100), Y(100 + i * 3), X(74), Y(106 + i * 2), ex, ey); g.stroke(); });
+  g.setLineDash([]);
+  g.font = `600 ${Math.round(X(10))}px "Apple SD Gothic Neo","Noto Sans KR",sans-serif`; g.fillStyle = '#2f4a62'; g.textAlign = 'left';
+  ends.forEach(([ex, ey, nm]) => g.fillText(nm, ex + X(3), ey - Y(2)));
+  g.fillStyle = '#5a4a36'; g.textAlign = 'center';
+  g.fillText('목포대교', X(140), Y(16)); g.fillText('고하도', X(118), Y(205)); g.fillText('용머리', X(78), Y(132));
+  g.textAlign = 'right'; g.fillText('목포항 쪽 →', X(316), Y(214)); g.fillText('유달산', X(312), Y(40));
+  g.fillStyle = '#c8402e'; g.beginPath(); g.arc(X(244), Y(96), X(4), 0, 6.3); g.fill();
+  g.textAlign = 'left'; g.fillText('대반동(유달유원지)', X(212) - X(80), Y(96) - X(8));
+}
 function drawClueArt(c) {
-  const cv = document.getElementById('clueCanvas'), g = cv.getContext('2d'), w = cv.width, h = cv.height;
-  g.clearRect(0, 0, w, h); g.fillStyle = '#e9dcc0'; g.fillRect(0, 0, w, h);
+  const cv = document.getElementById('clueCanvas'); cv.height = c.k === 'gaze' ? 220 : 120;
+  const g = cv.getContext('2d'), w = cv.width, h = cv.height;
+  g.clearRect(0, 0, w, h);
+  if (c.k === 'gaze') { drawRouteMap(g, w, h); return; } g.fillStyle = '#e9dcc0'; g.fillRect(0, 0, w, h);
   for (let i = 0; i < 500; i++) { g.fillStyle = `rgba(120,90,50,${Math.random() * 0.12})`; g.fillRect(Math.random() * w, Math.random() * h, 1.5, 1.5); }
   g.save(); g.translate(w / 2, h / 2); g.font = '600 15px "Apple SD Gothic Neo","Noto Sans KR",serif'; g.textAlign = 'center';
-  if (c.k === 'ticket') { g.rotate(-0.06); g.fillStyle = '#f7f0dc'; g.fillRect(-110, -34, 200, 68); g.fillStyle = '#7d9cc2'; g.fillRect(-110, -34, 34, 68); g.fillStyle = '#3a3a3a'; g.fillText('목포  →  하의', 30, -4); g.fillStyle = 'rgba(80,100,140,.25)'; g.beginPath(); g.ellipse(40, 16, 52, 10, 0, 0, 6.3); g.fill(); g.strokeStyle = '#c8bba0'; g.setLineDash([4, 4]); g.beginPath(); g.moveTo(90, -34); g.lineTo(90, 34); g.stroke(); }
+  if (c.k === 'ticket') { g.rotate(-0.06); g.fillStyle = '#f7f0dc'; g.fillRect(-110, -34, 200, 68); g.fillStyle = '#7d9cc2'; g.fillRect(-110, -34, 34, 68); g.fillStyle = '#3a3a3a'; g.fillText('목포  →  도초', 30, -4); g.fillStyle = 'rgba(80,100,140,.25)'; g.beginPath(); g.ellipse(40, 16, 52, 10, 0, 0, 6.3); g.fill(); g.strokeStyle = '#c8bba0'; g.setLineDash([4, 4]); g.beginPath(); g.moveTo(90, -34); g.lineTo(90, 34); g.stroke(); }
   if (c.k === 'gaze') { g.strokeStyle = '#6b5a45'; g.lineWidth = 2; g.beginPath(); g.moveTo(-140, 20); g.quadraticCurveTo(-60, -10, 20, 18); g.quadraticCurveTo(60, 30, 140, 22); g.stroke(); g.fillStyle = '#6b5a45'; g.beginPath(); g.moveTo(-140, 20); g.quadraticCurveTo(-110, -18, -70, 8); g.lineTo(-70, 20); g.fill(); g.fillText('용머리', -100, 44); g.font = '22px serif'; g.fillText('→', 60, -16); }
-  if (c.k === 'tag') { g.rotate(0.05); g.fillStyle = '#c49a68'; g.fillRect(-70, -30, 140, 60); g.fillStyle = '#e9dcc0'; g.beginPath(); g.arc(-56, 0, 6, 0, 6.3); g.fill(); g.fillStyle = '#2a2018'; g.fillText('하의도행', 10, -4); g.font = '13px serif'; g.fillText('미역 두 단', 10, 18); }
+  if (c.k === 'tag') { g.rotate(0.05); g.fillStyle = '#c49a68'; g.fillRect(-70, -30, 140, 60); g.fillStyle = '#e9dcc0'; g.beginPath(); g.arc(-56, 0, 6, 0, 6.3); g.fill(); g.fillStyle = '#2a2018'; g.fillText('도초도행', 10, -4); g.font = '13px serif'; g.fillText('미역 두 단', 10, 18); }
   if (c.k === 'sign') { g.rotate(-0.08); g.fillStyle = '#a4582e'; g.fillRect(-120, -36, 240, 72); g.fillStyle = 'rgba(230,226,214,.9)'; g.fillRect(-100, -20, 120, 36); g.fillStyle = '#2f5d8a'; g.font = '700 18px "Apple SD Gothic Neo",sans-serif'; g.fillText('…반동 해수욕', -40, 6); for (let i = 0; i < 40; i++) { g.fillStyle = `rgba(120,50,20,${Math.random() * 0.5})`; g.beginPath(); g.arc(Math.random() * 240 - 120, Math.random() * 72 - 36, Math.random() * 6, 0, 6.3); g.fill(); } }
   if (c.k === 'stake') { g.fillStyle = '#a88456'; g.fillRect(-6, -46, 12, 92); g.strokeStyle = '#d23a2e'; g.lineWidth = 4; g.beginPath(); g.moveTo(0, -36); g.quadraticCurveTo(30, -44, 54, -30); g.stroke(); g.beginPath(); g.moveTo(0, -32); g.quadraticCurveTo(26, -22, 46, -14); g.stroke(); }
   if (c.k === 'book') { g.rotate(-0.03); g.fillStyle = '#f4ead2'; g.fillRect(-90, -48, 180, 96); g.strokeStyle = 'rgba(120,100,70,.35)'; for (let i = -30; i < 44; i += 14) { g.beginPath(); g.moveTo(-76, i); g.lineTo(76, i); g.stroke(); } g.fillStyle = '#4a3a30'; g.font = 'italic 14px serif'; g.fillText('맞이하고, 배웅하고', 0, -8); g.fillText('떠났다가, 돌아오고', 0, 18); }
@@ -3722,7 +3745,8 @@ function foundClue(c) {
 }
 document.getElementById('clueClose').addEventListener('click', () => clueSheet.classList.remove('on'));
 document.getElementById('noteBtn').addEventListener('click', () => {
-  document.getElementById('noteList').innerHTML = CLUES.slice(0, clueN).map(c => `<div class="it"><b>${c.name}</b>${c.msg.split('\n\n')[0]}</div>`).join('');
+  document.getElementById('noteList').innerHTML = CLUES.slice(0, clueN).map(c => `<div class="it"><b>${c.name}</b>${c.k === 'gaze' ? '<canvas id="noteMap" width="320" height="220" style="width:100%;max-width:320px;display:block;margin:4px 0 6px;border-radius:6px"></canvas>' : ''}${c.msg.split('\n\n')[0]}</div>`).join('');
+  const nm = document.getElementById('noteMap'); if (nm) drawRouteMap(nm.getContext('2d'), nm.width, nm.height);
   document.getElementById('noteHint').textContent = clueN >= CLUES.length ? '이야기를 다 찾았어요. 언제 와도, 언제 떠나도 괜찮아요.' : `다음 단서 · ${CLUES[clueN - 1].hint}`;
   noteSheet.classList.add('on'); wake();
 });
