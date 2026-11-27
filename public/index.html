@@ -239,7 +239,7 @@
 <div class="note" id="drawNote"></div>
 <div class="row"><button class="sub" id="drawCancel">그만두기</button><button class="sub" id="drawClear">다시 그리기</button><button class="main" id="drawSend">모래에 그리기</button></div></div>
 <div id="sandSheet" class="sheet"><div class="k" id="sandK">모래에 몇 글자 써 두면, 파도가 닿을 때 지워져요. 물가 가까이 쓸수록 빨리 지워집니다.</div>
-<textarea id="sandText" maxlength="16" placeholder="16자까지" style="height:56px"></textarea>
+<textarea id="sandText" maxlength="24" placeholder="24자까지" style="height:56px"></textarea>
 <div class="note" id="sandNote"></div>
 <div class="row"><button class="sub" id="sandCancel">그만두기</button><button class="sub" id="sandReport" style="display:none">신고하기</button><button class="main" id="sandSend">모래에 쓰기</button></div></div>
 <div id="mungLine"></div>
@@ -1301,7 +1301,7 @@ function addWriting(w, live) {
 const sandK = document.getElementById('sandK'), SAND_K = sandK.textContent;
 document.getElementById('sandBtn').addEventListener('click', () => {
   document.getElementById('sandReport').style.display = 'none';
-  appendTo = null; answering = false; sandK.textContent = SAND_K; sandText.maxLength = 16; sandText.placeholder = '16자까지';
+  appendTo = null; answering = false; sandK.textContent = SAND_K; sandText.maxLength = 24; sandText.placeholder = '24자까지';
   sandNote.textContent = ''; sandSheet.classList.add('on'); setTimeout(() => sandText.focus(), 50); wake();
 });
 // 모래 글씨·그림 신고: 서버로 보내고, 내 화면에서는 바로 지운다
@@ -1567,7 +1567,9 @@ function drawLighthouse(G, nf, t, pn) {
 }
 function checkBeaconWord(text) {
   const [rom, ko] = beaconWord(now()), v = text.replace(/\s/g, '').toUpperCase();
-  if (v === rom || v === ko) {
+  let dec = '';                                        // 모스 부호 그대로 써도 알아듣는다 (· 와 - , 글자 사이는 띄어쓰기나 /)
+  if (/^[.\-·•\s/]+$/.test(text.trim())) { const R = {}; for (const k in MORSE) R[MORSE[k]] = k; dec = text.trim().replace(/[·•]/g, '.').split(/[\s/]+/).map(c => R[c] || '?').join(''); }
+  if (v === rom || v === ko || dec === rom) {
     beaconReply = performance.now(); rememberWord();
     setTimeout(() => addItem('beacon', '고하도 등대가 답했어요 · 등대의 말을 도감에 담았어요'), 1200);
   }
@@ -2933,7 +2935,7 @@ function openAnswer() {
   document.getElementById('sandReport').style.display = 'none';
   appendTo = null; answering = true;
   sandK.textContent = `오늘의 질문 · “${questionOf(now())}” 아래에 답을 이어 써요. 자정이 되면 파도가 지워요.`;
-  sandText.maxLength = 16; sandText.placeholder = '16자까지'; sandText.value = '';
+  sandText.maxLength = 24; sandText.placeholder = '24자까지'; sandText.value = '';
   sandNote.textContent = ''; sandSheet.classList.add('on'); setTimeout(() => sandText.focus(), 50); wake();
 }
 

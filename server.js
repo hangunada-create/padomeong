@@ -539,7 +539,7 @@ function pickRoom() {
 }
 // 오늘 다녀간 사람 (화면 위에 보여 줄 숫자)
 function todayView() { const d = day(); return { v: d.입장 || 0 }; }
-function checkSand(text, max = 16) {
+function checkSand(text, max = 24) {
   if (typeof text !== 'string') return null;
   const s = text.replace(/[\u0000-\u001f\u007f<>]/g, '').replace(/\s+/g, ' ').trim();
   if (s.length < 1 || s.length > max) return null;
@@ -750,7 +750,7 @@ wss.on('connection', (ws, req) => {
       const list = qaList(), used = qa.by.get(tag) || 0;
       if (used >= 3) return send(ws, { t: 'wr', ok: false, msg: '오늘은 충분히 답했어요' });
       if (t - lastSand < 8000) return send(ws, { t: 'wr', ok: false, msg: '조금 있다가 다시 써요' });
-      const text = checkSand(m.text, 16);
+      const text = checkSand(m.text, 24);
       if (!text) return send(ws, { t: 'wr', ok: false, msg: '이 글씨는 모래에 남길 수 없어요' });
       lastSand = t; qa.by.set(tag, used + 1); bump('질문답');
       const a = [nextQ++, text, me.color];
