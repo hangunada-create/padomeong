@@ -239,7 +239,7 @@
 <div class="note" id="drawNote"></div>
 <div class="row"><button class="sub" id="drawCancel">그만두기</button><button class="sub" id="drawClear">다시 그리기</button><button class="main" id="drawSend">모래에 그리기</button></div></div>
 <div id="sandSheet" class="sheet"><div class="k" id="sandK">모래에 몇 글자 써 두면, 파도가 닿을 때 지워져요. 물가 가까이 쓸수록 빨리 지워집니다.</div>
-<textarea id="sandText" maxlength="24" placeholder="24자까지" style="height:56px"></textarea>
+<textarea id="sandText" maxlength="40" placeholder="24자까지 · 모스 부호는 40자" style="height:56px"></textarea>
 <div class="note" id="sandNote"></div>
 <div class="row"><button class="sub" id="sandCancel">그만두기</button><button class="sub" id="sandReport" style="display:none">신고하기</button><button class="main" id="sandSend">모래에 쓰기</button></div></div>
 <div id="mungLine"></div>
@@ -1301,7 +1301,7 @@ function addWriting(w, live) {
 const sandK = document.getElementById('sandK'), SAND_K = sandK.textContent;
 document.getElementById('sandBtn').addEventListener('click', () => {
   document.getElementById('sandReport').style.display = 'none';
-  appendTo = null; answering = false; sandK.textContent = SAND_K; sandText.maxLength = 24; sandText.placeholder = '24자까지';
+  appendTo = null; answering = false; sandK.textContent = SAND_K; sandText.maxLength = 40; sandText.placeholder = '24자까지 · 모스 부호는 40자';
   sandNote.textContent = ''; sandSheet.classList.add('on'); setTimeout(() => sandText.focus(), 50); wake();
 });
 // 모래 글씨·그림 신고: 서버로 보내고, 내 화면에서는 바로 지운다
@@ -1335,6 +1335,8 @@ document.getElementById('sandCancel').addEventListener('click', () => { sandShee
 document.getElementById('sandSend').addEventListener('click', () => {
   const v = sandText.value.replace(/\s+/g, ' ').trim();
   if (!v) { sandNote.textContent = '한 글자 이상 써 주세요'; return; }
+  const isMorse = /^[.\-·•\s/]+$/.test(v);              // 모스 부호는 길어서 40자까지, 그 밖의 글은 24자까지
+  if (!isMorse && v.length > 24 && !answering && !appendTo) { sandNote.textContent = '24자까지 쓸 수 있어요 (모스 부호는 40자까지)'; return; }
   checkBeaconWord(v);
   if (answering) {
     if (ws && online) ws.send(JSON.stringify({ t: 'qa', text: v }));
@@ -2935,7 +2937,7 @@ function openAnswer() {
   document.getElementById('sandReport').style.display = 'none';
   appendTo = null; answering = true;
   sandK.textContent = `오늘의 질문 · “${questionOf(now())}” 아래에 답을 이어 써요. 자정이 되면 파도가 지워요.`;
-  sandText.maxLength = 24; sandText.placeholder = '24자까지'; sandText.value = '';
+  sandText.maxLength = 16; sandText.placeholder = '16자까지'; sandText.value = '';
   sandNote.textContent = ''; sandSheet.classList.add('on'); setTimeout(() => sandText.focus(), 50); wake();
 }
 
