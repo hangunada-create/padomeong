@@ -5067,6 +5067,16 @@ timeBtn.addEventListener('click', () => { timeMode = (timeMode + 1) % TIME_MODES
 
 /* ───────── 입장 ───────── */
 const sw = document.getElementById('swatches'), nick = document.getElementById('nick');
+/* ───────── 브라우저 저장 칸 (localStorage) ─────────
+   규칙: 새 기능에는 새 칸을 만든다. 이미 있는 칸을 다른 뜻으로 같이 쓰지 않는다. 칸을 쓰기 전에 이 목록과 코드 전체에서 이름을 찾아본다.
+   특히 도감 완성 이벤트 확인에 쓰는 칸(pm_first, pm_dex, pm_tok, pm_origin, pm_movein, pm_moveout, pm_doneno)은 다른 기능이 절대 건드리지 않는다.
+   pm_first    처음 온 날(날짜 번호) · 도감 완성까지 며칠 걸렸는지
+   pm_dex      도감          pm_tok / pm_origin   브라우저 표식 / 도감 뿌리
+   pm_movein / pm_moveout   도감 옮기기 기록      pm_doneno   완성 카드 번호
+   pm_letter1  처음 온 사람에게 가는 병을 받았는지('1')
+   pm_clue     대반동 숨은 이야기 단서 수        pm_mybottles 내가 띄운 병 [번호, 읽힌 수, 열쇠, 본 답장 수, 글]
+   pm_name / pm_color / pm_gender / pm_seat / pm_neck…   내 모습
+   그 밖: pm_week, pm_walker, pm_storm, pm_shells, pm_rit, pm_photos, pm_oldday, pm_map, pm_glass, pm_fw, pm_constel, pm_cardhung, pm_inst, pm_neckmade, pm_test */
 function load(k, f) { try { const v = localStorage.getItem(k); return v === null ? f : v; } catch (e) { return f; } }
 function save(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
 me.color = clamp(parseInt(load('pm_color', Math.floor(Math.random() * PARASOLS.length)), 10) || 0, 0, PARASOLS.length - 1);
