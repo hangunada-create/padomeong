@@ -538,7 +538,7 @@ function pickRoom() {
   for (let r = 1; ; r++) { const set = rooms.get(r); if (!set || set.size < ROOM_CAP) return r; }
 }
 // 오늘 다녀간 사람 (화면 위에 보여 줄 숫자)
-function todayView() { const d = day(); return { v: d.입장 || 0 }; }
+function todayView() { const d = day(); return { v: d.사람 || 0 }; }   // 들어온 횟수가 아니라 서로 다른 사람(브라우저) 수
 function checkSand(text, max = 16) {
   if (typeof text !== 'string') return null;
   const s = text.replace(/[\u0000-\u001f\u007f<>]/g, '').replace(/\s+/g, ' ').trim();
