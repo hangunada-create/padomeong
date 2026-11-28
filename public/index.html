@@ -2590,8 +2590,10 @@ function drawFireworks(pn, t) {
     if (e < 1) {
       const y = lerp(hy, r.yb, 1 - Math.pow(1 - e, 2));
       ctx.fillStyle = `rgba(255,230,190,${0.8 * (1 - e * 0.3)})`; ctx.beginPath(); ctx.arc(r.x, y, 1.6 * U, 0, 6.3); ctx.fill();
+      if (!r.launched) { r.launched = 1; boom(0.2, 1600, 0.35); }   // 퓽 (불꽃 한 발과 같은 소리)
       continue;
     }
+    if (!r.popped) { r.popped = 1; boom(0.9 * (0.6 + Math.random() * 0.4), 380, 1.4); }   // 펑
     const b = e - 1, fade = life - 1.2, a = clamp(1 - b / fade, 0, 1);
     const col = r.kind === 'willow' ? '255,200,120' : r.c;
     if (b < 0.15) { const g = ctx.createRadialGradient(r.x, r.yb, 0, r.x, r.yb, r.sp * 1.2); g.addColorStop(0, `rgba(${col},${0.35 * (1 - b / 0.15)})`); g.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = g; ctx.fillRect(r.x - r.sp * 1.2, r.yb - r.sp * 1.2, r.sp * 2.4, r.sp * 2.4); }
