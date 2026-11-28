@@ -573,12 +573,16 @@ wss.on('connection', (ws, req) => {
 
     if (m.t === 'join' && id === null) {
       id = nextId++;
+      const myTok = String(m.tok || '').replace(/[^a-z0-9]/gi, '').slice(0, 24);
+      if (myTok && myTok !== 'x') for (const [pid, p] of people) if (p.tok === myTok && p.ws !== ws) {   // 같은 브라우저로 다시 들어오면, 남아 있던 예전 내 모습은 거둔다
+        p.gone = 1; try { p.ws.close(4001, 'dup'); } catch (e) {} setTimeout(() => { try { p.ws.terminate(); } catch (e) {} }, 3000);
+      }
       const room = pickRoom();
       const me = { ws, room, x: clamp(num(m.x, WORLD_W / 2), 40, WORLD_W - 40), d: clamp(num(m.d, 0.8), D_MIN, D_MAX),
-                   sit: m.sit ? 1 : 0, k: m.k ? 1 : 0, g: m.g === 'f' ? 'f' : 'm', st: ['mat', 'chair'].includes(m.st) ? m.st : 'mat', n: m.n ? 1 : 0, color: clamp(Math.floor(num(m.color, 0)), 0, 7), name: cleanName(m.name), bot: isBot };
+                   sit: m.sit ? 1 : 0, k: m.k ? 1 : 0, g: m.g === 'f' ? 'f' : 'm', st: ['mat', 'chair'].includes(m.st) ? m.st : 'mat', n: m.n ? 1 : 0, color: clamp(Math.floor(num(m.color, 0)), 0, 7), name: cleanName(m.name), bot: isBot, tok: myTok };
       if (!rooms.has(room)) rooms.set(room, new Set());
       const list = [];
-      for (const pid of rooms.get(room)) { const p = people.get(pid); if (p) list.push([pid, p.x, p.d, p.sit, p.color, p.name, p.k, p.g, p.st, p.n]); }
+      for (const pid of rooms.get(room)) { const p = people.get(pid); if (p && !p.gone) list.push([pid, p.x, p.d, p.sit, p.color, p.name, p.k, p.g, p.st, p.n]); }
       rooms.get(room).add(id); people.set(id, me);
       const d = day(); d.최대동시접속 = Math.max(d.최대동시접속, people.size);
       if (!isBot) { const tk = String(m.tok || '').replace(/[^a-z0-9]/gi, '').slice(0, 24); bump('입장'); countPerson(tag + ':' + tk); noteVisit(tk); }
