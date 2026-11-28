@@ -2552,14 +2552,9 @@ function drawBreathPuff(x, y, s, t, seed, dir) {
 const FIREWORKS = [
   ['2027-01-01T00:00:00+09:00', 15, '새해'],
 ];
-function fwNights(ms) {                               // 매달 마지막 토요일 저녁 8시 반, 파도멍 불꽃의 밤
-  const d = new Date(ms + 9 * 3600e3), out = [];
-  for (let k = -1; k <= 2; k++) {
-    const y = d.getUTCFullYear(), m = d.getUTCMonth() + k;
-    const last = new Date(Date.UTC(y, m + 1, 0)), back = (last.getUTCDay() + 1) % 7;   // 토요일까지 거슬러
-    const day = last.getUTCDate() - back;
-    out.push([Date.UTC(y, m, day, 20, 30) - 9 * 3600e3, 15, '파도멍']);
-  }
+function fwNights(ms) {                               // 2주마다 토요일 저녁 8시 반부터 10분, 파도멍 불꽃의 밤 (2026-12-05 토요일부터 격주)
+  const D = 864e5, base = Date.UTC(2026, 11, 5, 20, 30) - 9 * 3600e3, k0 = Math.floor((ms - base) / (14 * D)), out = [];
+  for (let k = k0 - 1; k <= k0 + 2; k++) out.push([base + k * 14 * D, 10, '파도멍']);
   return out;
 }
 function fwList(ms) { return FIREWORKS.map(([at, mins, name]) => [Date.parse(at), mins, name]).concat(fwNights(ms)).sort((a, b) => a[0] - b[0]); }
@@ -2573,13 +2568,15 @@ function fwState(ms) {
   return null;
 }
 const rockets = []; let nextRocket = 0, fwTold = false, fwSeenAt = 0;
+const FW_KINDS = ['peony', 'peony', 'ring', 'willow', 'palm', 'crackle', 'double'];   // 둥근 꽃, 고리, 버드나무, 야자수, 반짝이, 두 겹
 const FW_COLORS = [[255, 120, 110], [255, 210, 120], [140, 210, 255], [190, 150, 255], [140, 255, 190], [255, 255, 240]];
 function drawFireworks(pn, t) {
   const st = fwState(t);
   if (st && st.on) {
     if (pn > nextRocket) {
       nextRocket = pn + 500 + Math.random() * 1100;
-      rockets.push({ x: W * (0.28 + Math.random() * 0.6), yb: horizonY() * (0.18 + Math.random() * 0.35), t0: pn, c: FW_COLORS[Math.floor(Math.random() * FW_COLORS.length)], n: 40 + Math.floor(Math.random() * 30), sp: (60 + Math.random() * 50) * U, seed: Math.random() * 6 });
+      const kind = FW_KINDS[Math.floor(Math.random() * FW_KINDS.length)];
+      rockets.push({ kind, c2: FW_COLORS[Math.floor(Math.random() * FW_COLORS.length)], x: W * (0.28 + Math.random() * 0.6), yb: horizonY() * (0.18 + Math.random() * 0.35), t0: pn, c: FW_COLORS[Math.floor(Math.random() * FW_COLORS.length)], n: 40 + Math.floor(Math.random() * 30), sp: (60 + Math.random() * 50) * U, seed: Math.random() * 6 });
     }
     if (joined) { if (!fwSeenAt) fwSeenAt = pn; if (!fwTold && pn - fwSeenAt > (FAST ? 2000 : 10000)) { fwTold = true; addItem('firework', `목포 ${st.name} 불꽃을 함께 봤어요 · 도감에 담았어요`); } }
   }
@@ -2587,21 +2584,48 @@ function drawFireworks(pn, t) {
   const hy = horizonY();
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
   for (let i = rockets.length - 1; i >= 0; i--) {
-    const r = rockets[i], e = (pn - r.t0) / 1000;
-    if (e > 3.2) { rockets.splice(i, 1); continue; }
+    const r = rockets[i], e = (pn - r.t0) / 1000, life = r.kind === 'willow' ? 5.2 : r.kind === 'palm' ? 4 : 3.2;
+    if (e > life) { rockets.splice(i, 1); continue; }
     if (e < 1) {
       const y = lerp(hy, r.yb, 1 - Math.pow(1 - e, 2));
       ctx.fillStyle = `rgba(255,230,190,${0.8 * (1 - e * 0.3)})`; ctx.beginPath(); ctx.arc(r.x, y, 1.6 * U, 0, 6.3); ctx.fill();
-    } else {
-      const b = e - 1, a = clamp(1 - b / 2.2, 0, 1);
-      if (b < 0.15) { const g = ctx.createRadialGradient(r.x, r.yb, 0, r.x, r.yb, r.sp * 1.2); g.addColorStop(0, `rgba(${r.c},${0.35 * (1 - b / 0.15)})`); g.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = g; ctx.fillRect(r.x - r.sp * 1.2, r.yb - r.sp * 1.2, r.sp * 2.4, r.sp * 2.4); }
-      ctx.strokeStyle = `rgba(${r.c},${a})`; ctx.lineWidth = 1.8 * U; ctx.lineCap = 'round';
-      const pos = (ang, bb, sp) => { const d = sp * (1 - Math.exp(-bb * 2.2)); return [r.x + Math.cos(ang) * d, r.yb + Math.sin(ang) * d + 18 * U * bb * bb]; };
-      for (let j = 0; j < r.n; j++) {
-        const ang = j / r.n * 6.283 + r.seed, sp = j % 3 ? r.sp : r.sp * 0.6;
-        const [px, py] = pos(ang, b, sp), [qx, qy] = pos(ang, Math.max(0, b - 0.12), sp);
+      continue;
+    }
+    if (!r.popped) { r.popped = 1; const far = 0.35 + Math.random() * 0.25; setTimeout(() => boom(far, 900, r.kind === 'willow' ? 2 : 1.3), 500 + Math.random() * 400); }   // 대교 너머라 조금 늦게 들린다
+    const b = e - 1, fade = life - 1.2, a = clamp(1 - b / fade, 0, 1);
+    const col = r.kind === 'willow' ? '255,200,120' : r.c;
+    if (b < 0.15) { const g = ctx.createRadialGradient(r.x, r.yb, 0, r.x, r.yb, r.sp * 1.2); g.addColorStop(0, `rgba(${col},${0.35 * (1 - b / 0.15)})`); g.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = g; ctx.fillRect(r.x - r.sp * 1.2, r.yb - r.sp * 1.2, r.sp * 2.4, r.sp * 2.4); }
+    const grav = r.kind === 'willow' ? 34 : r.kind === 'palm' ? 26 : 18, spread = r.kind === 'willow' ? 1.5 : 2.2;
+    const pos = (ang, bb, sp) => { const d = sp * (1 - Math.exp(-bb * spread)); return [r.x + Math.cos(ang) * d, r.yb + Math.sin(ang) * d + grav * U * bb * bb]; };
+    ctx.lineCap = 'round';
+    const rays = (n, sp, c, lw, tail, alpha) => {
+      ctx.strokeStyle = `rgba(${c},${alpha})`; ctx.lineWidth = lw;
+      for (let j = 0; j < n; j++) {
+        const ang = j / n * 6.283 + r.seed, [px, py] = pos(ang, b, sp), [qx, qy] = pos(ang, Math.max(0, b - tail), sp);
         if (py > hy) continue;
         ctx.beginPath(); ctx.moveTo(qx, qy); ctx.lineTo(px, py); ctx.stroke();
+      }
+    };
+    if (r.kind === 'ring') {                    // 고리: 같은 거리에 점들만
+      ctx.fillStyle = `rgba(${col},${a})`;
+      for (let j = 0; j < 36; j++) { const [px, py] = pos(j / 36 * 6.283 + r.seed, b, r.sp); if (py < hy) { ctx.beginPath(); ctx.arc(px, py, 1.8 * U, 0, 6.3); ctx.fill(); } }
+    } else if (r.kind === 'willow') {           // 버드나무: 금빛 꼬리가 길게 늘어진다
+      rays(56, r.sp * 0.9, col, 1.4 * U, 0.55, a * 0.9);
+    } else if (r.kind === 'palm') {             // 야자수: 굵은 가지 몇 개
+      rays(9, r.sp * 1.1, col, 3.2 * U, 0.35, a);
+    } else if (r.kind === 'double') {           // 두 겹: 바깥과 안쪽 색이 다르다
+      rays(r.n, r.sp, col, 1.8 * U, 0.12, a);
+      rays(Math.floor(r.n * 0.6), r.sp * 0.5, r.c2, 1.6 * U, 0.1, a);
+    } else {
+      rays(r.n, r.sp, col, 1.8 * U, 0.12, a);
+      for (let j = 0; j < r.n; j += 3) {        // 둥근 꽃의 안쪽 고리
+        const ang = j / r.n * 6.283 + r.seed, [px, py] = pos(ang, b, r.sp * 0.6), [qx, qy] = pos(ang, Math.max(0, b - 0.12), r.sp * 0.6);
+        if (py < hy) { ctx.strokeStyle = `rgba(${col},${a})`; ctx.beginPath(); ctx.moveTo(qx, qy); ctx.lineTo(px, py); ctx.stroke(); }
+      }
+      if (r.kind === 'crackle' && b > 0.7) {    // 반짝이: 끝에서 하얗게 타닥타닥
+        ctx.fillStyle = `rgba(255,255,245,${a})`;
+        for (let j = 0; j < r.n; j++) if (Math.random() < 0.45) { const [px, py] = pos(j / r.n * 6.283 + r.seed + Math.random() * 0.2, b, r.sp * (0.8 + Math.random() * 0.3)); if (py < hy) ctx.fillRect(px, py, 1.6 * U, 1.6 * U); }
+        if (!r.crk && b > 0.75) { r.crk = 1; setTimeout(() => crackle(0.3), 600); }
       }
     }
   }
@@ -2654,18 +2678,35 @@ function addShot(a, ax, ay, color, mine) {
   const [sx, sy] = launchFrom(a), p = shotPlan(sx, sy, ax, ay);
   if (!p) return false;
   shots.push(Object.assign(p, { t0: performance.now(), c: PARASOLS[color % PARASOLS.length], mine, seed: Math.random() * 6, n: 90 }));
-  boom(0.25, 1600, 0.35);                      // 퓽
+  boom(0.35, 2000, 0.35);                      // 퓽
   setTimeout(() => boom(0.9 * (0.6 + 0.4 * p.h), 380, 1.4), p.T * 1000);   // 펑
   return true;
 }
-function boom(vol, freq, dur) {
+function boom(vol, freq, dur) {                // 펑: 낮은 울림에 휴대폰에서도 들리는 높은 '탁'을 겹친다
   if (!AC || !soundOn || AC.state !== 'running') return;
   try {
     const len = Math.floor(AC.sampleRate * dur), buf = AC.createBuffer(1, len, AC.sampleRate), d = buf.getChannelData(0);
     for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
     const src = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
-    f.type = 'lowpass'; f.frequency.value = freq; g.gain.value = vol * 0.5;
+    f.type = 'lowpass'; f.frequency.value = freq; g.gain.value = vol * 1.1;
     src.buffer = buf; src.connect(f); f.connect(g); g.connect(AC.destination); src.start();
+    const src2 = AC.createBufferSource(), f2 = AC.createBiquadFilter(), g2 = AC.createGain(), T = AC.currentTime;
+    f2.type = 'bandpass'; f2.frequency.value = 1800; f2.Q.value = 0.8;
+    g2.gain.setValueAtTime(vol * 1.4, T); g2.gain.exponentialRampToValueAtTime(0.0001, T + Math.min(0.5, dur * 0.4));
+    src2.buffer = buf; src2.connect(f2); f2.connect(g2); g2.connect(AC.destination); src2.start();
+  } catch (e) {}
+}
+function crackle(vol) {                        // 타닥타닥
+  if (!AC || !soundOn || AC.state !== 'running') return;
+  try {
+    const T = AC.currentTime;
+    for (let k = 0; k < 14; k++) {
+      const len = Math.floor(AC.sampleRate * 0.03), buf = AC.createBuffer(1, len, AC.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+      const src = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
+      f.type = 'highpass'; f.frequency.value = 2200; g.gain.value = vol * (0.5 + Math.random() * 0.5);
+      src.buffer = buf; src.connect(f); f.connect(g); g.connect(AC.destination); src.start(T + k * 0.05 + Math.random() * 0.06);
+    }
   } catch (e) {}
 }
 function hexRgb(c) { const n = parseInt(c.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255].join(','); }
@@ -5110,7 +5151,7 @@ function enter() {
   setTimeout(() => hint.classList.add('gone'), 9000);
 }
 document.getElementById('go').addEventListener('click', enter);
-if (FAST) window.__gh = { clue: () => clueN, clueXY: () => { const c = clueVisible(); if (!c) return null; const p = cluePos(c); return [xOf(p.x, p.d), yOf(p.d)]; }, goto: (x, d) => { me.x = me.vx = x; me.d = me.vd = d; me.tx = me.td = null; camX = x; }, news: () => askBottleNews(), bt: () => bottle && { st: bottle.state, first: bottle.first, reply: bottle.reply, text: bottle.text, can: bottle.can }, keeper: () => { const r = keeperRect(); return [r.x, r.y]; }, cross: crossTo, me: () => me, cam: v => { camX = v; }, peers: () => peers.size, st: () => [SCENE, myRoom, stoneSheet.classList.contains('on'), boatSheet.classList.contains('on')], stone: () => { const r = stoneRect(); return [r.x, r.y - r.h / 2]; }, boat: () => { const dE = edgeD(waveAt(now()).reach), b = boatSpot(); return [xOf(b.x, b.d), yOf(b.d)]; } };
+if (FAST) window.__gh = { rk: () => rockets.map(r => [r.kind, Math.round(r.yb), Math.round((performance.now() - r.t0))]), clue: () => clueN, clueXY: () => { const c = clueVisible(); if (!c) return null; const p = cluePos(c); return [xOf(p.x, p.d), yOf(p.d)]; }, goto: (x, d) => { me.x = me.vx = x; me.d = me.vd = d; me.tx = me.td = null; camX = x; }, news: () => askBottleNews(), bt: () => bottle && { st: bottle.state, first: bottle.first, reply: bottle.reply, text: bottle.text, can: bottle.can }, keeper: () => { const r = keeperRect(); return [r.x, r.y]; }, cross: crossTo, me: () => me, cam: v => { camX = v; }, peers: () => peers.size, st: () => [SCENE, myRoom, stoneSheet.classList.contains('on'), boatSheet.classList.contains('on')], stone: () => { const r = stoneRect(); return [r.x, r.y - r.h / 2]; }, boat: () => { const dE = edgeD(waveAt(now()).reach), b = boatSpot(); return [xOf(b.x, b.d), yOf(b.d)]; } };
 if (FAST) window.__pm = { mullet: () => mullet, glow: () => ({ glowK, pair: !!glowPair }), calm: () => calmOverride, sunset: () => sunTimes(now()).set, dbg: () => ({ edge: edgeD(waveAt(now()).reach), vd: me.vd, vx: me.vx, sit: me.sit, joined }), me, openOldBottle, onPicked, feet: () => feet, rememberWord, weekHint, castle: () => castles, items: () => items, setWX, buildCastle, addItem, spawnReset: () => { itemEpoch = -1; }, beaconWord, crabs: () => crabs, gull: () => gull, porpNow: () => { porpNext = 0; }, porp: () => porp, FIREWORKS, weekSentence, cst: () => cst, constelPts, lanterns, writings, dex: () => dex, high: () => HIGH_NOW, setSit, peers, xy: (x, d) => [xOf(x, d), yOf(d)], shots, aim: () => aimDrag, termToday, questionOf, qAnswers, flocks, gold: () => GOLD, hitQuestion, walkerNow, npc: () => npc, meteors, storyOf, ball: () => ballPos(now()), omok: () => omok, glassHave, mapHave, photoHave, mapPieceToday, openOldBottle, setOldBottle: () => { oldBottleAt = 0; }, giveAnchovy, flockG, stormStars: () => stormStars, toads, setNeck, onPicked, shellN: () => shellN };   // 시험용
 nick.addEventListener('keydown', e => { if (e.key === 'Enter') enter(); });
 })();
