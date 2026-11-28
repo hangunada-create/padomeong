@@ -2557,7 +2557,8 @@ function fwNights(ms) {                               // 2주마다 토요일 �
   for (let k = k0 - 1; k <= k0 + 2; k++) out.push([base + k * 14 * D, 10, '파도멍']);
   return out;
 }
-function fwList(ms) { return FIREWORKS.map(([at, mins, name]) => [Date.parse(at), mins, name]).concat(fwNights(ms)).sort((a, b) => a[0] - b[0]); }
+const FW_TEST = /fwtest/.test(location.hash) ? Date.now() : 0;   // 주소 끝에 #fwtest: 이 화면에서만, 들어온 때부터 10분 시험 불꽃
+function fwList(ms) { return FIREWORKS.map(([at, mins, name]) => [Date.parse(at), mins, name]).concat(fwNights(ms), FW_TEST ? [[FW_TEST, 10, '시험']] : []).sort((a, b) => a[0] - b[0]); }
 function fwState(ms) {
   const dk = v => Math.floor((v + 9 * 3600e3) / 864e5);
   for (const [s, mins, name] of fwList(ms)) {
@@ -2578,7 +2579,7 @@ function drawFireworks(pn, t) {
       const kind = FW_KINDS[Math.floor(Math.random() * FW_KINDS.length)];
       rockets.push({ kind, c2: FW_COLORS[Math.floor(Math.random() * FW_COLORS.length)], x: W * (0.28 + Math.random() * 0.6), yb: horizonY() * (0.18 + Math.random() * 0.35), t0: pn, c: FW_COLORS[Math.floor(Math.random() * FW_COLORS.length)], n: 40 + Math.floor(Math.random() * 30), sp: (60 + Math.random() * 50) * U, seed: Math.random() * 6 });
     }
-    if (joined) { if (!fwSeenAt) fwSeenAt = pn; if (!fwTold && pn - fwSeenAt > (FAST ? 2000 : 10000)) { fwTold = true; addItem('firework', `목포 ${st.name} 불꽃을 함께 봤어요 · 도감에 담았어요`); } }
+    if (joined && st.name !== '시험') { if (!fwSeenAt) fwSeenAt = pn; if (!fwTold && pn - fwSeenAt > (FAST ? 2000 : 10000)) { fwTold = true; addItem('firework', `목포 ${st.name} 불꽃을 함께 봤어요 · 도감에 담았어요`); } }
   }
   if (!rockets.length) return;
   const hy = horizonY();
