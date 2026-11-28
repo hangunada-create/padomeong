@@ -1109,7 +1109,7 @@ try {
   if (/first/.test(location.hash)) localStorage.removeItem('pm_letter1');
   else if (f0 && f0 !== '1' && f0 !== today0 && localStorage.getItem('pm_letter1') === null) localStorage.setItem('pm_letter1', '1');
 } catch (e) {}
-const FIRST_LETTER = '처음 온 당신에게. 여기서는 아무것도 하지 않아도 괜찮아요. 앉아서 파도 소리만 들어도 되고, 그냥 바라만 보다 가도 돼요. 언젠가 다음에 올 누군가에게 한 줄 남기고 싶어지면, 앉아서 유리병에 적어 띄워 보세요.\n— 파도멍을 만든 사람';
+const FIRST_LETTER = '처음 온 당신에게. 여기서는 아무것도 하지 않아도 괜찮아요. 앉아서 파도 소리만 들어도 되고, 그냥 바라만 보다 가도 돼요. 언젠가 다음에 올 누군가에게 한 줄 남기고 싶어지면, 앉아서 유리병에 적어 띄워 보세요.';
 function bottleTick(pn, dE) {
   if (joined && online && SCENE === 'beach' && !bottle && !waitingBottle) {
     if (!firstAt) firstAt = pn + (FAST ? 3000 : 20000);
